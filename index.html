@@ -3012,7 +3012,7 @@ function openCloudSetupModal(){
       <b>2.</b> In your project → left sidebar → <strong>Build → Realtime Database</strong><br>
       <span style="color:var(--txd);margin-left:16px">Click <strong>Create Database</strong> → choose region (e.g. <em>Singapore</em>) → <strong>Start in test mode</strong> → <strong>Enable</strong></span><br>
       <b>3.</b> The database URL appears at the top — copy it:<br>
-      <span style="color:var(--txd);margin-left:16px">Looks like: <code style="background:var(--sf3);padding:1px 5px;border-radius:3px">https://studio62-xxxxx-default-rtdb.firebaseio.com</code></span><br>
+      <span style="color:var(--txd);margin-left:16px">Looks like: <code style="background:var(--sf3);padding:1px 5px;border-radius:3px">https://studio62-xxxxx-default-rtdb.asia-southeast1.firebasedatabase.app</code></span><br>
       <b>4.</b> Left sidebar → <strong>Project settings</strong> (gear icon) → <strong>General</strong> tab<br>
       <span style="color:var(--txd);margin-left:16px">Under "Your apps" → Web app → copy the <strong>Web API Key</strong></span><br>
       <b>5.</b> Paste both below and click Connect
@@ -3021,7 +3021,7 @@ function openCloudSetupModal(){
 
   <div class="frow">
     <label class="flbl">Database URL <span style="color:var(--red)">*</span></label>
-    <input class="finp" id="fb-db-url" placeholder="https://studio62-xxxxx-default-rtdb.firebaseio.com"
+    <input class="finp" id="fb-db-url" placeholder="https://studio62-xxxxx-default-rtdb.asia-southeast1.firebasedatabase.app"
       value="${_fbCfg.dbUrl||''}" style="font-family:var(--fm);font-size:11px">
   </div>
   <div class="frow">
@@ -3052,7 +3052,7 @@ async function saveFbConfig(){
   const dbUrl  = (document.getElementById('fb-db-url')?.value||'').trim();
   const apiKey = (document.getElementById('fb-api-key')?.value||'').trim();
   if(!dbUrl){ showNotif('Database URL required','Paste your Firebase Realtime Database URL.'); return; }
-  if(!dbUrl.includes('firebaseio.com')){ showNotif('Invalid URL','Should end with .firebaseio.com'); return; }
+  if(!dbUrl.includes('firebaseio.com') && !dbUrl.includes('firebasedatabase.app')){ showNotif('Invalid URL','Should be your Firebase Realtime Database URL'); return; }
   if(!apiKey){ showNotif('API Key required','Paste your Firebase Web API Key.'); return; }
   _fbCfg = { dbUrl, apiKey, enabled:true };
   _fbInitDone = false; // force re-init
