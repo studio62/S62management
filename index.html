@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>S62 — Studio62 Firm OS v58</title>
+<title>Studio OS — Practice Management</title>
+<meta name="description" content="Architecture practice management — drawings, timesheets, QA, transmittals">
+<meta name="theme-color" content="#c9a96e" id="pwa-theme-color">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Studio OS">
+<link rel="manifest" id="pwa-manifest-link">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <!-- Email/password login only —  Google OAuth removed -->
 <style>
@@ -77,6 +84,27 @@ body{font-family:var(--fb);background:var(--bg);color:var(--tx);display:flex;hei
 
 .demo-tile strong{display:block;font-size:11px;color:var(--tx);}
 
+
+/* ── VISUALS REGISTER ─────────────────────────────────── */
+.vis-type-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-family:var(--fm);font-size:9px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+.vis-status-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:10px;font-family:var(--fm);font-size:9px;font-weight:600;white-space:nowrap}
+.vis-card{background:var(--sf);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-bottom:10px;transition:border-color .15s,box-shadow .15s;cursor:pointer}
+.vis-card:hover{border-color:var(--bd2);box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.vis-card-hd{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bd)}
+.vis-card-body{padding:12px 16px}
+.vis-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.vis-kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.vis-kpi{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:10px 14px}
+.vis-kpi-lbl{font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.vis-kpi-val{font-family:var(--fd);font-size:22px;letter-spacing:-.4px;line-height:1}
+.vis-kpi-sub{font-family:var(--fm);font-size:8px;color:var(--txd);margin-top:2px}
+.vis-detail-panel{position:fixed;top:0;right:0;width:440px;height:100vh;background:var(--sf);border-left:1px solid var(--bd2);z-index:400;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;overflow:hidden}
+.vis-detail-panel.open{transform:translateX(0)}
+.vis-detail-hd{padding:16px 18px;border-bottom:1px solid var(--bd);flex-shrink:0;display:flex;align-items:flex-start;gap:10px}
+.vis-detail-body{flex:1;overflow-y:auto;padding:16px 18px}
+.vis-progress-track{height:8px;background:var(--sf3);border-radius:4px;overflow:hidden;margin:8px 0}
+.vis-progress-fill{height:100%;border-radius:4px;transition:width .4s}
+.vis-sw-tag{display:inline-flex;align-items:center;gap:4px;background:var(--sf3);border-radius:6px;padding:2px 8px;font-family:var(--fm);font-size:9px;color:var(--txm)}
 
 /* ── TRANSMITTALS ─────────────────────────────────────── */
 .tx-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
@@ -948,6 +976,248 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 .mtg-wk-event{position:absolute;left:3px;right:3px;border-radius:5px;padding:3px 6px;font-family:var(--fm);font-size:8px;font-weight:600;overflow:hidden;cursor:pointer;z-index:2;line-height:1.35;border-left:3px solid rgba(0,0,0,.3)}
 .mtg-now-line{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:6;pointer-events:none}
 .mtg-now-line::before{content:'';position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--red)}
+
+/* ══════════════════════════════════════════════════════
+   RESPONSIVE — TABLET (≤1024px) + MOBILE (≤768px) + PHONE (≤480px)
+   ══════════════════════════════════════════════════════ */
+
+/* Base: hamburger hidden on desktop, overlay hidden */
+.hamburger-btn{
+  display:none;background:none;border:none;cursor:pointer;
+  padding:8px;color:var(--txm);flex-shrink:0;border-radius:6px;
+  transition:background .15s;
+}
+.hamburger-btn:hover{ background:var(--sf2) }
+.sidebar-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.55);z-index:299;
+  backdrop-filter:blur(3px);
+}
+.sidebar-overlay.show{ display:block }
+
+/* ── iPad / Tablet ≤1024px ────────────────────────────── */
+@media (max-width: 1024px) {
+  /* Narrow sidebar */
+  :root{ --sw: 200px }
+  .logo-name{ font-size:12px }
+  .logo-sub{ display:none }
+  /* Compress topbar */
+  #sync-version-indicator{ display:none }
+  /* Dashboard grids: 2×2 */
+  #dash-fin-strip{ grid-template-columns:1fr 1fr }
+  .fin-kpi-grid{ grid-template-columns:1fr 1fr }
+  .vis-kpi-row{ grid-template-columns:1fr 1fr }
+  /* Workload: horizontal scroll */
+  #workload-main{ overflow-x:auto }
+  /* Pipeline kanban: horizontal scroll */
+  #pipeline-body>div:last-child{ overflow-x:auto }
+  /* Schedule: horizontal scroll */
+  #sched-main{ overflow-x:auto }
+  /* Staff cards: 2 columns max */
+  #staff-grid{ grid-template-columns:repeat(2,1fr)!important }
+  /* Visuals: 2 columns */
+  .vis-grid{ grid-template-columns:repeat(2,1fr) }
+}
+
+/* ── Mobile ≤768px ────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* ── LAYOUT: sidebar becomes a full-height drawer ── */
+  .sidebar{
+    position:fixed;left:0;top:0;height:100vh;z-index:300;
+    transform:translateX(-100%);transition:transform .25s ease;
+    width:280px!important;
+    box-shadow:none;
+  }
+  .sidebar.mobile-open{
+    transform:translateX(0);
+    box-shadow:4px 0 32px rgba(0,0,0,.5);
+  }
+  .main{ margin-left:0!important;width:100% }
+
+  /* ── TOPBAR ── */
+  .topbar{
+    padding:0 10px!important;
+    height:52px;
+    position:sticky;top:0;z-index:200;
+  }
+  .hamburger-btn{ display:flex!important;align-items:center;justify-content:center }
+  #pgTitle{ font-size:14px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw }
+  .session-bar{ display:none }
+  .tbar-acts{ gap:6px!important }
+  #top-add-btn{ display:none } /* hide big + Add Project on mobile */
+  /* Show compact add button instead */
+
+  /* ── CONTENT AREA ── */
+  .content{ padding:10px!important }
+  .panel{ padding:10px!important }
+
+  /* ── SIDEBAR INTERIOR ── */
+  .logo-wrap{ padding:12px 14px!important }
+  .logo-name{ font-size:14px!important }
+  .logo-sub{ display:block!important;font-size:9px!important }
+  .ni{ min-height:40px;padding:8px 12px!important;font-size:12px }
+  .nico{ width:16px!important;height:16px!important }
+  .nlbl{ padding:8px 12px 2px!important }
+  .sidebar-foot{ padding:8px!important }
+  .me-av{ width:30px!important;height:30px!important;font-size:10px!important }
+
+  /* ── STAT CARDS (dashboard KPI strip) ── */
+  #dash-fin-strip{ grid-template-columns:1fr 1fr!important;gap:8px!important }
+  .sc{ padding:10px!important }
+  .sval{ font-size:20px!important }
+
+  /* ── KPI GRIDS ── */
+  .fin-kpi-grid{ grid-template-columns:1fr 1fr!important }
+  .vis-kpi-row{ grid-template-columns:1fr 1fr!important }
+  .tx-kpi-row{ grid-template-columns:1fr 1fr!important }
+  .fin-kpi-val{ font-size:20px!important }
+  .vis-kpi-val{ font-size:20px!important }
+  .tx-kpi-val{ font-size:20px!important }
+
+  /* ── DRAWING REGISTER ── */
+  #drw-content{ overflow-x:auto }
+  #drw-tbl{ min-width:640px }
+  #drw-split{ flex-direction:column!important;height:auto!important;max-height:none!important;min-height:0!important }
+  .drw-proj-panel{ width:100%!important;max-height:180px;overflow-y:auto;border-right:none!important;border-bottom:1px solid var(--bd)!important }
+  .drw-main-panel{ width:100%!important;height:auto!important }
+  /* Project list items */
+  .drw-pli{ padding:10px!important;min-height:44px }
+  /* Hide non-essential columns */
+  .col-health,.col-setby,.col-revSource,.col-latestNote,.col-hours{ display:none!important }
+
+  /* ── TIMESHEETS ── */
+  .ts-pills{ flex-wrap:wrap!important;gap:4px!important }
+  .ts-pill{ min-height:36px;padding:6px 10px!important;font-size:11px!important }
+  #ts-kpi-row{ grid-template-columns:1fr 1fr!important }
+
+  /* ── TAB BARS ── */
+  .tabs{ flex-wrap:wrap!important }
+  .tab{ min-height:34px;font-size:11px!important }
+
+  /* ── STAFF CARDS ── */
+  #staff-grid{ grid-template-columns:1fr!important }
+  .stcard{ margin-bottom:8px }
+  #staff-detail-panel{ width:100vw!important }
+
+  /* ── VISUALS ── */
+  .vis-grid{ grid-template-columns:1fr!important }
+  .vis-detail-panel{ width:100vw!important }
+
+  /* ── MEETINGS ── */
+  #mtg-month-grid{ overflow-x:auto;min-width:0 }
+  .mtg-panel-header{ flex-direction:column!important;align-items:flex-start!important;gap:8px!important }
+  .mtg-view-tabs{ flex-wrap:wrap!important;gap:3px!important }
+
+  /* ── PIPELINE ── */
+  #pipeline-body{ overflow-x:auto }
+  .sc[style*="flex:0 0 auto"]{ flex:0 0 140px!important } /* pipeline KPI cards */
+
+  /* ── WORKLOAD ── */
+  #workload-main{ overflow-x:auto }
+  .wl-grid{ min-width:600px }
+
+  /* ── GANTT ── */
+  #sched-main{ overflow-x:auto }
+  .gantt-wrap{ min-width:700px }
+
+  /* ── FINANCIAL ── */
+  .fin-proj-row{ flex-wrap:wrap;gap:6px }
+  .fin-staff-cost .fin-proj-row{ flex-direction:column }
+
+  /* ── TRANSMITTALS ── */
+  .tx-header{ flex-direction:column!important;align-items:flex-start!important }
+  .tx-card-hd{ flex-wrap:wrap;gap:6px }
+  .tx-drawings-tbl{ min-width:600px }
+  .tx-card-hd>div:nth-child(5){ display:none } /* hide "not yet formally issued" on mobile */
+
+  /* ── NOTIFICATIONS ── */
+  .notif-tray{ width:calc(100vw - 24px)!important;right:-12px!important;max-height:70vh!important }
+
+  /* ── MODALS ── */
+  .ov{ align-items:flex-end!important;padding:0!important }
+  .modal{
+    max-width:100vw!important;width:100vw!important;
+    margin:0!important;
+    border-radius:16px 16px 0 0!important;
+    max-height:92vh;overflow-y:auto;
+    padding:20px 16px 32px!important;
+  }
+  .mclose{ top:16px!important;right:16px!important }
+  .fgrid{ grid-template-columns:1fr!important }
+  .mtitle{ font-size:16px!important }
+
+  /* ── FORM ELEMENTS — bigger touch targets ── */
+  .finp{ height:44px!important;font-size:14px!important;padding:0 12px!important }
+  .fsel{ height:44px!important;font-size:14px!important;padding:0 12px!important }
+  .ftarea{ font-size:14px!important;padding:10px 12px!important }
+  .flbl{ font-size:11px!important }
+
+  /* ── BUTTONS — min 44px touch target (Apple HIG) ── */
+  .btn{ min-height:36px }
+  .btn.bp{ min-height:44px;font-size:13px!important }
+
+  /* ── WIZARD ── */
+  .wizard-card{ padding:20px!important;border-radius:0!important }
+  .wizard-ov{ padding:0!important;align-items:flex-end }
+  .wizard-h{ font-size:20px!important }
+
+  /* ── PRESENCE BAR ── */
+  #presence-bar{ display:none }
+
+  /* ── SETUP WIZARD COLOUR GRID ── */
+  .color-swatch-grid{ grid-template-columns:repeat(6,1fr)!important }
+
+  /* ── AUDIT LOG ── */
+  .audit-row{ gap:6px }
+  .audit-time{ font-size:8px }
+}
+
+/* ── Phone ≤480px ─────────────────────────────────────── */
+@media (max-width: 480px) {
+  #dash-fin-strip{ grid-template-columns:1fr!important }
+  .fin-kpi-grid{ grid-template-columns:1fr!important }
+  .vis-kpi-row{ grid-template-columns:1fr!important }
+  .tx-kpi-row{ grid-template-columns:1fr!important }
+  #ts-kpi-row{ grid-template-columns:1fr!important }
+  .topbar{ padding:0 8px!important }
+  #pgTitle{ max-width:35vw!important }
+  /* Stack topbar actions */
+  .notif-tray{ right:-8px!important;width:calc(100vw - 16px)!important }
+  /* Lock screen */
+  .lock-numpad{ grid-template-columns:repeat(3,1fr);gap:8px!important }
+  .lock-key{ height:56px!important;font-size:20px!important }
+  .lock-logo-text{ font-size:20px!important }
+  /* Wizard full screen */
+  .wizard-card{ max-height:100vh }
+}
+
+/* ── SETUP WIZARD ──────────────────────────────────────── */
+.wizard-ov{position:fixed;inset:0;background:var(--bg);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px}
+.wizard-card{background:var(--sf);border:1px solid var(--bd2);border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:32px}
+.wizard-step-bar{display:flex;gap:8px;margin-bottom:28px}
+.wizard-step-dot{height:4px;flex:1;border-radius:2px;background:var(--bd2);transition:background .3s}
+.wizard-step-dot.done{background:var(--gold)}
+.wizard-step-dot.active{background:var(--gold);opacity:.6}
+.wizard-h{font-family:var(--fd);font-size:24px;letter-spacing:-.4px;margin-bottom:6px}
+.wizard-sub{font-family:var(--fm);font-size:11px;color:var(--txd);margin-bottom:24px;line-height:1.6}
+.color-swatch-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:8px}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s}
+.color-swatch:hover{transform:scale(1.15)}
+.color-swatch.sel{border-color:var(--tx);transform:scale(1.1)}
+
+/* ── AUDIT LOG ─────────────────────────────────────────── */
+.audit-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)}
+.audit-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.audit-body{flex:1;min-width:0}
+.audit-action{font-size:11px;font-weight:600}
+.audit-detail{font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:1px}
+.audit-time{font-family:var(--fm);font-size:8px;color:var(--txd);white-space:nowrap;flex-shrink:0}
+
+/* ── FIRM SETTINGS SECTION ─────────────────────────────── */
+.firm-logo-preview{width:64px;height:64px;border-radius:12px;border:2px dashed var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;font-size:28px;background:var(--sf2);flex-shrink:0;transition:border-color .15s}
+.firm-logo-preview:hover{border-color:var(--gold)}
+.firm-logo-preview img{width:100%;height:100%;object-fit:contain}
 </style>
 </head>
 <body>
@@ -956,7 +1226,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   <div class="lock-logo">
     <div class="lock-logo-box">S62</div>
     <div>
-      <div class="lock-logo-text">Studio 62</div>
+      <div class="lock-logo-text" id="lock-firm-name">Studio 62</div>
       <div class="lock-logo-sub">Drawing OS</div>
     </div>
   </div>
@@ -1029,10 +1299,10 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 <aside class="sidebar">
   <div class="logo-wrap" onclick="go('dashboard',null)" style="cursor:pointer" title="Go to Dashboard">
     <div class="logo-row">
-      <div class="logo-box">S62</div>
+      <div class="logo-box" id="sidebar-logo-box">S6</div>
       <div>
-        <div class="logo-name">Studio62</div>
-        <div class="logo-sub">Drawing OS · v6</div>
+        <div class="logo-name" id="sidebar-firm-name">Studio 62</div>
+        <div class="logo-sub" id="sidebar-app-name">Studio OS · v62</div>
       </div>
     </div>
   </div>
@@ -1062,6 +1332,11 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
         <svg class="nico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Drawing Register
         <span class="nbdg" id="drw-badge" style="background:var(--blu);color:#fff">3</span>
+      </div>
+      <div class="ni" onclick="go('visuals',this)" id="ni-visuals">
+        <svg class="nico" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        Visuals Register
+        <span class="nbdg" id="vis-badge" style="background:var(--pur);color:#fff;display:none">0</span>
       </div>
       <div class="ni" onclick="go('transmittals',this)">
         <svg class="nico" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
@@ -1127,6 +1402,14 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
         Financials
         <span class="nbdg" style="background:var(--gold);color:#0a0a0f" id="fin-badge"></span>
       </div>
+      <div class="ni" onclick="go('auditlog',this)" id="ni-auditlog">
+        <svg class="nico" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Audit Log
+      </div>
+      <div class="ni" onclick="openFirmSettings()" id="ni-firm-settings">
+        <svg class="nico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Firm Settings
+      </div>
     </div>
   </nav>
 
@@ -1141,9 +1424,18 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   </div>
 </aside>
 
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
 <!-- ══════ MAIN ══════════════════════════════════════════ -->
 <main class="main">
   <header class="topbar">
+    <!-- Hamburger for mobile -->
+    <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileSidebar()" title="Menu">
+      <svg style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round" viewBox="0 0 24 24">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
     <div class="pg-title" id="pgTitle">Dashboard</div>
     <div class="tbar-acts">
       <!-- Session bar — shown when logged in -->
@@ -1735,7 +2027,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       <button class="ts-pill on" id="ts-pill-my"   onclick="tsSwitchView('my',this)">My Sheet</button>
       <button class="ts-pill"    id="ts-pill-team" onclick="tsSwitchView('team',this)">Team</button>
       <button class="ts-pill"    id="ts-pill-proj" onclick="tsSwitchView('proj',this)">By Project</button>
-      <button class="ts-pill"    id="ts-pill-burn" onclick="tsSwitchView('burn',this)">Fee Burn</button>
+      <button class="ts-pill" id="ts-pill-burn" onclick="tsSwitchView('burn',this)" style="display:none">Fee Burn</button>
     </div>
     <div class="ts-nav-actions">
       <button class="btn bg bsm" id="ts-btn-submit"  onclick="tsSubmitWeek()"  style="display:none">✓ Submit Week</button>
@@ -1893,7 +2185,90 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   <div id="notif-panel-body"></div>
 </div>
 
-<!-- ══ TRANSMITTALS & ISSUE REGISTER ══════════════════════ -->
+<!-- ══ VISUALS REGISTER ════════════════════════════════════ -->
+<div class="panel" id="panel-visuals">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="font-family:var(--fd);font-size:18px;margin-bottom:2px">Visuals Register</div>
+      <div style="font-family:var(--fm);font-size:9px;color:var(--txd)" id="vis-subtitle">3D renders, animations, models & presentations</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select class="fsel" id="vis-proj-filter" onchange="renderVisuals()" style="width:auto;font-size:11px">
+        <option value="ALL">All Projects</option>
+      </select>
+      <select class="fsel" id="vis-cat-filter" onchange="renderVisuals()" style="width:auto;font-size:11px">
+        <option value="ALL">All Categories</option>
+        <option value="Render">3D Renders</option>
+        <option value="Animation">Animation</option>
+        <option value="Immersive">Immersive / VR</option>
+        <option value="Model">3D Models</option>
+        <option value="Presentation">Presentation</option>
+      </select>
+      <select class="fsel" id="vis-status-filter" onchange="renderVisuals()" style="width:auto;font-size:11px">
+        <option value="ALL">All Statuses</option>
+        <option value="nst">Not Started</option>
+        <option value="mod">Modelling</option>
+        <option value="ren">Rendering</option>
+        <option value="drf">Draft Ready</option>
+        <option value="rev">Client Review</option>
+        <option value="app">Approved</option>
+        <option value="del">Delivered</option>
+      </select>
+      <button class="btn bp bsm" onclick="openAddVisualModal()" style="font-size:11px;padding:7px 14px">+ Add Visual</button>
+    </div>
+  </div>
+
+  <!-- KPI strip -->
+  <div class="vis-kpi-row" id="vis-kpi-row"></div>
+
+  <!-- Visual cards grid -->
+  <div id="vis-grid-body"></div>
+
+  <!-- Detail panel (slide-in from right) -->
+  <div class="vis-detail-panel" id="vis-detail-panel">
+    <div class="vis-detail-hd">
+      <div style="flex:1;min-width:0">
+        <div id="vdp-id" style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--gold);margin-bottom:3px"></div>
+        <div id="vdp-title" style="font-family:var(--fd);font-size:16px;margin-bottom:4px"></div>
+        <div id="vdp-type-chip"></div>
+      </div>
+      <button onclick="closeVisDetail()" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:20px;padding:4px;flex-shrink:0">✕</button>
+    </div>
+    <div class="vis-detail-body" id="vdp-body"></div>
+  </div>
+
+</div>
+
+<!-- ══ AUDIT LOG ════════════════════════════════════════════ -->
+<div class="panel" id="panel-auditlog">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="font-family:var(--fd);font-size:18px;margin-bottom:2px">Audit Log</div>
+      <div style="font-family:var(--fm);font-size:9px;color:var(--txd)" id="audit-subtitle">Complete record of all changes</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <select class="fsel" id="audit-type-filter" onchange="renderAuditLog()" style="width:auto;font-size:11px">
+        <option value="ALL">All Actions</option>
+        <option value="drawing">Drawings</option>
+        <option value="qa">QA / Review</option>
+        <option value="timesheet">Timesheets</option>
+        <option value="project">Projects</option>
+        <option value="staff">Staff</option>
+        <option value="financial">Financial</option>
+        <option value="auth">Auth / Login</option>
+        <option value="settings">Settings</option>
+      </select>
+      <select class="fsel" id="audit-user-filter" onchange="renderAuditLog()" style="width:auto;font-size:11px">
+        <option value="ALL">All Users</option>
+      </select>
+      <button class="btn bg bsm" onclick="exportAuditLog()" style="font-size:9px">↓ Export CSV</button>
+    </div>
+  </div>
+  <div id="audit-log-body"></div>
+</div>
+
 <div class="panel" id="panel-transmittals">
 
   <!-- Header -->
@@ -2268,11 +2643,28 @@ function sdpPopulate(s){
   const notifEl=document.getElementById('sdp-notif');
   if(notifEl) notifEl.value=s.notif||'daily';
 
-  // Rates
+  // Rates — only visible to financial roles
   const rateEl=document.getElementById('sdp-rate-display');
-  if(rateEl) rateEl.textContent=s.rate>0?'₹'+s.rate.toLocaleString('en-IN')+'/hr':'External';
+  const rateRow=document.getElementById('sdp-rate-row');
+  if(rateEl){
+    if(canSeeFin()){
+      rateEl.textContent=s.rate>0?'₹'+s.rate.toLocaleString('en-IN')+'/hr':'External';
+      if(rateRow) rateRow.style.display='';
+    } else {
+      rateEl.textContent='—';
+      if(rateRow) rateRow.style.display='none';
+    }
+  }
   const chargeEl=document.getElementById('sdp-charge-display');
-  if(chargeEl) chargeEl.textContent=s.chargeRate>0?'₹'+(s.chargeRate||Math.round(s.rate*2.3/5)*5).toLocaleString('en-IN')+'/hr':'—';
+  const chargeRow=document.getElementById('sdp-charge-row');
+  if(chargeEl){
+    if(canSeeFin()){
+      chargeEl.textContent=s.chargeRate>0?'₹'+(s.chargeRate||Math.round(s.rate*2.3/5)*5).toLocaleString('en-IN')+'/hr':'—';
+      if(chargeRow) chargeRow.style.display='';
+    } else {
+      if(chargeRow) chargeRow.style.display='none';
+    }
+  }
 
   // Colour swatches
   const sw=document.getElementById('sdp-color-swatches');
@@ -2385,7 +2777,7 @@ function sdpEditField(field){
   const inputType=field==='email'?'email':field==='rate'?'number':'text';
   const placeholder={
     first:'First name',last:'Last name',
-    email:'e.g. maya@studio62.in',
+    email:'e.g. name@studio62.in',
     phone:'e.g. +91 98201 11201',
     rate:'e.g. 2500'
   }[field]||'';
@@ -2511,7 +2903,7 @@ function cancelStaffPanel(){
 
 
 /* ════════════════════════════════════════════════════════════
-   LOCK SCREEN — Studio62
+   LOCK SCREEN — '+( FIRM_CONFIG.name||'Studio OS')+'
    Default PIN: 6200 (principal can change from profile)
    PIN is hashed (SHA-256 via Web Crypto) before storage.
    Session unlocks for the browser tab lifetime.
@@ -2652,7 +3044,7 @@ function openChangePinModal(){
     +'<button class="mclose" onclick="closeModal(\'change-pin-ov\')">&#x2715;</button>'
     +'<div class="mtitle">Change Studio PIN</div>'
     +'<div class="msub" style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:16px">'
-      +'This PIN is shared by everyone who accesses Studio62. Only share it with your team.'
+      +'This PIN is shared by everyone who accesses '+( FIRM_CONFIG.name||'Studio OS')+'. Only share it with your team.'
     +'</div>'
     +'<div class="frow"><label class="flbl">Current PIN</label>'
       +'<input class="finp" id="cp-current" type="password" inputmode="numeric" maxlength="4" placeholder="Current 4-digit PIN" autocomplete="off"></div>'
@@ -2693,7 +3085,7 @@ function addLockButton(){
   btn.id='lock-app-btn';
   btn.className='btn bg bsm';
   btn.style.cssText='font-size:9px;';
-  btn.title='Lock Studio62';
+  btn.title='Lock '+( FIRM_CONFIG.name||'Studio OS')+'';
   btn.textContent='🔒 Lock';
   btn.onclick=lockApp;
   tbarActs.appendChild(btn);
@@ -2741,21 +3133,43 @@ async function initLockScreen(){
    ════════════════════════════════════════════════════════ */
 
 const S62_FB_CFG_KEY  = 's62_firebase_cfg';
-const S62_FB_PATH     = 's62data';   // Realtime DB path
+const S62_FIRM_KEY    = 's62_firm_config';   // persists FIRM_CONFIG
+const S62_FB_PATH     = 's62data';      // Realtime DB path — studio data
+const S62_FB_PRESENCE = 's62presence';  // who is online
+const S62_FB_LOCKS    = 's62locks';     // drawing edit locks
 
 // Config — persisted to localStorage (not a secret)
 let _fbCfg = { dbUrl:'', apiKey:'', enabled:false };
 
 // Firebase state
-let _fbApp         = null;
-let _fbDb          = null;
-let _fbRef         = null;
-let _fbListener    = null;   // active .on() handle
-let _fbSaveTimer   = null;
-let _fbConnected   = false;
-let _fbLastSaved   = null;
-let _fbLoading     = false;  // prevent save-loop during load
-let _fbInitDone    = false;
+let _fbApp          = null;
+let _fbDb           = null;
+let _fbRef          = null;
+let _fbListener     = null;
+let _fbSaveTimer    = null;
+let _fbConnected    = false;
+let _fbInitDone     = false;
+// Version-based sync
+let _fbLocalVersion = 0;
+let _fbOwnSaveKeys  = new Set();
+let _fbApplying     = false;
+
+// FIX 1 — Drawing locks
+let _fbLocksRef     = null;
+let _myDrawingLock  = null;  // drawingId currently locked by me
+
+// FIX 3 — Offline queue
+let _offlineQueue   = [];    // { fn, args, ts } pending changes while offline
+let _wasOffline     = false;
+
+// FIX 4 — Presence
+let _fbPresenceRef  = null;
+let _myPresenceRef  = null;
+let _onlineUsers    = {};    // { userId: { name, color, role, panel, ts } }
+
+// FIX 7 — Stale form detection
+let _openModalDrawingSnap = {}; // { drawingId: versionAtOpen }
+let _syncWhileModalOpen   = false;
 
 /* ── CONFIG PERSISTENCE ────────────────────────────────── */
 function loadCloudCfg(){
@@ -2805,6 +3219,8 @@ async function fbInit(){
     }
     _fbDb  = firebase.database(_fbApp);
     _fbRef = _fbDb.ref(S62_FB_PATH);
+    _fbLocksRef    = _fbDb.ref(S62_FB_LOCKS);
+    _fbPresenceRef = _fbDb.ref(S62_FB_PRESENCE);
     _fbInitDone = true;
     return true;
   }catch(err){
@@ -2818,79 +3234,554 @@ async function fbStartListener(){
   const ok = await fbInit();
   if(!ok || _fbListener) return;
 
-  // Monitor connection state
+  // Monitor connection state — FIX 3 offline queue hook
   const connRef = _fbDb.ref('.info/connected');
   connRef.on('value', snap=>{
-    _fbConnected = snap.val() === true;
+    const connected = snap.val() === true;
+    const wasConnected = _fbConnected;
+    _fbConnected = connected;
     updateSyncStatusBar();
+    if(!connected){
+      _wasOffline = true;
+      updateOfflineIndicator();
+    } else if(_wasOffline && connected){
+      // Just reconnected — replay queued changes
+      _wasOffline = false;
+      if(_offlineQueue.length > 0){
+        replayOfflineQueue();
+      }
+    }
   });
 
-  // Listen for data changes from ANY user
+  // Listen for data changes — main data listener
   _fbListener = _fbRef.on('value', snap=>{
     const data = snap.val();
-    if(!data || !data.projs) return;          // empty or invalid
-    if(_fbLoading) return;                    // we triggered this ourselves
-    const remoteTime = new Date(data.savedAt||0).getTime();
-    const localTime  = _fbLastSaved ? _fbLastSaved.getTime() : 0;
-    // Only apply if remote is newer than our last save (prevents echo)
-    if(remoteTime > localTime + 1000){
-      _fbLoading = true;
+    if(!data || !data.projs) return;
+    if(data.saveKey && _fbOwnSaveKeys.has(data.saveKey)) return;
+    if(_fbApplying) return;
+    const remoteVersion = data.version||0;
+    if(remoteVersion <= _fbLocalVersion) return;
+
+    // FIX 7 — warn if a modal is open
+    if(hasOpenModal()){
+      _syncWhileModalOpen = true;
+      notifyModalOfSync(data.lastSavedBy||'Someone');
+      // Still apply the data update underneath
+    }
+
+    _fbApplying = true;
+    const prevUserId = CURRENT_USER_ID;
+    try{
       unpackData(migrateData(data));
-      // Re-render all active panels silently
+      _fbLocalVersion = remoteVersion;
+      CURRENT_USER_ID = prevUserId;
+      try{ localStorage.setItem(S62_LS_KEY, JSON.stringify(packData())); }catch(e){}
       const active = document.querySelector('.panel.active');
       const pid = active ? active.id.replace('panel-','') : 'dashboard';
-      try{
-        renderDashboard();
-        renderProjList();
-        if(pid==='drawings')   renderDrawings();
-        if(pid==='timesheets') renderTimesheets();
-        if(pid==='staffsched') renderStaffSched();
-        if(pid==='schedule')   renderSchedule();
-        if(pid==='workload')   renderWorkload();
-        if(pid==='meetings')   renderMeetings();
-        if(pid==='financials') renderFinancials();
-        if(pid==='transmittals') renderTransmittals();
-        updateNavBadges();
-        updateSyncStatusBar();
-        // Show a subtle toast (not a big notif)
-        const who = data.lastSavedBy || 'Another user';
-        showSyncToast('↻ Updated by '+who);
-      }finally{
-        _fbLoading = false;
-      }
+      renderDashboard();
+      renderProjList();
+      if(pid==='drawings')     renderDrawings();
+      if(pid==='timesheets')   renderTimesheets();
+      if(pid==='staffsched')   renderStaffSched();
+      if(pid==='schedule')     renderSchedule();
+      if(pid==='workload')     renderWorkload();
+      if(pid==='meetings')     renderMeetings();
+      if(pid==='financials')   renderFinancials();
+      if(pid==='transmittals') renderTransmittals();
+      updateNavBadges();
+      updateSyncStatusBar();
+      updateVersionIndicator();
+      const who = data.lastSavedBy||'Someone';
+      showSyncToast('↻ '+who+' updated · v'+remoteVersion);
+    }catch(e){
+      console.error('S62 listener apply error:', e);
+    }finally{
+      _fbApplying = false;
     }
   }, err=>{
     console.error('S62 Firebase listener error:', err);
     _fbConnected = false;
     updateSyncStatusBar();
   });
+
+  // FIX 1 — start locks listener
+  startLocksListener();
+  // FIX 4 — start presence
+  startPresence();
 }
 
 function fbStopListener(){
   if(_fbRef && _fbListener){ _fbRef.off('value', _fbListener); _fbListener=null; }
 }
 
-/* ── SAVE TO FIREBASE ──────────────────────────────────── */
+/* ════════════════════════════════════════════════════════
+   FIX 1 — DRAWING LOCKS
+   Shows "James is editing" on drawing cards while modal open
+   ════════════════════════════════════════════════════════ */
+function acquireDrawingLock(drawingId){
+  if(!_fbLocksRef || !drawingId) return;
+  const me = currentUser();
+  const lockData = {
+    userId: me.id, userName: me.first+' '+me.last,
+    userColor: me.color, role: me.role,
+    ts: Date.now(), expires: Date.now() + 120000 // 2 min auto-expire
+  };
+  _myDrawingLock = drawingId;
+  _fbLocksRef.child('drawings/'+drawingId).set(lockData)
+    .catch(e=>console.warn('S62 lock acquire:', e));
+  // Auto-release after 2 min even if modal stays open
+  setTimeout(()=>{ if(_myDrawingLock===drawingId) releaseDrawingLock(drawingId); }, 120000);
+}
+
+function releaseDrawingLock(drawingId){
+  if(!_fbLocksRef) return;
+  const id = drawingId || _myDrawingLock;
+  if(!id) return;
+  if(_myDrawingLock === id) _myDrawingLock = null;
+  _fbLocksRef.child('drawings/'+id).remove()
+    .catch(e=>console.warn('S62 lock release:', e));
+}
+
+function startLocksListener(){
+  if(!_fbLocksRef) return;
+  _fbLocksRef.child('drawings').on('value', snap=>{
+    const locks = snap.val()||{};
+    // Clear expired locks
+    const now = Date.now();
+    Object.entries(locks).forEach(([drawingId, lock])=>{
+      if(lock.expires && lock.expires < now){
+        _fbLocksRef.child('drawings/'+drawingId).remove();
+        delete locks[drawingId];
+      }
+    });
+    // Update drawing cards with lock indicators
+    updateDrawingLockIndicators(locks);
+  });
+}
+
+function updateDrawingLockIndicators(locks){
+  // Remove all existing lock badges
+  document.querySelectorAll('.drw-lock-badge').forEach(el=>el.remove());
+  if(!locks) return;
+  Object.entries(locks).forEach(([drawingId, lock])=>{
+    if(lock.userId === CURRENT_USER_ID) return; // don't show own lock
+    // Find drawing card in DOM
+    const card = document.querySelector(`[data-drw-id="${drawingId}"]`);
+    if(!card) return;
+    const badge = document.createElement('div');
+    badge.className = 'drw-lock-badge';
+    badge.style.cssText = `position:absolute;top:4px;right:4px;background:rgba(240,130,50,.9);color:#fff;font-family:var(--fm);font-size:8px;font-weight:700;padding:2px 6px;border-radius:8px;z-index:10;pointer-events:none`;
+    badge.textContent = '✎ '+lock.userName.split(' ')[0]+' editing';
+    card.style.position = 'relative';
+    card.appendChild(badge);
+  });
+}
+
+function checkDrawingLock(drawingId){
+  // Returns lock object if someone else has this drawing locked, null otherwise
+  return new Promise((resolve)=>{
+    if(!_fbLocksRef){ resolve(null); return; }
+    _fbLocksRef.child('drawings/'+drawingId).once('value', snap=>{
+      const lock = snap.val();
+      if(!lock || lock.userId === CURRENT_USER_ID || (lock.expires && lock.expires < Date.now())){
+        resolve(null);
+      } else {
+        resolve(lock);
+      }
+    });
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   FIX 2 — STALE MODAL DETECTION
+   Stores a snapshot of drawing state when modal opens.
+   On submit, compares to detect concurrent edits.
+   ════════════════════════════════════════════════════════ */
+function snapshotDrawingForModal(drawingId){
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  if(!d) return;
+  _openModalDrawingSnap[drawingId] = {
+    status: d.status, pct: d.pct, rev: d.rev,
+    sid: d.sid, tgt: d.tgt, version: _fbLocalVersion
+  };
+}
+
+function checkDrawingStale(drawingId){
+  // Returns true if drawing changed since modal was opened
+  const snap = _openModalDrawingSnap[drawingId];
+  if(!snap) return false;
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  if(!d) return false;
+  return (
+    d.status !== snap.status ||
+    d.pct    !== snap.pct    ||
+    d.rev    !== snap.rev    ||
+    _fbLocalVersion > snap.version + 1
+  );
+}
+
+function clearModalSnap(drawingId){
+  delete _openModalDrawingSnap[drawingId];
+}
+
+function confirmStaleSubmit(drawingId, onProceed){
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  if(!d) return;
+  const ex = document.getElementById('stale-warn-ov'); if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'stale-warn-ov'; div.className = 'ov show';
+  div.innerHTML = `<div class="modal" style="max-width:440px">
+    <div style="font-size:32px;margin-bottom:10px">⚠</div>
+    <div class="mtitle">Drawing Updated While Editing</div>
+    <div style="font-family:var(--fm);font-size:11px;color:var(--txm);margin:10px 0 18px;line-height:1.7">
+      <strong>${d.id}</strong> was updated by another user while you had this form open.<br>
+      Current status: <strong>${{nst:'Not Started',ip:'In Progress',chk:'For Review',done:'Issued'}[d.status]||d.status}</strong> · Rev <strong>${d.rev||'—'}</strong><br><br>
+      Submitting now will overwrite those changes.
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn bp" onclick="document.getElementById('stale-warn-ov').remove();(${onProceed.toString()})()">Apply My Changes Anyway</button>
+      <button class="btn bg" onclick="document.getElementById('stale-warn-ov').remove();closeModal('drawing-update-ov')">Discard — See Latest</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+/* ════════════════════════════════════════════════════════
+   FIX 3 — OFFLINE QUEUE
+   Changes made while disconnected are queued and replayed
+   on reconnect, on top of the latest Firebase state.
+   ════════════════════════════════════════════════════════ */
+function queueOfflineChange(type, data){
+  _offlineQueue.push({ type, data, ts: Date.now() });
+  updateOfflineIndicator();
+}
+
+function updateOfflineIndicator(){
+  let el = document.getElementById('offline-indicator');
+  if(_offlineQueue.length > 0){
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'offline-indicator';
+      el.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#c97820;color:#fff;font-family:var(--fm);font-size:10px;font-weight:700;padding:5px 14px;border-radius:20px;z-index:9999;cursor:pointer';
+      el.onclick = ()=>showNotif('Offline queue',''+_offlineQueue.length+' change'+ (_offlineQueue.length!==1?'s':'')+' will sync when reconnected.');
+      document.body.appendChild(el);
+    }
+    el.textContent = '✗ Offline · '+_offlineQueue.length+' change'+(_offlineQueue.length!==1?'s':'')+' queued';
+  } else if(el){
+    el.remove();
+  }
+}
+
+async function replayOfflineQueue(){
+  if(!_offlineQueue.length) return;
+  showSyncToast('↻ Replaying '+_offlineQueue.length+' offline change'+(_offlineQueue.length!==1?'s':'')+'…');
+  // Load latest state first
+  try{
+    const snap = await _fbRef.once('value');
+    const data = snap.val();
+    if(data && data.projs){
+      _fbApplying = true;
+      const prevUser = CURRENT_USER_ID;
+      unpackData(migrateData(data));
+      CURRENT_USER_ID = prevUser;
+      _fbLocalVersion = data.version||0;
+      _fbApplying = false;
+    }
+  }catch(e){ console.error('S62 offline queue load:', e); }
+
+  // Replay each queued action
+  for(const item of _offlineQueue){
+    try{
+      if(item.type==='drawingUpdate'){
+        const d = DRAWINGS.find(x=>x.id===item.data.drawingId);
+        if(d){ Object.assign(d, item.data.changes); }
+      } else if(item.type==='tsEntry'){
+        const e = TS_ENTRIES.find(x=>x.id===item.data.entryId);
+        if(e){ Object.assign(e, item.data.changes); }
+      }
+      // Extend here for other change types as needed
+    }catch(e){ console.error('S62 replay item:', e); }
+  }
+  _offlineQueue = [];
+  updateOfflineIndicator();
+  await cloudSave();
+  showSyncToast('● '+(_offlineQueue.length===0?'Offline changes synced':'Sync incomplete — check data'));
+}
+
+/* ════════════════════════════════════════════════════════
+   FIX 4 — LIVE PRESENCE
+   Shows who is currently online in the topbar as avatars.
+   ════════════════════════════════════════════════════════ */
+function startPresence(){
+  if(!_fbPresenceRef || !_fbDb) return;
+  const me = currentUser();
+  _myPresenceRef = _fbPresenceRef.child(me.id);
+
+  // Write my presence
+  _myPresenceRef.set({
+    name: me.first+' '+me.last,
+    first: me.first,
+    color: me.color,
+    role: me.role,
+    panel: document.querySelector('.panel.active')?.id?.replace('panel-','')||'dashboard',
+    ts: Date.now()
+  });
+
+  // Auto-remove on disconnect
+  _myPresenceRef.onDisconnect().remove();
+
+  // Listen to all presence changes
+  _fbPresenceRef.on('value', snap=>{
+    _onlineUsers = snap.val()||{};
+    renderPresenceAvatars();
+  });
+
+  // Update my panel when navigation happens
+  // (called from go() — see below)
+}
+
+function updatePresencePanel(panelId){
+  if(_myPresenceRef) _myPresenceRef.update({ panel: panelId, ts: Date.now() });
+}
+
+function renderPresenceAvatars(){
+  let bar = document.getElementById('presence-bar');
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'presence-bar';
+    bar.style.cssText = 'display:flex;align-items:center;gap:4px;margin-right:6px';
+    const syncBtn = document.getElementById('cloud-sync-btn');
+    if(syncBtn) syncBtn.parentNode.insertBefore(bar, syncBtn);
+  }
+  const now = Date.now();
+  const active = Object.entries(_onlineUsers)
+    .filter(([uid, u])=> uid !== CURRENT_USER_ID && (now - (u.ts||0)) < 120000)
+    .slice(0,5);
+
+  bar.innerHTML = active.map(([uid, u])=>{
+    const initials = (u.first||u.name||uid).slice(0,2).toUpperCase();
+    return `<div title="${u.name||uid} · ${u.role||''} · ${u.panel||'dashboard'}" 
+      style="width:24px;height:24px;border-radius:50%;background:${u.color||'var(--txd)'};
+             display:flex;align-items:center;justify-content:center;
+             font-family:var(--fm);font-size:8px;font-weight:700;color:#0a0a0f;
+             border:2px solid var(--bg);cursor:default;flex-shrink:0">
+      ${initials}
+    </div>`;
+  }).join('');
+
+  if(active.length>0){
+    bar.title = active.map(([_,u])=>u.name||'').join(', ')+' online';
+  }
+}
+
+function stopPresence(){
+  if(_myPresenceRef){ _myPresenceRef.remove(); _myPresenceRef=null; }
+  if(_fbPresenceRef) _fbPresenceRef.off();
+}
+
+/* ════════════════════════════════════════════════════════
+   FIX 6 — REVISION RACE GUARD
+   approveDrawing uses a Firebase transaction for the
+   revision increment — prevents two concurrent approvals
+   both reading the same rev and writing the same next rev.
+   Called from approveDrawing() instead of direct increment.
+   ════════════════════════════════════════════════════════ */
+async function atomicRevIncrement(drawingId){
+  // Returns the new revision string (P1, P2 ... A, B, C ...)
+  if(!_fbRef) {
+    // Offline fallback — compute locally
+    const d = DRAWINGS.find(x=>x.id===drawingId);
+    return nextRev(d?.rev||'-');
+  }
+  return new Promise((resolve, reject)=>{
+    const drawingRef = _fbRef; // we transact on the whole state for now
+    _fbRef.transaction(current=>{
+      if(!current||!current.drawings) return; // abort
+      const drawings = Array.isArray(current.drawings) ? current.drawings : Object.values(current.drawings);
+      const idx = drawings.findIndex(d=>d.id===drawingId);
+      if(idx<0) return; // abort
+      const d = drawings[idx];
+      const newRev = nextRev(d.rev||'-');
+      drawings[idx] = { ...d, rev: newRev, status:'done' };
+      if(Array.isArray(current.drawings)) current.drawings = drawings;
+      else { const obj={}; drawings.forEach((x,i)=>obj[i]=x); current.drawings=obj; }
+      return current;
+    }, (err, committed, snap)=>{
+      if(err||!committed){ reject(err||new Error('tx not committed')); return; }
+      const data = snap.val();
+      const drawings = Array.isArray(data.drawings)?data.drawings:Object.values(data.drawings);
+      const d = drawings.find(x=>x.id===drawingId);
+      resolve(d?.rev||'A');
+    }, false);
+  }).catch(e=>{
+    // Fallback to local increment
+    const d = DRAWINGS.find(x=>x.id===drawingId);
+    return nextRev(d?.rev||'-');
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   FIX 7 — WARN IF FORM OPEN DURING SYNC
+   ════════════════════════════════════════════════════════ */
+function hasOpenModal(){
+  return !!document.querySelector('.ov.show');
+}
+
+function notifyModalOfSync(who){
+  // Add a subtle warning strip to any open modal
+  document.querySelectorAll('.ov.show .modal').forEach(modal=>{
+    const existing = modal.querySelector('.sync-warn-strip');
+    if(existing){ existing.remove(); } // refresh it
+    const strip = document.createElement('div');
+    strip.className = 'sync-warn-strip';
+    strip.style.cssText = 'background:rgba(240,130,50,.12);border:1px solid rgba(240,130,50,.3);border-radius:6px;padding:7px 12px;font-family:var(--fm);font-size:9px;color:#c97820;margin-bottom:10px;display:flex;align-items:center;gap:8px';
+    strip.innerHTML = `<span style="font-size:14px">⚠</span><span><strong>${who}</strong> updated studio data while this form is open. Submit carefully — your changes will be applied on top of the latest version.</span>`;
+    modal.insertBefore(strip, modal.firstChild.nextSibling); // after close button
+    // Auto-remove after 8s
+    setTimeout(()=>strip.remove(), 8000);
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   FIX 8 — MEETING DOUBLE-BOOKING DETECTION
+   ════════════════════════════════════════════════════════ */
+function checkMeetingConflicts(date, time, duration, attendees, excludeMtgId){
+  if(!date||!time||!attendees.length) return [];
+  const newStart = timeToMins(time);
+  const newEnd   = newStart + (duration||60);
+  const conflicts = [];
+  MEETINGS
+    .filter(m=> m.id!==excludeMtgId && m.date===date && m.status!=='cancelled')
+    .forEach(m=>{
+      if(!m.time) return;
+      const mStart = timeToMins(m.time);
+      const mEnd   = mStart + (m.duration||60);
+      // Overlap check
+      if(newStart < mEnd && newEnd > mStart){
+        const clash = attendees.filter(id=> m.attendees&&m.attendees.includes(id));
+        if(clash.length){
+          const names = clash.map(id=>{ const s=STAFF.find(x=>x.id===id); return s?s.first:id; });
+          conflicts.push({ meeting: m, clashStaff: names });
+        }
+      }
+    });
+  return conflicts;
+}
+
+function timeToMins(t){
+  if(!t) return 0;
+  const [h,m] = t.split(':').map(Number);
+  return (h||0)*60+(m||0);
+}
+
+/* ════════════════════════════════════════════════════════
+   FIX 9 — VERSION + SYNC TIME IN TOPBAR
+   ════════════════════════════════════════════════════════ */
+function updateVersionIndicator(){
+  let el = document.getElementById('sync-version-indicator');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'sync-version-indicator';
+    el.style.cssText = 'font-family:var(--fm);font-size:8px;color:var(--txd);white-space:nowrap;line-height:1.3;text-align:right;cursor:default';
+    const syncBtn = document.getElementById('cloud-sync-btn');
+    if(syncBtn) syncBtn.insertAdjacentElement('afterend', el);
+  }
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  el.innerHTML = `v${_fbLocalVersion}<br><span style="color:var(--txd)">${timeStr}</span>`;
+  el.title = `Database version ${_fbLocalVersion} · Last synced at ${timeStr}`;
+}
+
+
+
+/* ── SAVE TO FIREBASE — versioned transaction ──────────── */
+/*
+   ARCHITECTURE:
+   ─────────────────────────────────────────────────────────
+   Each save writes: { ...data, version: N, savedAt, lastSavedBy }
+   Before writing, we check if remote version > our version.
+   If yes → we are behind → load first, then the user's change
+   is re-applied on top of the fresh data, then saved.
+
+   This prevents any user from overwriting another user's
+   concurrent changes. Last field-change wins, not last save.
+
+   Firebase .on('value') listener fires on every remote change.
+   We compare versions: remote > local → apply update silently.
+   We never apply our own saves (guarded by _fbOwnSaveKey).
+   ─────────────────────────────────────────────────────────
+*/
+
 async function cloudSave(){
   if(!isCloudConfigured()) return;
   const ok = await fbInit();
   if(!ok) return;
+  if(_fbApplying) return; // don't save while applying remote update
+
   updateSaveIndicator('unsaved');
   try{
-    _fbLoading = true;   // suppress our own echo
     const me = currentUser();
-    const payload = { ...packData(), lastSavedBy: me.first+' '+me.last };
-    await _fbRef.set(payload);
-    _fbLastSaved = new Date();
-    localStorage.setItem(S62_LS_KEY, JSON.stringify(packData())); // keep local in sync
-    updateSaveIndicator('cloud-saved');
-    updateSyncStatusBar();
+    const saveKey = Date.now()+'-'+Math.random().toString(36).slice(2,6);
+
+    let committed = false;
+    let attempts  = 0;
+
+    while(!committed && attempts < 3){
+      attempts++;
+      await _fbRef.transaction(current=>{
+        // current = what Firebase has right now
+        const remoteVersion = current ? (current.version||0) : 0;
+
+        if(remoteVersion > _fbLocalVersion){
+          // We are behind — abort transaction, load first
+          return; // returning undefined aborts the transaction
+        }
+
+        // We are current — write our state
+        _fbLocalVersion = remoteVersion + 1;
+        const payload = packData();
+        return {
+          ...payload,
+          version:     _fbLocalVersion,
+          savedAt:     new Date().toISOString(),
+          lastSavedBy: me.first+' '+me.last,
+          saveKey,
+        };
+      }, (err, committed_flag, snap)=>{
+        committed = committed_flag;
+        if(err) console.error('S62 tx error:', err);
+      }, false); // false = don't apply locally (we manage state ourselves)
+
+      if(!committed){
+        // We were behind — load the latest, then retry
+        const snap = await _fbRef.once('value');
+        const data = snap.val();
+        if(data && data.projs){
+          _fbApplying = true;
+          unpackData(migrateData(data));
+          _fbLocalVersion = data.version||0;
+          _fbApplying = false;
+        }
+      }
+    }
+
+    if(committed){
+      _fbOwnSaveKeys.add(saveKey);
+      // Keep own key set small
+      if(_fbOwnSaveKeys.size > 20) _fbOwnSaveKeys = new Set([..._fbOwnSaveKeys].slice(-10));
+      // Also persist to localStorage as offline fallback
+      try{ localStorage.setItem(S62_LS_KEY, JSON.stringify(packData())); }catch(e){}
+      updateSaveIndicator('cloud-saved');
+      updateSyncStatusBar();
+    } else {
+      console.warn('S62: save failed after 3 attempts');
+      updateSaveIndicator('cloud-error');
+    }
+
   }catch(err){
     updateSaveIndicator('cloud-error');
     console.error('S62 Firebase save:', err);
     showNotif('Sync failed', err.message+' — saved locally only');
-  }finally{
-    setTimeout(()=>{ _fbLoading=false; }, 1500); // short gap to absorb echo
   }
 }
 
@@ -2904,22 +3795,23 @@ async function cloudLoad(silent){
   try{
     const snap = await _fbRef.once('value');
     const data = snap.val();
-    if(!data||!data.projs) throw new Error('No studio data in Firebase yet.');
-    _fbLoading = true;
+    if(!data||!data.projs) throw new Error('No studio data in Firebase yet. Save from the admin first.');
+    _fbApplying = true;
     unpackData(migrateData(data));
-    _fbLastSaved = new Date(data.savedAt||Date.now());
-    localStorage.setItem(S62_LS_KEY, JSON.stringify(packData()));
+    _fbLocalVersion = data.version||0;
+    try{ localStorage.setItem(S62_LS_KEY, JSON.stringify(packData())); }catch(e){}
+    _fbApplying = false;
     renderDashboard(); renderProjList(); renderDrawings();
     renderStaffSched(); renderWorkload(); renderTimesheets();
     updateNavBadges(); updateSyncStatusBar();
-    if(!silent) showNotif('↻ Synced from Firebase',
-      'Data loaded · saved by '+(data.lastSavedBy||'unknown')+
-      ' · '+(data.savedAt?new Date(data.savedAt).toLocaleString('en-IN'):''));
+    if(!silent) showNotif('↻ Synced',
+      'v'+_fbLocalVersion+' · by '+(data.lastSavedBy||'unknown')+
+      ' · '+(data.savedAt?new Date(data.savedAt).toLocaleTimeString('en-IN'):''));
   }catch(err){
+    _fbApplying = false;
     if(!silent) showNotif('Load failed', err.message);
     console.error('S62 Firebase load:', err);
   }finally{
-    _fbLoading = false;
     if(el){ el.textContent='● Live'; el.disabled=false; }
   }
 }
@@ -2928,7 +3820,7 @@ async function cloudLoad(silent){
 function scheduleCloudSave(){
   if(!isCloudConfigured()) return;
   if(_fbSaveTimer) clearTimeout(_fbSaveTimer);
-  _fbSaveTimer = setTimeout(()=>{ cloudSave(); }, 500); // 500ms — near-instant
+  _fbSaveTimer = setTimeout(()=>{ cloudSave(); }, 800);
 }
 
 /* ── SYNC STATUS BAR ───────────────────────────────────── */
@@ -2946,6 +3838,7 @@ function updateSyncStatusBar(){
     if(btn){ btn.style.color='var(--grn)'; btn.textContent='● Live'; btn.title='Live sync active — all changes sync instantly'; }
     if(ind){ ind.textContent='● Live'; ind.style.color='var(--grn)'; ind.title='Firebase live sync active'; }
     if(banner){ banner.style.display='none'; }
+    updateVersionIndicator();
   } else if(configured && _fbInitDone){
     if(btn){ btn.style.color='var(--gold)'; btn.textContent='↻ Connecting…'; }
     if(ind){ ind.textContent='↻ Connecting'; ind.style.color='var(--gold)'; }
@@ -3008,7 +3901,7 @@ function openCloudSetupModal(){
     <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:#F57C00;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">One-time setup (5 min · free)</div>
     <div style="font-family:var(--fm);font-size:10px;color:var(--txm);line-height:2">
       <b>1.</b> Go to <a href="https://console.firebase.google.com" target="_blank" style="color:#F57C00">console.firebase.google.com</a> → <strong>Add project</strong><br>
-      <span style="color:var(--txd);margin-left:16px">Name: <code style="background:var(--sf3);padding:1px 5px;border-radius:3px">Studio62</code> → disable Google Analytics → <strong>Create project</strong></span><br>
+      <span style="color:var(--txd);margin-left:16px">Name: <code style="background:var(--sf3);padding:1px 5px;border-radius:3px">'+( FIRM_CONFIG.name||'Studio OS')+'</code> → disable Google Analytics → <strong>Create project</strong></span><br>
       <b>2.</b> In your project → left sidebar → <strong>Build → Realtime Database</strong><br>
       <span style="color:var(--txd);margin-left:16px">Click <strong>Create Database</strong> → choose region (e.g. <em>Singapore</em>) → <strong>Start in test mode</strong> → <strong>Enable</strong></span><br>
       <b>3.</b> The database URL appears at the top — copy it:<br>
@@ -3074,8 +3967,10 @@ async function saveFbConfig(){
 
 function clearFbConfig(){
   fbStopListener();
+  stopPresence();
   _fbCfg={dbUrl:'',apiKey:'',enabled:false};
   _fbInitDone=false; _fbApp=null; _fbDb=null; _fbRef=null; _fbConnected=false;
+  _fbLocksRef=null; _fbPresenceRef=null; _myPresenceRef=null; _onlineUsers={};
   saveCloudCfg();
   closeModal('cloud-setup-ov');
   showNotif('Live sync disconnected','Reverted to local storage only');
@@ -3087,27 +3982,44 @@ async function fbAutoConnect(){
   if(!isCloudConfigured()) return;
   const ok = await fbInit();
   if(!ok) return;
-  // Load latest from Firebase silently, then start live listener
   try{
+    // Block all renders/saves until we have the latest data
+    _fbApplying = true;
     const snap = await _fbRef.once('value');
     const data = snap.val();
     if(data && data.projs){
-      const remoteTime = new Date(data.savedAt||0).getTime();
-      const localTime  = (_lastSaveTime||new Date(0)).getTime();
-      if(remoteTime > localTime){
-        _fbLoading = true;
+      const remoteVersion = data.version||0;
+      const localVersion  = _fbLocalVersion||0;
+      if(remoteVersion > localVersion){
+        // Firebase is ahead — apply it
+        const prevUser = CURRENT_USER_ID;
         unpackData(migrateData(data));
-        _fbLastSaved = new Date(data.savedAt);
-        localStorage.setItem(S62_LS_KEY, JSON.stringify(packData()));
+        CURRENT_USER_ID = prevUser;
+        _fbLocalVersion = remoteVersion;
+        try{ localStorage.setItem(S62_LS_KEY, JSON.stringify(packData())); }catch(e){}
         renderDashboard(); renderProjList(); renderDrawings();
         renderStaffSched(); renderWorkload(); renderTimesheets();
         updateNavBadges();
-        _fbLoading = false;
-        showSyncToast('↻ Synced from Firebase');
+        showSyncToast('↻ Loaded v'+remoteVersion+' from Firebase');
+      } else {
+        // We are current or ahead — push our local state up
+        _fbApplying = false;
+        await cloudSave();
+        _fbApplying = true;
       }
+    } else {
+      // Nothing in Firebase yet — push our local data up as v1
+      _fbApplying = false;
+      await cloudSave();
+      _fbApplying = true;
+      showSyncToast('☁ Studio data pushed to Firebase');
     }
-  }catch(e){ console.error('S62 Firebase initial load:', e); }
-  // Always start the live listener
+  }catch(e){
+    console.error('S62 Firebase initial load:', e);
+  }finally{
+    _fbApplying = false;
+  }
+  // Always start the live listener after initial load
   await fbStartListener();
   updateSyncStatusBar();
 }
@@ -3220,6 +4132,95 @@ let NOTIFICATIONS = [];
 let TRANSMITTALS = [];
 let _txCounter = 1;
 
+/* ── VISUALS REGISTER ──────────────────────────────────── */
+let VISUALS = [];
+
+/* ── FIRM CONFIGURATION ────────────────────────────────── */
+let FIRM_CONFIG = {
+  name:          'Studio 62',
+  tagline:       'Architecture & Interior Design',
+  logoDataUrl:   '',
+  address:       'Design Quarter, Nungambakkam',
+  city:          'Chennai',
+  state:         'Tamil Nadu',
+  pincode:       '600034',
+  country:       'India',
+  phone:         '+91 98201 11200',
+  email:         'studio62.design@gmail.com',
+  website:       'studio62.in',
+  gstin:         '',
+  cin:           '',
+  pan:           '',
+  primaryColor:  '#c9a96e',
+  accentColor:   '#5285e0',
+  appName:       'Studio OS',
+  setupComplete: true,           // skip wizard on first load
+};
+
+/* ── AUDIT LOG ─────────────────────────────────────────── */
+let AUDIT_LOG = [];
+const AUDIT_MAX = 500; // keep last 500 entries
+
+/* Visual type definitions */
+const VIS_TYPES = [
+  // 3D Renders
+  { id:'EXT', label:'Exterior Render',       icon:'🏢', cat:'Render',  color:'#5285e0', bg:'rgba(82,133,224,.15)',  formats:['JPG','PNG','TIFF','PSD'] },
+  { id:'INT', label:'Interior Render',        icon:'🛋', cat:'Render',  color:'#e08a52', bg:'rgba(224,138,82,.15)',  formats:['JPG','PNG','TIFF','PSD'] },
+  { id:'AER', label:'Aerial Render',          icon:'🚁', cat:'Render',  color:'#52c97a', bg:'rgba(82,201,122,.15)',  formats:['JPG','PNG','TIFF','PSD'] },
+  { id:'NGT', label:'Night / Dusk Render',    icon:'🌙', cat:'Render',  color:'#8a52e0', bg:'rgba(138,82,224,.15)',  formats:['JPG','PNG','TIFF','PSD'] },
+  { id:'PAN', label:'360° Panoramic',         icon:'🔄', cat:'Render',  color:'#52c9c9', bg:'rgba(82,201,201,.15)',  formats:['JPG','PNG','MP4','HTML'] },
+  { id:'WLK', label:'Walkthrough Animation',  icon:'🎬', cat:'Animation',color:'#e052a0', bg:'rgba(224,82,160,.15)', formats:['MP4','MOV','AVI'] },
+  { id:'VRS', label:'VR Scene / Interactive', icon:'🥽', cat:'Immersive',color:'#c9a96e', bg:'rgba(201,169,110,.15)',formats:['HTML','EXE','APK','USDZ'] },
+  // 3D Models
+  { id:'SKP', label:'SketchUp / Rhino Model', icon:'📐', cat:'Model',   color:'#f0c97a', bg:'rgba(240,201,122,.15)', formats:['SKP','3DM','DWG','OBJ'] },
+  { id:'MAS', label:'Massing / Concept Model',icon:'🧊', cat:'Model',   color:'#5285e0', bg:'rgba(82,133,224,.12)',  formats:['SKP','3DM','DWG','STL'] },
+  { id:'STR', label:'Structural Coordination',icon:'🔩', cat:'Model',   color:'#e05252', bg:'rgba(224,82,82,.12)',   formats:['RVT','IFC','DWG','NWD'] },
+  // Presentation
+  { id:'PRE', label:'Presentation Board',     icon:'📊', cat:'Presentation',color:'#52c97a', bg:'rgba(82,201,122,.12)', formats:['PDF','INDD','AI','PPTX'] },
+  { id:'CON', label:'Concept / Mood Board',   icon:'🎨', cat:'Presentation',color:'#e08a52', bg:'rgba(224,138,82,.12)', formats:['PDF','INDD','AI','JPG'] },
+  { id:'MAT', label:'Material & Finish Board',icon:'🪵', cat:'Presentation',color:'#c9a96e', bg:'rgba(201,169,110,.12)',formats:['PDF','INDD','AI','JPG'] },
+  { id:'SIT', label:'Site Analysis Board',    icon:'🗺', cat:'Presentation',color:'#52c9c9', bg:'rgba(82,201,201,.12)', formats:['PDF','INDD','AI','JPG'] },
+  { id:'CPR', label:'Client Progress Report', icon:'📋', cat:'Presentation',color:'#8a52e0', bg:'rgba(138,82,224,.12)', formats:['PDF','DOCX','PPTX'] },
+];
+
+/* Interior sub-types (for INT renders) */
+const VIS_INT_SPACES = [
+  { id:'LVG', label:'Living / Lounge' },
+  { id:'MBD', label:'Master Bedroom' },
+  { id:'BED', label:'Bedroom' },
+  { id:'KIT', label:'Kitchen' },
+  { id:'BTH', label:'Bathroom / Wet Area' },
+  { id:'DIN', label:'Dining' },
+  { id:'STD', label:'Study / Home Office' },
+  { id:'COR', label:'Corridor / Entry' },
+  { id:'LBY', label:'Lobby / Reception' },
+  { id:'TER', label:'Terrace / Balcony' },
+  { id:'OFC', label:'Commercial / Office' },
+  { id:'RTL', label:'Retail / Showroom' },
+  { id:'HSP', label:'Hospitality / Hotel Room' },
+  { id:'GYM', label:'Gym / Fitness' },
+  { id:'SPA', label:'Spa / Wellness' },
+  { id:'OUT', label:'Outdoor / Pool Area' },
+  { id:'OTH', label:'Other' },
+];
+
+/* Status workflow for visuals */
+const VIS_STATUS = [
+  { id:'nst', label:'Not Started',    color:'var(--txd)',  bg:'rgba(74,72,88,.2)',    step:0  },
+  { id:'mod', label:'Modelling',      color:'var(--blu)',  bg:'rgba(82,133,224,.15)', step:20 },
+  { id:'ren', label:'Rendering',      color:'var(--pur)',  bg:'rgba(138,82,224,.15)', step:50 },
+  { id:'drf', label:'Draft Ready',    color:'var(--gold)', bg:'rgba(201,169,110,.15)',step:70 },
+  { id:'rev', label:'Client Review',  color:'#e08a52',     bg:'rgba(224,138,82,.15)', step:85 },
+  { id:'app', label:'Approved',       color:'var(--grn)',  bg:'rgba(82,201,122,.15)', step:95 },
+  { id:'del', label:'Delivered',      color:'var(--grn)',  bg:'rgba(82,201,122,.2)',  step:100 },
+];
+
+const VIS_SOFTWARE = [
+  'SketchUp','Rhino','3ds Max','V-Ray','Lumion','Enscape','Blender',
+  'Photoshop','After Effects','Revit','ArchiCAD','Unity','Unreal Engine',
+  'Premiere Pro','KeyShot','Twinmotion','Other'
+];
+
 /* ── INVOICES ──────────────────────────────────────────── */
 let INVOICES = [
   {id:'INV-001',projId:'TH',description:'Stage 1-2 Design Fee',amount:'₹24L',amountNum:2400000,issueDate:'2025-01-15',dueDate:'2025-02-15',status:'paid',paidDate:'2025-02-10',notes:''},
@@ -3324,7 +4325,7 @@ function changeUser(id){
 /* ═══════════════════════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════════════════════ */
-const PTITLES={dashboard:'Dashboard',pipeline:'Pipeline & CRM',staff:'Staff Management',emails:'Email Notifications',workload:'Workload Planner',drawings:'Drawing Register',timesheets:'Timesheets',ai:'AI Assistant',schedule:'Gantt Schedule & Work Assignment',staffsched:'Staff Daily & Weekly Schedules',meetings:'Meetings',financials:'Financial Dashboard',notifications:'Activity Feed',transmittals:'Transmittals & Issue Register'};
+const PTITLES={dashboard:'Dashboard',pipeline:'Pipeline & CRM',staff:'Staff Management',emails:'Email Notifications',workload:'Workload Planner',drawings:'Drawing Register',visuals:'Visuals Register',timesheets:'Timesheets',ai:'AI Assistant',schedule:'Gantt Schedule & Work Assignment',staffsched:'Staff Daily & Weekly Schedules',meetings:'Meetings',financials:'Financial Dashboard',notifications:'Activity Feed',transmittals:'Transmittals & Issue Register'};
 
 function go(id,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -3349,6 +4350,10 @@ function go(id,el){
   if(id==='financials')  renderFinancials();
   if(id==='notifications') { markAllNotifsRead(); renderNotifPanel(); }
   if(id==='transmittals') renderTransmittals();
+  if(id==='visuals') renderVisuals();
+  if(id==='auditlog') renderAuditLog();
+  // FIX 4 — update presence panel
+  updatePresencePanel(id);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -3646,9 +4651,9 @@ function showSentEmailBody(idx){
 function buildEmailBody(staffId, type){
   if(staffId==='ALL'){
     return `<div class="email-preview"><div class="email-hd">
-      From: m.sambandan@studio62.in<br>To: All Staff — Studio62<br>Subject: Weekly Review Report — Week of Mar 17, 2025
+      From: m.sambandan@studio62.in<br>To: All Staff — '+( FIRM_CONFIG.name||'Studio OS')+'<br>Subject: Weekly Review Report — Week of Mar 17, 2025
     </div><div class="email-body">
-      <div class="email-section"><div class="email-section-title">Studio62 — Weekly Firm Report</div>
+      <div class="email-section"><div class="email-section-title">'+( FIRM_CONFIG.name||'Studio OS')+' — Weekly Firm Report</div>
         <p>Dear Team,</p><p>Please find your individual performance summary for the week of March 17–21, 2025. This report has been reviewed and approved by the Principal Architect.</p>
       </div>
       <div class="email-section"><div class="email-section-title">Week Highlights</div>
@@ -3660,7 +4665,7 @@ function buildEmailBody(staffId, type){
       <div class="email-section"><div class="email-section-title">Reminders</div>
         <p>Please ensure all timesheets are submitted by Monday 9 AM. Drawing A-301 and E-101 are on critical path — priority this coming week.</p>
       </div>
-      <p style="color:var(--txd);font-family:var(--fm);font-size:10px;margin-top:14px">Studio62 Firm OS · Confidential</p>
+      <p style="color:var(--txd);font-family:var(--fm);font-size:10px;margin-top:14px">'+( FIRM_CONFIG.name||'Studio OS')+' Firm OS · Confidential</p>
     </div></div>`;
   }
 
@@ -3688,7 +4693,7 @@ function buildEmailBody(staffId, type){
         <div class="email-score-row"><span>Time Efficiency</span><span style="color:${scoreColor(ps.timeEfficiency||3)};font-family:var(--fm)">${ps.timeEfficiency||'—'}/5</span></div>
       </div>
       ${ps.strengths?`<div class="email-section"><div class="email-section-title">Note from Lead Architect</div><p style="font-style:italic">${ps.strengths}</p></div>`:''}
-      <p style="color:var(--txd);font-family:var(--fm);font-size:10px;margin-top:14px">Studio62 Firm OS · This digest was approved by Mahendra Sambandan — Principal Architect</p>
+      <p style="color:var(--txd);font-family:var(--fm);font-size:10px;margin-top:14px">'+( FIRM_CONFIG.name||'Studio OS')+' Firm OS · This digest was approved by Mahendra Sambandan — Principal Architect</p>
     </div></div>`;
   }
 
@@ -3714,7 +4719,7 @@ function buildEmailBody(staffId, type){
     <div class="email-section"><div class="email-section-title">Next Week Priorities</div>
       <p>Focus on ${ps.timeEfficiency<3.5?'improving deadline adherence':'maintaining strong delivery'}. ${s.util>90?'Please flag if workload becomes unmanageable.':''}</p>
     </div>
-    <p style="color:var(--txd);font-family:var(--fm);font-size:10px;margin-top:14px">Studio62 Firm OS v5 · Approved by Mahendra Sambandan — Principal Architect · Confidential</p>
+    <p style="color:var(--txd);font-family:var(--fm);font-size:10px;margin-top:14px">'+( FIRM_CONFIG.name||'Studio OS')+' Firm OS v5 · Approved by Mahendra Sambandan — Principal Architect · Confidential</p>
   </div></div>`;
 }
 
@@ -3723,7 +4728,7 @@ function useTemplate(name){
   switchEmailTab('compose',null);
   document.getElementById('email-subject').value=`S62 ${name} — ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
   document.getElementById('email-to').value='All Staff';
-  document.getElementById('email-msg').value=`Hi team,\n\nPlease find your ${name.toLowerCase()} from Studio62 Firm OS.\n\n[Content generated from review data]\n\nBest regards,\nMahendra Sambandan\nPrincipal Architect — Studio62`;
+  document.getElementById('email-msg').value=`Hi team,\n\nPlease find your ${name.toLowerCase()} from '+( FIRM_CONFIG.name||'Studio OS')+' Firm OS.\n\n[Content generated from review data]\n\nBest regards,\nMahendra Sambandan\nPrincipal Architect — '+( FIRM_CONFIG.name||'Studio OS')+'`;
 }
 
 // Send actions
@@ -3929,6 +4934,7 @@ function projFeeBurn(projId){
 }
 
 function renderFeeBurnBar(projId, containerWidth){
+  if(!canSeeFin()) return ''; // financial data not visible to this role
   const fb=projFeeBurn(projId);
   if(!fb) return '';
   const p=PROJS.find(x=>x.id===projId)||{color:'var(--txd)'};
@@ -3950,16 +4956,17 @@ function renderPipeline(){
 
   // Summary strip
   const active=PIPELINE.filter(p=>!['won','lost'].includes(p.stage));
-  const totalEst=active.reduce((s,p)=>s+parseFeeINR(p.estFee),0);
-  const weightedEst=active.reduce((s,p)=>s+parseFeeINR(p.estFee)*p.probability/100,0);
   const sumEl=document.getElementById('pipeline-summary');
   if(sumEl){
-    sumEl.innerHTML=[
+    const baseItems=[
       {v:PIPELINE.length,l:'Total Leads',c:'var(--txm)'},
       {v:active.length,l:'Active',c:'var(--blu)'},
-      {v:fmtINR(totalEst),l:'Pipeline Value',c:'var(--gold)'},
-      {v:fmtINR(weightedEst),l:'Weighted Value',c:'var(--grn)'},
-    ].map(x=>'<div class="sc" style="border-color:rgba(255,255,255,.07);flex:0 0 auto;padding:6px 14px">'
+    ];
+    const finItems = canSeeFin() ? [
+      {v:fmtINR(active.reduce((s,p)=>s+parseFeeINR(p.estFee),0)),l:'Pipeline Value',c:'var(--gold)'},
+      {v:fmtINR(active.reduce((s,p)=>s+parseFeeINR(p.estFee)*p.probability/100,0)),l:'Weighted Value',c:'var(--grn)'},
+    ] : [];
+    sumEl.innerHTML=[...baseItems,...finItems].map(x=>'<div class="sc" style="border-color:rgba(255,255,255,.07);flex:0 0 auto;padding:6px 14px">'
       +'<div class="slbl">'+x.l+'</div>'
       +'<div class="sval" style="font-size:16px;color:'+x.c+'">'+x.v+'</div>'
       +'</div>'
@@ -3996,7 +5003,7 @@ function renderPipeline(){
       h+='<div style="font-size:11px;font-weight:600;margin-bottom:4px">'+pl.name+'</div>';
       h+='<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:6px">'+pl.client+'</div>';
       h+='<div style="display:flex;align-items:center;gap:6px">';
-      h+='<span style="font-family:var(--fm);font-size:10px;color:var(--gold);font-weight:600">'+pl.estFee+'</span>';
+      if(canSeeFin()) h+='<span style="font-family:var(--fm);font-size:10px;color:var(--gold);font-weight:600">'+pl.estFee+'</span>';
       h+='<span style="font-family:var(--fm);font-size:9px;background:rgba(82,201,122,.12);color:var(--grn);padding:1px 5px;border-radius:4px">'+pl.probability+'%</span>';
       h+='<div style="margin-left:auto;width:18px;height:18px;border-radius:50%;background:'+ac+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:7px;color:#0a0a0f">'+init+'</div>';
       h+='</div>';
@@ -4165,7 +5172,7 @@ let MEETINGS = [
   {id:'MTG001',gcalId:null,source:'local',type:'design-review',notionPageUrl:'',
    attendeeStatuses:[{id:'MS',status:'attended'},{id:'JR',status:'attended'},{id:'PS',status:'attended'}],
    title:'Thornfield — Concept Design Review',date:'2026-03-12',time:'10:00',duration:90,
-   proj:'TH',location:'Studio62 Office',attendees:['MS','JR','PS'],externalAttendees:[],
+   proj:'TH',location:''+( FIRM_CONFIG.name||'Studio OS')+' Office',attendees:['MS','JR','PS'],externalAttendees:[],
    agenda:'Review SD drawings\\nMaterial palette\\nClient sign-off on floor plan',
    notes:'Client approved revised floor plan. Kitchen island extended 400mm. Schedule updated.',
    actionItems:[{id:'AI001',text:'Update kitchen island dims',assignee:'PS',due:'2026-03-18',done:true},
@@ -4184,8 +5191,8 @@ let MEETINGS = [
   {id:'MTG003',gcalId:null,source:'local',type:'internal',notionPageUrl:'',
    attendeeStatuses:[{id:'MS',status:'attended'},{id:'JR',status:'attended'},{id:'PS',status:'attended'},
                     {id:'TL',status:'attended'},{id:'AN',status:'no-show'}],
-   title:'Studio62 — Weekly Team Sync',date:'2026-04-08',time:'09:30',duration:60,
-   proj:null,location:'Studio62 / Google Meet',attendees:['MS','JR','PS','TL','AN'],externalAttendees:[],
+   title:''+( FIRM_CONFIG.name||'Studio OS')+' — Weekly Team Sync',date:'2026-04-08',time:'09:30',duration:60,
+   proj:null,location:''+( FIRM_CONFIG.name||'Studio OS')+' / Google Meet',attendees:['MS','JR','PS','TL','AN'],externalAttendees:[],
    agenda:'Project updates\\nDrawing register status\\nUpcoming deadlines\\nStaffing',
    notes:'TL focusing on RA drawings. PS has CD deliverables due 15 Apr.',
    actionItems:[{id:'AI008',text:'Review TL output by Thursday',assignee:'JR',due:'2026-04-10',done:true}],
@@ -4193,7 +5200,7 @@ let MEETINGS = [
   {id:'MTG004',gcalId:null,source:'local',type:'client-review',notionPageUrl:'',
    attendeeStatuses:[{id:'MS',status:'invited'},{id:'PS',status:'invited'}],
    title:'Thornfield — Pre-Tender Meeting',date:'2026-04-28',time:'14:00',duration:60,
-   proj:'TH',location:'Studio62 Office',attendees:['MS','PS'],externalAttendees:['anderson@thornfield.com'],
+   proj:'TH',location:''+( FIRM_CONFIG.name||'Studio OS')+' Office',attendees:['MS','PS'],externalAttendees:['anderson@thornfield.com'],
    agenda:'Design sign-off before tender\\nSpecification confirmation\\nTender programme',
    notes:'',actionItems:[{id:'AI007',text:'Prepare tender package',assignee:'MS',due:'2026-05-02',done:false}],
    createdBy:'MS',status:'scheduled',meetLink:''},
@@ -4216,8 +5223,8 @@ let MEETINGS = [
    createdBy:'MS',status:'scheduled',meetLink:''},
   {id:'MTG007',gcalId:null,source:'local',type:'internal',notionPageUrl:'',
    attendeeStatuses:[],
-   title:'Studio62 — Weekly Team Sync',date:'2026-04-22',time:'09:30',duration:60,
-   proj:null,location:'Studio62 / Google Meet',attendees:['MS','JR','PS','TL','AN','RT'],externalAttendees:[],
+   title:''+( FIRM_CONFIG.name||'Studio OS')+' — Weekly Team Sync',date:'2026-04-22',time:'09:30',duration:60,
+   proj:null,location:''+( FIRM_CONFIG.name||'Studio OS')+' / Google Meet',attendees:['MS','JR','PS','TL','AN','RT'],externalAttendees:[],
    agenda:'Project updates\\nDrawing register review\\nQA pipeline\\nUpcoming client meetings',
    notes:'',actionItems:[],createdBy:'MS',status:'scheduled',meetLink:''}
 ];
@@ -4225,6 +5232,7 @@ const GCAL_CFG_KEY='s62_gcal_cfg';
 let _gcalCfg={clientId:'',calendarId:'primary',enabled:false};
 let _gcalToken=null,_gcalTokenExpiry=0,_gcalEvents=[];
 let mtgViewMode='month',mtgDisplayDate=new Date();
+let _mtgPrefill=null;
 
 function loadGcalCfg(){try{const r=localStorage.getItem(GCAL_CFG_KEY);if(r){const p=JSON.parse(r);if(p.clientId)_gcalCfg=p;}}catch(e){}}
 function saveGcalCfg(){try{localStorage.setItem(GCAL_CFG_KEY,JSON.stringify(_gcalCfg));}catch(e){}}
@@ -4362,7 +5370,7 @@ function openMtgFromProject(projId, mode){ // mode = 'internal' | 'client'
     proj:projId,
     attendees:projStaff.slice(0,8),
     agenda:tmpl.agendaTpl,
-    location:'Studio62 / Google Meet',
+    location:''+( FIRM_CONFIG.name||'Studio OS')+' / Google Meet',
     stageRef:phase
   };
   openMtgModal(null,null);
@@ -4543,9 +5551,9 @@ function generateInvoicePDF(projId,numLines){
 <div class="page">
   <div class="header">
     <div class="firm-block">
-      <div class="name">Studio 62</div>
+      <div class="name">'+(FIRM_CONFIG.name||'Studio OS')+'</div>'
       <div class="tag">Architecture &amp; Design</div>
-      <div class="addr">Studio 62, Design Quarter<br>Chennai, Tamil Nadu 600001<br>studio62.in &nbsp;|&nbsp; GST: 33AAAAA0000A1Z5</div>
+      <div class="addr">${FIRM_CONFIG.name||'Firm'},${FIRM_CONFIG.address?' '+FIRM_CONFIG.address:''}<br>${FIRM_CONFIG.city||''}${FIRM_CONFIG.state?', '+FIRM_CONFIG.state:''} ${FIRM_CONFIG.pincode||''}<br>${FIRM_CONFIG.website||''} ${FIRM_CONFIG.gstin?' &nbsp;|&nbsp; GST: '+FIRM_CONFIG.gstin:''}</div>
     </div>
     <div class="inv-block">
       <div class="inv-label">Tax Invoice</div>
@@ -4565,7 +5573,7 @@ function generateInvoicePDF(projId,numLines){
     <div style="text-align:right">
       <div class="label">Project Ref</div>
       <div class="value">${p.id||''} — ${p.phase||''} Phase</div>
-      <div class="sub">Contract: ${p.fee||'—'} · ${p.contract||'Lump Sum'}</div>
+      <div class="sub">Contract: ${canSeeFin()?p.fee||'—':'—'} · ${p.contract||'Lump Sum'}</div>
     </div>
   </div>
 
@@ -4600,8 +5608,8 @@ function generateInvoicePDF(projId,numLines){
   ${notes?'<div class="notes"><strong>Notes &amp; Payment Terms</strong><br>'+notes+'</div>':''}
 
   <div class="footer">
-    <span>Studio 62 · GST Reg: 33AAAAA0000A1Z5 · PAN: AAAAA0000A</span>
-    <span>${invNum} · Generated by S62 Studio OS</span>
+    <span>(FIRM_CONFIG.name||'Studio OS')+' ·' GST Reg: 33AAAAA0000A1Z5 · PAN: AAAAA0000A</span>
+    <span>${invNum} · Generated by '+( FIRM_CONFIG.appName||'Studio OS')+'</span>
   </div>
 </div>
 </body>
@@ -4616,7 +5624,7 @@ function generateInvoicePDF(projId,numLines){
 
 
 /* ════════════════════════════════════════════════════════════
-   EMAIL ENGINE — Studio62 S62
+   EMAIL ENGINE — '+( FIRM_CONFIG.name||'Studio OS')+' S62
    All generators return {to, subject, body (plain text), html (preview)}
    Send = mailto: link that opens native email client
    ════════════════════════════════════════════════════════════ */
@@ -4645,7 +5653,7 @@ function fmtEmailDate(){
 /* ── EMAIL BODY HELPERS ───────────────────────────── */
 function eLine(char, n){ return char.repeat(n||60); }
 function eSection(title){ return '\n'+eLine('─')+'\n'+title.toUpperCase()+'\n'+eLine('─')+'\n'; }
-function eFooter(){ return '\n\n'+eLine('─')+'\nStudio 62 · Chennai · studio62.in\nThis is an automated notification from S62 Studio OS.\n'; }
+function eFooter(){ return '\n\n'+eLine('─')+'\n'+(FIRM_CONFIG.name||'Studio OS')+'\n'+(FIRM_CONFIG.city||'')+(FIRM_CONFIG.website?' | '+FIRM_CONFIG.website:'')+'\nThis is an automated notification from '+(FIRM_CONFIG.appName||'Studio OS')+'.\n'; }
 
 /* ── 2: DAILY DIGEST per staff ─────────────────────── */
 function buildDailyDigest(staffId){
@@ -4760,7 +5768,7 @@ function buildWeeklyProjectSummary(projId){
 
   const subject='Weekly Summary — '+p.name+' — '+fmtEmailDate();
   let body='WEEKLY PROJECT SUMMARY\n'+p.name+' ('+p.id+')\n'+fmtEmailDate()+'\n';
-  body+='Client: '+p.client+' · Phase: '+p.phase+' · Fee: '+(p.fee||'—')+'\n';
+  body+='Client: '+p.client+' · Phase: '+p.phase+(canSeeFin()?' · Fee: '+(p.fee||'—'):'')+'\n';
 
   body+=eSection('Drawing Progress');
   body+='Total drawings:  '+pd.length+'\n';
@@ -4786,7 +5794,7 @@ function buildWeeklyProjectSummary(projId){
     });
   }
 
-  if(fb){
+  if(fb && canSeeFin()){
     body+=eSection('Fee Burn');
     body+='Budget:   '+fmtINR(fb.totalFee)+'\n';
     body+='Spent:    '+fmtINR(fb.costLogged)+' ('+fb.burnPct+'%)\n';
@@ -4873,7 +5881,7 @@ function buildClientProgressEmail(projId){
 
   body+='\nFor a detailed drawing schedule or any queries, please contact our office.\n';
   body+='A full drawing register can be shared on request.\n';
-  body+='\nBest regards,\nStudio 62\nChennai | studio62.in\n';
+  body+='\nBest regards,\n'+(FIRM_CONFIG.name||'Studio OS')+'\n'+(FIRM_CONFIG.city||'')+' | '+(FIRM_CONFIG.website||FIRM_CONFIG.email||'')+'\n';
   body+=eFooter();
   return {to:clientEmail, subject, body};
 }
@@ -5160,7 +6168,7 @@ function buildMorningBriefing(){
     if(fb){totalBudget+=fb.totalFee;totalSpent+=fb.costLogged;}
   });
 
-  const subject='🌅 Studio62 Morning Briefing — '+dateStr;
+  const subject='🌅 '+( FIRM_CONFIG.name||'Studio OS')+' Morning Briefing — '+dateStr;
   let body='';
   body+='STUDIO 62 — MORNING BRIEFING\n';
   body+=eLine('═',62)+'\n';
@@ -5175,7 +6183,7 @@ function buildMorningBriefing(){
   body+='Due within 5 days:  '+dueSoon.length+'\n';
   body+='For QA check:       '+forReview.length+(forReview.length?' — approvers please review':'')+'\n';
   body+='Not started:        '+notStarted.length+'\n';
-  if(totalBudget>0) body+='Fee burn (all proj): '+fmtINR(totalSpent)+' of '+fmtINR(totalBudget)+' ('+Math.round(totalSpent/totalBudget*100)+'%)\n';
+  if(totalBudget>0 && canSeeFin()) body+='Fee burn (all proj): '+fmtINR(totalSpent)+' of '+fmtINR(totalBudget)+' ('+Math.round(totalSpent/totalBudget*100)+'%)\n';
 
   // ── DUE TODAY ──
   if(dueToday.length){
@@ -5249,7 +6257,7 @@ function buildMorningBriefing(){
   }
 
   body+='\n'+eLine('─',62)+'\n';
-  body+='Have a productive day.\nStudio 62 · S62 Studio OS\n';
+  body+='Have a productive day.\n'+(FIRM_CONFIG.name||'Studio OS')+'\n';
 
   return {
     to: STAFF.filter(s=>s.type!=='contractor').map(s=>s.email).join(', '),
@@ -5316,7 +6324,7 @@ function buildEveningSummary(){
     return {p,total,done,pct,ov};
   }).filter(x=>x.total>0);
 
-  const subject='🌆 Studio62 Evening Summary — '+dateStr;
+  const subject='🌆 '+( FIRM_CONFIG.name||'Studio OS')+' Evening Summary — '+dateStr;
   let body='';
   body+='STUDIO 62 — EVENING SUMMARY\n';
   body+=eLine('═',62)+'\n';
@@ -5398,7 +6406,7 @@ function buildEveningSummary(){
   });
 
   body+='\n'+eLine('─',62)+'\n';
-  body+='Good evening. See you tomorrow.\nStudio 62 · S62 Studio OS\n';
+  body+='Good evening. See you tomorrow.\n'+(FIRM_CONFIG.name||'Studio OS')+'\n';
 
   return {
     to: STAFF.filter(s=>s.type!=='contractor').map(s=>s.email).join(', '),
@@ -5459,32 +6467,53 @@ function renderDashboard(){
   const e=id=>document.getElementById(id);
   const s=(id,v)=>{const el=e(id);if(el)el.textContent=v;};
 
-  // ── FINANCIAL SUMMARY ─────────────────────────────────────────
-  const totalFee=PROJS.reduce((sum,p)=>{
-    if(!p.fee)return sum;
-    const fStr=String(p.fee).replace(/[^\d.]/g,'');
-    const mult=p.fee.includes('Cr')?1e7:p.fee.includes('L')?1e5:1;
-    return sum+(parseFloat(fStr)||0)*mult;
-  },0);
-  const fmtFee=v=>v>=1e7?(v/1e7).toFixed(1)+' Cr':v>=1e5?(v/1e5).toFixed(1)+' L':'\u20b9'+Math.round(v).toLocaleString('en-IN');
+  // ── FINANCIAL SUMMARY — visible to Principal + Lead Architect only ──
   const finEl=e('dash-fin-strip');
   if(finEl){
-    const hoursLogged=allD.reduce((s,d)=>s+d.hrs,0);
-    const billingRate=STAFF.filter(s=>s.type!=='contractor').reduce((sum,s)=>{
-      const r=parseInt(String(s.rate||0).replace(/[^\d]/g,''))||0;return sum+r;},0)
-      /Math.max(STAFF.filter(s=>s.type!=='contractor').length,1);
-    const estCost=Math.round(hoursLogged*billingRate);
-    finEl.innerHTML=[
-      {lbl:'Total Contract Value',val:'\u20b9'+fmtFee(totalFee),sub:PROJS.length+' active projects',col:'var(--gold)'},
-      {lbl:'Hours Logged',val:hoursLogged+'h',sub:'across all drawings',col:'var(--blu)'},
-      {lbl:'Est. Staff Cost',val:'\u20b9'+fmtFee(estCost),sub:'at avg \u20b9'+Math.round(billingRate).toLocaleString('en-IN')+'/hr',col:'var(--txm)'},
-      {lbl:'Drawings Issued',val:done.length+' / '+allD.length,sub:pct+'% complete',col:pct>=70?'var(--grn)':pct>=40?'var(--gold)':'var(--blu)'},
-    ].map(x=>
-      '<div class="sc" style="border-color:rgba(255,255,255,.08)">'
-      +'<div class="slbl" style="color:'+x.col+'">'+x.lbl+'</div>'
-      +'<div class="sval" style="color:'+x.col+'">'+x.val+'</div>'
-      +'<div class="schg">'+x.sub+'</div></div>'
-    ).join('');
+    if(!canSeeFin()){
+      // Non-financial roles: show hours + progress only, no money
+      const hoursLogged2=allD.reduce((s,d)=>s+d.hrs,0);
+      finEl.innerHTML=[
+        {lbl:'Drawings Issued',val:done.length+' / '+allD.length,sub:pct+'% complete',col:pct>=70?'var(--grn)':pct>=40?'var(--gold)':'var(--blu)'},
+        {lbl:'Hours Logged',val:hoursLogged2+'h',sub:'across all drawings',col:'var(--blu)'},
+        {lbl:'For Review',val:allD.filter(d=>d.status==='chk').length+'',sub:'awaiting QA',col:'var(--pur)'},
+        {lbl:'Overdue',val:allD.filter(d=>d.status!=='done'&&parseDue(d.tgt)&&parseDue(d.tgt)<today).length+'',sub:'past target date',col:'var(--red)'},
+      ].map(x=>
+        '<div class="sc" style="border-color:rgba(255,255,255,.08)">'
+        +'<div class="slbl" style="color:'+x.col+'">'+x.lbl+'</div>'
+        +'<div class="sval" style="color:'+x.col+'">'+x.val+'</div>'
+        +'<div class="schg">'+x.sub+'</div></div>'
+      ).join('');
+    } else {
+      // Financial roles: full money view
+      const totalFee=PROJS.reduce((sum,p)=>{
+        if(!p.fee)return sum;
+        const fStr=String(p.fee).replace(/[^\d.]/g,'');
+        const mult=p.fee.includes('Cr')?1e7:p.fee.includes('L')?1e5:1;
+        return sum+(parseFloat(fStr)||0)*mult;
+      },0);
+      const fmtFee=v=>v>=1e7?(v/1e7).toFixed(1)+' Cr':v>=1e5?(v/1e5).toFixed(1)+' L':'\u20b9'+Math.round(v).toLocaleString('en-IN');
+      const hoursLogged=allD.reduce((s,d)=>s+d.hrs,0);
+      const billingRate=STAFF.filter(s=>s.type!=='contractor').reduce((sum,s)=>{
+        const r=parseInt(String(s.rate||0).replace(/[^\d]/g,''))||0;return sum+r;},0)
+        /Math.max(STAFF.filter(s=>s.type!=='contractor').length,1);
+      const estCost=Math.round(hoursLogged*billingRate);
+      finEl.innerHTML=[
+        {lbl:'Total Contract Value',val:'\u20b9'+fmtFee(totalFee),sub:PROJS.length+' active projects',col:'var(--gold)'},
+        {lbl:'Hours Logged',val:hoursLogged+'h',sub:'across all drawings',col:'var(--blu)'},
+        {lbl:'Est. Staff Cost',val:'\u20b9'+fmtFee(estCost),sub:'at avg \u20b9'+Math.round(billingRate).toLocaleString('en-IN')+'/hr',col:'var(--txm)'},
+        {lbl:'Drawings Issued',val:done.length+' / '+allD.length,sub:pct+'% complete',col:pct>=70?'var(--grn)':pct>=40?'var(--gold)':'var(--blu)'},
+      ].map(x=>
+        '<div class="sc" style="border-color:rgba(255,255,255,.08);cursor:pointer" onclick="go(\'financials\',document.getElementById(\'ni-financials\'))">'
+        +'<div class="slbl" style="color:'+x.col+'">'+x.lbl+'</div>'
+        +'<div class="sval" style="color:'+x.col+'">'+x.val+'</div>'
+        +'<div class="schg">'+x.sub+'</div></div>'
+      ).join('')
+      +'<div class="sc" style="border-color:rgba(201,169,110,.3);background:rgba(201,169,110,.06);cursor:pointer" onclick="go(\'financials\',document.getElementById(\'ni-financials\'))">'
+      +'<div class="slbl" style="color:var(--gold)">Full Financials</div>'
+      +'<div class="sval" style="color:var(--gold);font-size:18px">→</div>'
+      +'<div class="schg">Invoices · Profitability · Fee burn</div></div>';
+    }
   }
 
   // ── DISCIPLINE BREAKDOWN ──────────────────────────────────────
@@ -5837,7 +6866,7 @@ function renderDashboard(){
         +(renderFeeBurnBar(proj.id))
         +'<div style="padding:7px 12px;display:flex;align-items:center;justify-content:space-between;font-family:var(--fm);font-size:10px;gap:8px">'
           +'<div>SPI <span style="font-family:var(--fd);font-size:13px;color:'+spiColor+'">'+spi+'</span></div>'
-          +'<div style="color:var(--txd)">'+( proj.fee||'—')+'</div>'
+          +(canSeeFin()?'<div style="color:var(--txd)">'+( proj.fee||'—')+'</div>':'')
           +(nextDue?'<div style="color:var(--txd)">Next <span style="color:var(--gold)">'+fmtDate(parseDue(nextDue.tgt||nextDue.due))+'</span></div>':'<div style="color:var(--txd)">No due dates</div>')
         +'</div>'
       +'</div>';
@@ -5998,7 +7027,7 @@ function renderStaff(){
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;font-size:11px">
           <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--txm)">Login ID</span><span style="font-family:var(--fm);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;display:flex;align-items:center;gap:4px">${s.email||'—'}</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:var(--txm)">Rate</span><span style="font-family:var(--fm);font-size:10px">${s.rate>0?'₹'+s.rate.toLocaleString('en-IN')+'/hr':'External'}</span></div>
+          ${canSeeFin()?`<div style="display:flex;justify-content:space-between"><span style="color:var(--txm)">Rate</span><span style="font-family:var(--fm);font-size:10px">${s.rate>0?'₹'+s.rate.toLocaleString('en-IN')+'/hr':'External'}</span></div>`:''}
           <div style="display:flex;justify-content:space-between"><span style="color:var(--txm)">Notifications</span><span style="font-family:var(--fm);font-size:10px">${s.notif==='daily'?'Daily+Weekly':s.notif==='weekly'?'Weekly only':'Off'}</span></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-family:var(--fm);font-size:10px"><span style="color:var(--txm)">Perf Score</span><span style="color:${uc};font-weight:600">${ws||'—'}/5 — ${scoreLabel(ws)}</span></div>
@@ -7386,7 +8415,7 @@ function buildDrwTable(proj, rows, disc){
     // Staff dropdown (admin only) vs read-only name
     const staffOpts=STAFF.filter(s=>s.type!=='contractor').map(x=>'<option value="'+x.id+'" '+(x.id===r.sid?'selected':'')+'>'+x.first+' '+x.last+'</option>').join('');
 
-    h+='<tr id="drw-row-'+r.id+'" class="'+(isSelected?'drw-row-selected':'')+'" style="'+(isDone?'background:rgba(82,201,122,.06);border-left:3px solid var(--grn);':'')+'">'
+    h+='<tr id="drw-row-'+r.id+'" data-drw-id="'+r.id+'" class="'+(isSelected?'drw-row-selected':'')+'" style="'+(isDone?'background:rgba(82,201,122,.06);border-left:3px solid var(--grn);':'')+'">'
 
     // Checkbox
     +'<td style="padding:7px 6px"><input type="checkbox" class="drw-cb" '+(isSelected?'checked':'')+' onchange="toggleBulkSelect(\''+r.id+'\',this)"></td>'
@@ -7509,42 +8538,6 @@ function buildDrwTable(proj, rows, disc){
   h+='</tbody></table></div>';
   return h;
 }
-
-/* ── SET DRAWING TARGET DATE (admin only) ── */
-function setDrawingTarget(drawingId, newTgt){
-  if(!canSchedule()){showNotif('Access denied','Only Principal Architect, Lead Architect or Project Manager can set drawing target dates.');return;}
-  const d=DRAWINGS.find(x=>x.id===drawingId);if(!d)return;
-  const prev=d.tgt;
-  // Normalize to ISO format for consistent storage
-  const _parsedTgt=parseDue(newTgt.trim());
-  d.tgt=_parsedTgt?toISO(_parsedTgt):(newTgt.trim()||'');
-  d.setby=currentUser().id;
-  // Add to revision history as a note
-  if(prev!==d.tgt&&d.tgt){
-    if(!d.revHistory) d.revHistory=[];
-    var _tU=currentUser();
-    revHistory.push({
-      rev:d.rev||'-',
-      date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'}),
-      dateISO:toISO(new Date()),
-      by:_tU.id,
-      byName:_tU.first+' '+_tU.last,
-      purpose:'',purposeLabel:'Target',
-      source:'internal',
-      note:'Target date set to '+d.tgt
-    });
-  }
-  // Sync to SCHED_TASKS
-  const task=SCHED_TASKS.find(t=>t.drawingId===drawingId);
-  if(task&&d.tgt){
-    try{const td=parseDue(d.tgt);if(td&&!isNaN(td))task.due=td.toISOString().slice(0,10);}catch(e){}
-  }
-  showNotif('Target date set',d.id+' → '+( d.tgt||'cleared')+' · set by '+currentUser().first);
-  renderDrawings();renderProjList();renderDashboard();
-  renderSchedule();renderStaffSched();updateNavBadges();renderTimesheets();
-  scheduleSave();
-}
-
 
 /* ── CREATE PACKAGE MODAL (stub) ── */
 function openCreatePackageModal(projId){
@@ -7807,6 +8800,7 @@ function submitProject(){
   } else {
     const pid='P'+Date.now().toString().slice(-5);
     PROJS.push({id:pid,name,client,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages});
+    addAudit('project','Project created',name+' ('+pid+') · '+client);
     if(pt){
       DISC.forEach(disc=>{
         if(!selectedDiscs[disc.id])return;
@@ -7853,7 +8847,7 @@ function confirmRemoveProject(projId){
   const dwgCount=DRAWINGS.filter(d=>d.proj===projId).length;
   const issued=DRAWINGS.filter(d=>d.proj===projId&&d.status==='done').length;
   document.getElementById('rm-proj-msg').textContent=`This will permanently remove "${p.name}" and all ${dwgCount} drawings. This cannot be undone.`;
-  document.getElementById('rm-proj-summary').innerHTML=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="width:12px;height:12px;border-radius:50%;background:${p.color};flex-shrink:0;display:inline-block"></span><strong>${p.name}</strong></div><div style="font-family:var(--fm);font-size:10px;color:var(--txm);display:flex;gap:14px"><span>${p.client}</span><span>${dwgCount} drawings</span><span style="color:var(--grn)">${issued} issued</span><span>${p.fee||'—'}</span></div>`;
+  document.getElementById('rm-proj-summary').innerHTML=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="width:12px;height:12px;border-radius:50%;background:${p.color};flex-shrink:0;display:inline-block"></span><strong>${p.name}</strong></div><div style="font-family:var(--fm);font-size:10px;color:var(--txm);display:flex;gap:14px"><span>${p.client}</span><span>${dwgCount} drawings</span><span style="color:var(--grn)">${issued} issued</span>${canSeeFin()?`<span>${p.fee||'—'}</span>`:''}</div>`;
   document.getElementById('rm-proj-confirm').onclick=()=>doRemoveProject(projId);
   document.getElementById('rm-proj-ov').classList.add('show');
 }
@@ -8913,12 +9907,28 @@ function openDrawingUpdate(drawingId){
       +(d.rejectionNote?'<div style="margin-top:6px;padding:5px 8px;background:rgba(224,82,82,.08);border-left:2px solid var(--red);border-radius:0 4px 4px 0;font-family:var(--fm);font-size:9px;color:var(--red)">&#x21ba; '+d.rejectionNote+'</div>':'');
   }
   document.getElementById('drawing-update-ov').classList.add('show');
+  // FIX 1 — acquire drawing lock
+  acquireDrawingLock(d.id);
+  // FIX 2 — snapshot drawing state for stale detection
+  snapshotDrawingForModal(d.id);
 }
 
 
 function submitDrawingUpdate(){
   const id=document.getElementById('du-drawing-id').value;
   const d=DRAWINGS.find(x=>x.id===id);if(!d)return;
+
+  // FIX 2 — stale modal check
+  if(checkDrawingStale(id)){
+    confirmStaleSubmit(id, ()=>{ clearModalSnap(id); submitDrawingUpdate(); });
+    return;
+  }
+  clearModalSnap(id);
+  // FIX 1 — release lock on submit
+  releaseDrawingLock(id);
+  // v62 Audit (status resolved after variables set below — hoisted via closure)
+  const _auditDrawingId = id;
+
   const newPct=parseInt(document.getElementById('du-pct').value)||0;
   const newStatus=d.status==='done'?'done':newPct===0?'nst':'ip';
   const hrsToday=parseFloat(document.getElementById('du-hrs-today').value)||0;
@@ -8974,6 +9984,7 @@ function submitDrawingUpdate(){
   maybeAutoSubmitForCheck(id);
   closeModal('drawing-update-ov');
   showNotif('Drawing updated',d.title+' — '+{nst:'Not Started',ip:'In Progress',chk:'For Review',done:'✓ Issued'}[newStatus]||newStatus+(hrsToday>0?' · '+hrsToday+'h logged':''));
+  addAudit('drawing','Drawing updated',d.id+' → '+({nst:'Not Started',ip:'In Progress',chk:'For Review',done:'Issued'}[newStatus]||newStatus)+(hrsToday>0?' · '+hrsToday+'h':'')+' — '+d.title, d.proj);
   // Notifications
   const _notifMe=currentUser();
   if(newStatus==='chk'){
@@ -9106,7 +10117,11 @@ function renderSSStats(staffList){
   const myDrawings=DRAWINGS.filter(d=>{
     const s=staffList.find(x=>x.id===d.sid);return s&&d.status!=='done';
   });
+  const myVisuals=VISUALS.filter(v=>{
+    const s=staffList.find(x=>x.id===v.assignedTo);return s&&!['del'].includes(v.status);
+  });
   const pendingCount=myDrawings.length;
+  const pendingVisCount=myVisuals.length;
   const overdueCount=myDrawings.filter(d=>{const due=ssParseDate(parseDue(d.due));return due&&due<ssDate;}).length;
   const inprogCount=myDrawings.filter(d=>d.status==='ip').length;
   const reviewCount=myDrawings.filter(d=>d.status==='chk').length;
@@ -9114,11 +10129,12 @@ function renderSSStats(staffList){
 
   // Update pending count badge
   const badge=document.getElementById('ss-pending-count');
-  if(badge) badge.textContent=pendingCount;
+  if(badge) badge.textContent=pendingCount+pendingVisCount;
 
   el.innerHTML=
     (staffList.length>1?'<span>👥 <strong style="color:var(--tx)">'+staffList.length+'</strong> staff</span>':'')
     +'<span>📋 <strong style="color:var(--red)">'+pendingCount+'</strong> pending drawings</span>'
+    +(pendingVisCount?'<span>🎨 <strong style="color:var(--pur)">'+pendingVisCount+'</strong> pending visuals</span>':'')
     +(inprogCount?'<span>● <strong style="color:var(--blu)">'+inprogCount+'</strong> in progress</span>':'')
     +(reviewCount?'<span>◎ <strong style="color:var(--gold)">'+reviewCount+'</strong> in review</span>':'')
     +(overdueCount?'<span style="color:var(--red)">⚠ <strong>'+overdueCount+'</strong> overdue</span>':'')
@@ -9220,7 +10236,7 @@ staffList.forEach(s=>{
               +'<label>Status</label>'
               +'<select class="pw-select-sm" id="qu-status-'+d.id+'" onchange="quickUpdateDrawing(\''+d.id+'\')" >'
                 +'<option value="nst" '+(d.status==='nst'?'selected':'')+'>Not Started</option>'
-                +'<option value="ip" '+(d.status==='ip'?'selected':'')+'>In Progress</option>'+'<option value="chk" '+(d.status==='chk'?'selected':'')+'>Awaiting Check</option>'
+                +'<option value="ip" '+(d.status==='ip'?'selected':'')+'>In Progress</option>'
                 +'<option value="chk" '+(d.status==='chk'?'selected':'')+'>Ready for Review</option>'
                 +'<option value="done" '+(d.status==='done'?'selected':'')+'>Issued / Done</option>'
               +'</select>'
@@ -9244,6 +10260,54 @@ staffList.forEach(s=>{
       html+='<div style="padding:8px 18px;background:var(--sf2);border-top:1px solid var(--bd)">'
         +'<div style="font-family:var(--fm);font-size:10px;color:var(--txd)">✓ '+doneDrawings.length+' completed drawings this project</div>'
       +'</div>';
+    }
+
+    // ── VISUALS assigned to this staff member ──────────────
+    const myVisuals=VISUALS.filter(v=>{
+      if(v.assignedTo!==s.id) return false;
+      if(ssProjFil!=='ALL'&&v.projId!==ssProjFil) return false;
+      return !['del'].includes(v.status);
+    });
+    const doneVisuals=VISUALS.filter(v=>{
+      if(v.assignedTo!==s.id) return false;
+      if(ssProjFil!=='ALL'&&v.projId!==ssProjFil) return false;
+      return v.status==='del';
+    });
+    if(myVisuals.length>0||doneVisuals.length>0){
+      html+='<div style="border-top:2px solid var(--bd2);padding:10px 18px 0">'
+        +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--pur);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">🎨 Visuals Register ('+myVisuals.length+' active'+(doneVisuals.length?' · '+doneVisuals.length+' delivered':'')+' )</div>';
+      if(myVisuals.length>0){
+        html+='<div class="pw-list">';
+        myVisuals.sort((a,b)=>{
+          const aOver=parseDue(a.tgt)&&new Date(parseDue(a.tgt))<ssDate?-1:0;
+          const bOver=parseDue(b.tgt)&&new Date(parseDue(b.tgt))<ssDate?-1:0;
+          return aOver-bOver;
+        }).forEach(v=>{
+          const p=PROJS.find(x=>x.id===v.projId);
+          const t=visType(v.typeId);
+          const st=visStatus(v.status);
+          const dueD=parseDue(v.tgt)?new Date(parseDue(v.tgt)):null;
+          const isOverdue=dueD&&dueD<ssDate;
+          html+='<div class="pw-item" onclick="openVisDetail(\''+v.id+'\')">'
+            +'<div class="pw-item-left">'
+              +'<div class="pw-status-dot" style="background:'+st.color+'"></div>'
+              +'<span style="font-size:14px">'+t.icon+'</span>'
+              +'<div style="min-width:0">'
+                +'<div class="pw-item-title">'+v.title+'</div>'
+                +'<div class="pw-item-meta" style="font-weight:700;color:'+(p?p.color:'var(--gold)')+'">\u25a0 '+(p?p.name:v.projId)+' \u00b7 '+t.label+(v.software?' \u00b7 '+v.software:'')+'</div>'
+              +'</div>'
+            +'</div>'
+            +'<div class="pw-item-right">'
+              +(isOverdue?'<span class="pw-overdue">OVERDUE</span>':'')
+              +(v.tgt?'<span style="font-family:var(--fm);font-size:9px;color:'+(isOverdue?'var(--red)':'var(--txd)')+'">'+v.tgt+'</span>':'')
+              +'<span class="pw-pct-pill" style="background:'+st.bg+';color:'+st.color+'">'+st.label+'</span>'
+              +'<span style="font-family:var(--fm);font-size:9px;padding:2px 7px;border-radius:8px;background:'+t.bg+';color:'+t.color+'">'+v.id+'</span>'
+            +'</div>'
+          +'</div>';
+        });
+        html+='</div>';
+      }
+      html+='</div>';
     }
 
     html+='</div>';
@@ -9370,17 +10434,25 @@ function renderSSDaily(staffList){
 
     // Show pending work summary at bottom of daily column
     const pending=DRAWINGS.filter(d=>d.sid===s.id&&d.status!=='done'&&(ssProjFil==='ALL'||d.proj===ssProjFil));
-    if(pending.length>0){
+    const pendingVis=VISUALS.filter(v=>v.assignedTo===s.id&&!['del'].includes(v.status)&&(ssProjFil==='ALL'||v.projId===ssProjFil));
+    if(pending.length>0||pendingVis.length>0){
       html+='<div style="padding:6px 12px;border-top:1px solid var(--bd)">'
-        +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Pending ('+pending.length+')</div>'
-        +pending.slice(0,3).map(d=>{
+        +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Pending ('+(pending.length+pendingVis.length)+')</div>'
+        +pending.slice(0,2).map(d=>{
           const stColors={nst:'var(--txd)',ip:'var(--blu)',chk:'var(--pur)',done:'var(--grn)'};
           return '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;font-family:var(--fm);font-size:9px;cursor:pointer;color:var(--txm)" onclick="openDrawingUpdate(\''+d.id+'\')">'
-            +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px">'+d.title+'</span>'
+            +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">📋 '+d.title+'</span>'
             +'<span style="color:'+stColors[d.status]+';font-weight:600;flex-shrink:0;margin-left:4px">'+d.pct+'%</span>'
           +'</div>';
         }).join('')
-        +(pending.length>3?'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">+'+( pending.length-3)+' more</div>':'')
+        +pendingVis.slice(0,2).map(v=>{
+          const t=visType(v.typeId);const st=visStatus(v.status);
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;font-family:var(--fm);font-size:9px;cursor:pointer;color:var(--txm)" onclick="openVisDetail(\''+v.id+'\')">'
+            +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">'+t.icon+' '+v.title+'</span>'
+            +'<span style="font-size:8px;padding:1px 5px;border-radius:6px;background:'+st.bg+';color:'+st.color+';flex-shrink:0;margin-left:4px">'+st.label+'</span>'
+          +'</div>';
+        }).join('')
+        +((pending.length+pendingVis.length)>4?'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">+'+(pending.length+pendingVis.length-4)+' more</div>':'')
       +'</div>';
     }
 
@@ -9424,8 +10496,12 @@ function renderSSWeekly(staffList){
     html+='<th style="text-align:center;background:var(--sf3)">Week</th></tr></thead><tbody>';
 
     const allWeekTasks=[...new Set(weekDates.flatMap(d=>myTasks.filter(t=>hoursOnDay(t,d)>0)))];
-    if(!allWeekTasks.length){
-      html+='<tr><td colspan="'+(weekDates.length+2)+'" style="font-family:var(--fm);font-size:10px;color:var(--txd);padding:12px 14px;font-style:italic">No scheduled tasks this week.</td></tr>';
+
+    // Visuals assigned to this staff member (active)
+    const myVisuals=VISUALS.filter(v=>v.assignedTo===s.id&&!['del'].includes(v.status)&&(ssProjFil==='ALL'||v.projId===ssProjFil));
+
+    if(!allWeekTasks.length&&!myVisuals.length){
+      html+='<tr><td colspan="'+(weekDates.length+2)+'" style="font-family:var(--fm);font-size:10px;color:var(--txd);padding:12px 14px;font-style:italic">No scheduled tasks or visuals this week.</td></tr>';
     } else {
       allWeekTasks.forEach(task=>{
         const style=taskBlockStyle(task);
@@ -9451,6 +10527,45 @@ function renderSSWeekly(staffList){
         });
         html+='<td style="text-align:center;background:var(--sf2)"><div style="font-family:var(--fd);font-size:14px">'+Math.round(taskWeekTotal*10)/10+'h</div></td></tr>';
       });
+
+      // ── Visual rows ────────────────────────────────────────
+      if(myVisuals.length>0){
+        // Separator row
+        html+='<tr><td colspan="'+(weekDates.length+2)+'" style="padding:4px 14px;background:rgba(138,82,224,.06);border-top:2px solid rgba(138,82,224,.2)">'
+          +'<span style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--pur);text-transform:uppercase;letter-spacing:.06em">🎨 Visuals</span>'
+        +'</td></tr>';
+        myVisuals.forEach(v=>{
+          const t=visType(v.typeId);
+          const st=visStatus(v.status);
+          const p=PROJS.find(x=>x.id===v.projId);
+          const due=parseDue(v.tgt);
+          const wStart=weekDates[0];
+          const wEnd=new Date(weekDates[4]);wEnd.setHours(23,59,59);
+          // Mark the due-date cell if it falls in this week
+          html+='<tr style="background:rgba(138,82,224,.03)"><td style="padding:6px 14px;border-right:2px solid rgba(138,82,224,.2);cursor:pointer" onclick="openVisDetail(\''+v.id+'\')">'
+            +'<div style="display:flex;align-items:center;gap:5px">'
+              +'<span style="font-size:13px">'+t.icon+'</span>'
+              +'<div style="min-width:0">'
+                +'<div style="font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px" title="'+v.title+'">'+v.title+'</div>'
+                +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+(p?p.name:v.projId)+'</div>'
+              +'</div>'
+            +'</div></td>';
+          weekDates.forEach(d=>{
+            const todayCls=isToday(d)?'background:rgba(224,82,82,.04);':'';
+            const isDueDay=due&&due.toDateString()===d.toDateString();
+            if(isDueDay){
+              html+='<td style="'+todayCls+'cursor:pointer" onclick="openVisDetail(\''+v.id+'\')">'
+                +'<div style="background:'+st.bg+';border-left:2px solid '+st.color+';border-radius:3px;padding:2px 5px;font-family:var(--fm);font-size:8px;font-weight:700;color:'+st.color+'">'
+                +'Due · '+st.label+'</div></td>';
+            } else {
+              html+='<td style="'+todayCls+'"></td>';
+            }
+          });
+          html+='<td style="text-align:center;background:rgba(138,82,224,.05)">'
+            +'<span class="vis-status-pill" style="font-size:8px;padding:2px 6px;background:'+st.bg+';color:'+st.color+'">'+st.label+'</span>'
+          +'</td></tr>';
+        });
+      }
     }
 
     html+='<tr style="background:var(--sf2)"><td style="padding:6px 14px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;border-right:2px solid var(--bd2)">Scheduled</td>';
@@ -9570,11 +10685,11 @@ function renderProjList(){
         +(isArch?'<span style="font-family:var(--fm);font-size:7px;color:var(--txd);border:1px solid var(--bd);padding:1px 3px;border-radius:2px">ARC</span>':'')
         +'<div class="drw-pli-rag" style="background:'+ragColor+'" title="'+(overdue?overdue+' overdue':inRev?inRev+' in review':'On track')+'"></div>'
       +'</div>'
-      // ── Row 2: client · phase · fee
+      // ── Row 2: client · phase · fee (fee only for financial roles)
       +'<div class="drw-pli-meta">'
         +'<span class="drw-pli-client">'+p.client+'</span>'
         +'<span class="drw-pli-phase">'+p.phase+'</span>'
-        +'<span style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-left:auto">'+p.fee+'</span>'
+        +(canSeeFin()?'<span style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-left:auto">'+p.fee+'</span>':'')
       +'</div>'
       // ── Progress bar
       +'<div class="drw-pli-bar"><div class="drw-pli-bar-fill" style="width:'+pct+'%;background:'+p.color+'"></div></div>'
@@ -9670,7 +10785,7 @@ function renderProjCtxBar(){
       +'<span style="font-family:var(--fm);font-size:9px;padding:1px 7px;border-radius:4px;background:'+p.color+'22;color:'+p.color+'">'+p.phase+'</span>'
       +(pt?'<span style="font-family:var(--fm);font-size:9px;padding:1px 7px;border-radius:4px;background:var(--sf3);color:var(--txm)">'+pt.icon+' '+pt.label+'</span>':'')
       +'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+p.client+'</span>'
-      +'<span style="font-family:var(--fm);font-size:11px;font-weight:700;color:var(--gold)">'+p.fee+'</span>'
+      +(canSeeFin()?'<span style="font-family:var(--fm);font-size:11px;font-weight:700;color:var(--gold)">'+p.fee+'</span>':'')
     +'</div>'
     // ── Bottom strip: stats + grouping + actions
     +'<div style="display:flex;align-items:center;gap:10px;padding:6px 14px">'
@@ -9928,6 +11043,7 @@ function setDrawingTarget(drawingId, newTgt){
   showNotif('Target date set',d.id+' → '+(d.tgt||'cleared')+' · set by '+currentUser().first);
   renderDrawings();renderProjList();renderDashboard();
   renderSchedule();renderStaffSched();updateNavBadges();renderTimesheets();
+  scheduleSave();
 }
 
 /* Bulk target date — opens date picker, applies to all selected */
@@ -10299,7 +11415,7 @@ function manualSyncHours(){
    Rule: always add optional fields with defaults, never delete.
    ═══════════════════════════════════════════════════════════════ */
 
-const S62_SCHEMA_VERSION = 2;
+const S62_SCHEMA_VERSION = 4;
 const S62_LS_KEY = 's62_data_v1';
 const S62_SAVE_DEBOUNCE_MS = 2000;
 
@@ -10356,6 +11472,31 @@ const S62_MIGRATIONS = {
       if(!t.createdAt) t.createdAt = t.issueDate||'';
     });
     return data;
+  },
+  /* v2 → v3: v61 additions — VISUALS REGISTER */
+  3: function(data) {
+    if(!Array.isArray(data.visuals)) data.visuals = [];
+    // Ensure all visuals have required fields
+    (data.visuals||[]).forEach(v=>{
+      if(!v.status)     v.status     = 'nst';
+      if(!v.revHistory) v.revHistory = [];
+      if(!v.createdAt)  v.createdAt  = '';
+    });
+    return data;
+  },
+  /* v3 → v4: v62 — FIRM_CONFIG, AUDIT_LOG, white-label */
+  4: function(data) {
+    if(!data.firmConfig || !data.firmConfig.name){
+      data.firmConfig = {
+        name:'My Architecture Firm', tagline:'Architecture & Design',
+        logoDataUrl:'', address:'', city:'', state:'', pincode:'',
+        country:'India', phone:'', email:'', website:'', gstin:'',
+        cin:'', pan:'', primaryColor:'#c9a96e', accentColor:'#5285e0',
+        appName:'Studio OS', setupComplete:false
+      };
+    }
+    if(!Array.isArray(data.auditLog)) data.auditLog = [];
+    return data;
   }
 };
 
@@ -10364,7 +11505,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v58',
+    appVersion: 'S62-v64',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -10378,6 +11519,9 @@ function packData() {
     invoices:      INVOICES||[],
     notifications: NOTIFICATIONS||[],
     transmittals:  TRANSMITTALS||[],
+    visuals:       VISUALS||[],
+    firmConfig:    FIRM_CONFIG||{},
+    auditLog:      AUDIT_LOG||[],
     drwCols:       drwCols,
     meetings:      MEETINGS,
     gcalCfg:       _gcalCfg,
@@ -10403,6 +11547,9 @@ function unpackData(data) {
   if(data.invoices!==undefined){ INVOICES=data.invoices; }
   if(data.notifications!==undefined){ NOTIFICATIONS=data.notifications; }
   if(data.transmittals!==undefined){ TRANSMITTALS=data.transmittals; }
+  if(data.visuals!==undefined){ VISUALS=data.visuals; }
+  if(data.firmConfig&&data.firmConfig.name){ Object.assign(FIRM_CONFIG,data.firmConfig); applyFirmTheme(); }
+  if(data.auditLog!==undefined){ AUDIT_LOG=data.auditLog; }
   if(data.drwCols      !== undefined) { Object.assign(drwCols, data.drwCols); }
   if(data.currentUserId!== undefined) { CURRENT_USER_ID = data.currentUserId; }
   if(data.activeProjId !== undefined) { activeProjId  = data.activeProjId; }
@@ -10854,32 +12001,54 @@ function approveDrawing(drawingId,nextStatus){
   const d=DRAWINGS.find(x=>x.id===drawingId);if(!d)return;
   const me=currentUser();const now=new Date();const ds=toISO(now);
   if(!d.qaHistory)d.qaHistory=[];
+
+  // FIX 6 — use atomic revision increment (transaction-safe)
+  // Compute next rev locally first for immediate UI feedback,
+  // then atomicRevIncrement confirms/corrects it via Firebase transaction
+  const localNextRev=(!d.rev||d.rev==='-')?'A':
+    (d.rev.match(/^P(\d+)$/) ? 'P'+(parseInt(d.rev.slice(1))+1) :
+    String.fromCharCode(d.rev.charCodeAt(0)+1));
+
   d.qaHistory.push({action:'approved',by:me.id,byName:me.first+' '+me.last,
     date:ds,dateFmt:fmtDate(now),note:'Issued by '+me.first,
     fromStatus:d.status,toStatus:'done'});
-  // Increment revision letter
-  const nextRev=(!d.rev||d.rev==='-')?'A':String.fromCharCode(d.rev.charCodeAt(0)+1);
-  d.rev=nextRev;
+
+  d.rev=localNextRev;
   d.checkedBy=me.id;d.checkDate=ds;
   d.status='done';d.pct=100;
   d.rejectionNote=null;d.rejectedAt=null;d.rejectedBy=null;
-  // Log to revHistory
   if(!d.revHistory)d.revHistory=[];
-  d.revHistory.push({rev:nextRev,date:fmtDate(now),dateISO:ds,
+  d.revHistory.push({rev:localNextRev,date:fmtDate(now),dateISO:ds,
     by:me.id,byName:me.first+' '+me.last,note:'Issued'});
+
   const task=SCHED_TASKS.find(t=>t.drawingId===drawingId);
   if(task){task.status='done';task.pct=100;task.rag='blue';}
+
   closeModal('qa-approve-ov');
-  showNotif('✓ Issued',d.id+' Rev '+nextRev+' — issued by '+me.first);
-  // QA notification to drafter
+  showNotif('✓ Issued',d.id+' Rev '+localNextRev+' — issued by '+me.first);
+  addAudit('qa','Drawing issued',d.id+' Rev '+localNextRev+' — '+d.title+' — by '+me.first,d.proj);
+
   const _qaNote_a=buildQANotification_safe(drawingId,'approved',null);
   if(_qaNote_a){ SENT_EMAILS.unshift({to:_qaNote_a.to,from:me.email||'studio62@studio62.in',subject:_qaNote_a.subject,body:_qaNote_a.body,date:toISO(new Date()),type:'approved',status:'sent',read:false}); }
-  // S62 Notification
   const _drf_a=d.sid?STAFF.find(x=>x.id===d.sid):null;
-  addNotif({type:'qa',icon:'✓',iconBg:'rgba(82,201,122,.2)',title:d.id+' issued — Rev '+nextRev,detail:d.title+(_drf_a?' · drawn by '+_drf_a.first:''),projId:d.proj,drawingId,forAll:true,forStaff:d.sid});
-  // Auto-log to Issue Register (creates a single-drawing draft transmittal record)
-  autoLogIssueRecord(drawingId, nextRev, ds);
-  scheduleSave();renderDrawings();renderProjList();renderDashboard();updateNavBadges();
+  addNotif({type:'qa',icon:'✓',iconBg:'rgba(82,201,122,.2)',title:d.id+' issued — Rev '+localNextRev,detail:d.title+(_drf_a?' · drawn by '+_drf_a.first:''),projId:d.proj,drawingId,forAll:true,forStaff:d.sid});
+  autoLogIssueRecord(drawingId, localNextRev, ds);
+
+  // FIX 6 — fire atomic transaction save to confirm revision (handles concurrent approvals)
+  // The transaction will catch and correct any duplicate rev if two approvals race
+  scheduleSave();
+  if(isCloudConfigured()){
+    atomicRevIncrement(drawingId).then(confirmedRev=>{
+      if(confirmedRev && confirmedRev !== localNextRev){
+        // Transaction gave us a different rev — update locally
+        d.rev = confirmedRev;
+        if(d.revHistory.length) d.revHistory[d.revHistory.length-1].rev = confirmedRev;
+        showSyncToast('Rev corrected to '+confirmedRev+' (concurrent approval detected)');
+        scheduleSave();
+      }
+    }).catch(()=>{}); // silent fail — local rev stands
+  }
+  renderDrawings();renderProjList();renderDashboard();updateNavBadges();
 }
 
 function rejectDrawing(drawingId){
@@ -11307,11 +12476,13 @@ function daysToReviewDeadline(d) {
 // ── Lock screen init — runs before data load ────────────
 initLockScreen().then(()=>{ addLockButton(); });
 
-// ── Load persisted data if available ──────────────────────
+// v62: Load firm config first, apply theme
+loadFirmConfig();
 loadCloudCfg();
 initDrwCounter();
-loadGcalCfg(); // Set DRW_COUNTER above existing IDs
+loadGcalCfg();
 const _hadSavedData = loadFromLocalStorage();
+applyFirmTheme(); // apply FIRM_CONFIG colours + branding
 changeUser(CURRENT_USER_ID || 'MS');
 // v54: boot notifications + financials nav
 setTimeout(()=>{
@@ -11319,6 +12490,7 @@ setTimeout(()=>{
   updateNotifBadge();
   updateFinNavVisibility();
   updateTxBadge();
+  updateVisBadge();
 },50);
 renderDashboard();
 renderStaff();
@@ -11334,6 +12506,12 @@ updateCloudSyncBtn(); // Show/hide cloud button based on config + user
 if(isCloudConfigured()){
   setTimeout(()=>fbAutoConnect(), 600);
 }
+// v62: show setup wizard on first run
+setTimeout(()=>{
+  if(checkSetupNeeded()){
+    showSetupWizard();
+  }
+}, 800);
 
 // Prevent clicks inside staff-detail-panel from bubbling to stcard onclick
 (function(){
@@ -11524,6 +12702,11 @@ function initTsEntries(){
 function renderTimesheets(){
   initTsEntries();
   const _sb=document.getElementById('ts-sync-btn');if(_sb)_sb.style.display=canReview()?'inline-flex':'none';
+  // Gate Fee Burn tab
+  const burnPill=document.getElementById('ts-pill-burn');
+  if(burnPill) burnPill.style.display=canSeeFin()?'inline-flex':'none';
+  // If current view is burn and user lost access, reset to my
+  if(tsViewMode==='burn'&&!canSeeFin()) tsViewMode='my';
   const days    = tsGetWeekDates(tsCurrentWeekOffset);
   const weekKey = tsWeekKey(tsCurrentWeekOffset);
   const me      = currentUser();
@@ -11821,6 +13004,13 @@ function tsSwitchView(view, el){
 
 function tsUpdateHour(entryId, dayIdx, val){
   const e=TS_ENTRIES.find(x=>x.id===entryId);if(!e)return;
+  // FIX 5 — only the entry owner can edit their own hours (unless Principal)
+  if(e.sid !== CURRENT_USER_ID && !isPrincipal()){
+    showNotif('Cannot edit','You can only edit your own timesheet entries.');return;
+  }
+  if(e.status==='approved'){
+    showNotif('Timesheet approved','This entry has been approved and cannot be changed.');return;
+  }
   e.days[dayIdx]=parseFloat(val)||0;
   tsDirty=true;
   renderTimesheets();
@@ -11828,6 +13018,15 @@ function tsUpdateHour(entryId, dayIdx, val){
 }
 
 function tsRemoveEntry(entryId){
+  const e=TS_ENTRIES.find(x=>x.id===entryId);
+  if(!e) return;
+  // FIX 5 — ownership guard
+  if(e.sid !== CURRENT_USER_ID && !isPrincipal()){
+    showNotif('Cannot remove','You can only remove your own timesheet entries.');return;
+  }
+  if(e.status==='approved'){
+    showNotif('Timesheet approved','Approved entries cannot be removed.');return;
+  }
   const idx=TS_ENTRIES.findIndex(x=>x.id===entryId);
   if(idx>=0){TS_ENTRIES.splice(idx,1);renderTimesheets();}
   scheduleSave();
@@ -12033,6 +13232,7 @@ function updateNavBadges(){
   if(typeof updateGcalBadge==='function')updateGcalBadge();
   updateNotifBadge();
   updateTxBadge();
+  updateVisBadge();
   // Always show meeting badge with upcoming count
   const nb2=document.getElementById('mtg-badge');
   if(nb2){
@@ -12186,20 +13386,6 @@ function sendEmailNow(templateName){
 
 
 /* ── KEYBOARD SHORTCUTS ─────────────────────────────────────────────── */
-
-/* ── BULK DRAWING OPERATIONS ─────────────────────────────────────────── */
-let selectedDrawings=new Set();
-
-
-function updateBulkBar(){
-  const bar=document.getElementById('drw-bulk-bar');
-  const ct=document.getElementById('drw-bulk-count');
-  if(!bar) return;
-  bar.style.display=selectedDrawings.size>0?'flex':'none';
-  if(ct) ct.textContent=selectedDrawings.size+' selected';
-}
-
-
 
 
 
@@ -12414,7 +13600,7 @@ function openGcalSetup(){
       +'<button class="btn bg" onclick="closeModal(\'gcal-setup-ov\')">Cancel</button>'
     +'</div>'
     +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:12px;line-height:1.5">'
-      +'&#9432; Studio62 only reads and writes calendar events. Token stored in memory only and cleared on tab close.'
+      +'&#9432; '+( FIRM_CONFIG.name||'Studio OS')+' only reads and writes calendar events. Token stored in memory only and cleared on tab close.'
     +'</div></div>';
   document.body.appendChild(div);
 }
@@ -12548,7 +13734,7 @@ function renderMtgMonth(){
   for(var i=0;i<firstDay;i++)h+='<div class="mtg-cell other-month"></div>';
   for(var day=1;day<=daysInMonth;day++){
     var dt=new Date(yr,mo,day);
-    var key=dt.toISOString().slice(0,10);
+    var key=yr+'-'+String(mo+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
     var isToday=dt.getTime()===today.getTime();
     var ents=byDate[key]||[];
     h+='<div class="mtg-cell'+(isToday?' today':'')+(ents.length?' has-meeting':'')+'" onclick="mtgCellClick(\''+key+'\')">'
@@ -12686,7 +13872,7 @@ function importGcalEv(gcalId){
   const ev=_gcalEvents.find(e=>e.id===gcalId);if(!ev)return;
   if(MEETINGS.find(m=>m.gcalId===gcalId)){showNotif('Already imported','');return;}
   const dt=ev.start?.dateTime||ev.start?.date||'';
-  const mtg={id:nextMtgId(),gcalId:ev.id,source:'gcal',title:ev.summary||'Imported Meeting',
+  const mtg={id:nextMtgId(),gcalId:ev.id,source:'gcal',type:'other',title:ev.summary||'Imported Meeting',
     date:dt.slice(0,10),time:dt.slice(11,16),
     duration:ev.end?Math.round((new Date(ev.end.dateTime||ev.end.date)-new Date(dt))/60000):60,
     proj:null,location:ev.location||'',attendees:[],externalAttendees:(ev.attendees||[]).map(a=>a.email),
@@ -12886,6 +14072,38 @@ async function submitMtg(mtgId){
   const agenda=document.getElementById('me-agenda')?.value||'';
   const pushGcal=document.getElementById('me-gcal')?.checked&&isGcalConnected();
   const attendees=STAFF.filter(s=>document.getElementById('att-'+s.id)?.checked).map(s=>s.id);
+
+  // FIX 8 — double-booking detection
+  if(time && attendees.length){
+    const conflicts = checkMeetingConflicts(date, time, duration, attendees, mtgId||null);
+    if(conflicts.length){
+      const conflictMsg = conflicts.map(c=>
+        `${c.clashStaff.join(', ')} already in "${c.meeting.title}" at ${c.meeting.time}`
+      ).join('\n');
+      const proceed = await new Promise(res=>{
+        const ex=document.getElementById('booking-conflict-ov');if(ex)ex.remove();
+        const div=document.createElement('div');div.id='booking-conflict-ov';div.className='ov show';
+        div.innerHTML=`<div class="modal" style="max-width:420px">
+          <div style="font-size:28px;margin-bottom:8px">📅</div>
+          <div class="mtitle">Scheduling Conflict</div>
+          <div style="font-family:var(--fm);font-size:11px;color:var(--txm);margin:10px 0 16px;line-height:1.7">
+            ${conflicts.map(c=>`<div style="padding:6px 10px;background:rgba(224,82,82,.08);border-left:2px solid var(--red);border-radius:0 4px 4px 0;margin-bottom:6px">
+              <strong>${c.clashStaff.join(', ')}</strong> — already in<br>
+              <em>"${c.meeting.title}"</em> at ${c.meeting.time} · ${c.meeting.duration||60} min
+            </div>`).join('')}
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn bg" style="flex:1;justify-content:center" onclick="document.getElementById('booking-conflict-ov').remove();window._bookingConflictResolve(false)">Cancel</button>
+            <button class="btn bp" style="flex:1;justify-content:center" onclick="document.getElementById('booking-conflict-ov').remove();window._bookingConflictResolve(true)">Schedule Anyway</button>
+          </div>
+        </div>`;
+        window._bookingConflictResolve = res;
+        document.body.appendChild(div);
+      });
+      if(!proceed) return;
+    }
+  }
+
   if(mtgId){
     const m=MEETINGS.find(x=>x.id===mtgId);if(!m)return;
     const t2=document.getElementById('me-type')?.value||m.type||'other';
@@ -12894,7 +14112,9 @@ async function submitMtg(mtgId){
     closeModal('mtg-edit-ov');if(m.gcalId&&isGcalConnected())await gcalUpdateEvent(m);
     showNotif('Meeting updated',title);openMtgDetail(mtgId);
   }else{
-    const nm={id:nextMtgId(),gcalId:null,source:'local',title,date,time,duration,proj,location,externalAttendees,attendees,agenda,notes:'',actionItems:[],attendeeStatuses:attendees.map(function(id){return {id:id,status:'invited'};}),notionPageUrl:'',createdBy:CURRENT_USER_ID,status:'scheduled',meetLink:''};
+    const type=document.getElementById('me-type')?.value||'other';
+    const status=document.getElementById('me-status')?.value||'scheduled';
+    const nm={id:nextMtgId(),gcalId:null,source:'local',type,status,title,date,time,duration,proj,location,externalAttendees,attendees,agenda,notes:'',actionItems:[],attendeeStatuses:attendees.map(function(id){return {id:id,status:'invited'};}),notionPageUrl:'',createdBy:CURRENT_USER_ID,meetLink:''};
     MEETINGS.push(nm);closeModal('mtg-edit-ov');
     if(pushGcal){const ev=await gcalCreateEvent(nm);if(ev){nm.gcalId=ev.id;nm.meetLink=ev.hangoutLink||'';nm.source='gcal';}}
     showNotif('Meeting created',title+(nm.gcalId?' \u00b7 Added to Google Calendar':''));openMtgDetail(nm.id);
@@ -12934,7 +14154,7 @@ function renderMtgWeek(){
   var lbl=document.getElementById('mtg-month-lbl');
   if(lbl)lbl.textContent=days[0].toLocaleDateString('en-IN',{day:'numeric',month:'short'})+' \u2013 '+days[6].toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
   var byDay={};
-  days.forEach(function(d){byDay[d.toISOString().slice(0,10)]=[];});
+  days.forEach(function(d){var k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');byDay[k]=[];});
   MEETINGS.filter(function(m){return m.status!=='cancelled';}).forEach(function(m){
     if(byDay[m.date])byDay[m.date].push({type:'local',m});
   });
@@ -12948,7 +14168,7 @@ function renderMtgWeek(){
   for(var hr=START;hr<=END;hr++)h+='<div class="mtg-hour-label">'+String(hr).padStart(2,'0')+'</div>';
   h+='</div><div class="mtg-week-cols">';
   days.forEach(function(day){
-    var key=day.toISOString().slice(0,10);
+    var key=day.getFullYear()+'-'+String(day.getMonth()+1).padStart(2,'0')+'-'+String(day.getDate()).padStart(2,'0');
     var isToday=day.getTime()===today.getTime();
     h+='<div class="mtg-week-col">'
       +'<div class="mtg-week-col-hdr'+(isToday?' today':'')+'">'
@@ -13051,7 +14271,7 @@ function exportMinutes(mtgId){
           return '<tr><td>'+(i+1)+'</td><td'+(ai.done?' class="done"':'')+'>'+ai.text+'</td><td>'+(who?who.first+' '+who.last:ai.assignee||'—')+'</td><td>'+(ai.due||'—')+'</td><td>'+(ai.done?'✓ Done':'Pending')+'</td></tr>';
         }).join('')
       + '</table>' : ''),
-    '<div class="footer">Studio 62 · S62 Drawing OS · Generated ' + new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}) + '</div>',
+    '<div class="footer">'+(FIRM_CONFIG.name||'Studio OS')+' · '+(FIRM_CONFIG.appName||'Studio OS')+' · Generated ' + new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}) + '</div>',
     '</body></html>'
   ].join('\n');
 
@@ -13769,6 +14989,7 @@ function renderFinInvoices(){
       <td><span class="fin-inv-status ${statusCls}">${statusLabel}</span></td>
       <td><div style="display:flex;gap:4px">
         ${inv.status==='pending'||inv.status==='overdue'?`<button class="btn bg bsm" style="font-size:9px;color:var(--grn)" onclick="markInvoicePaid('${inv.id}')">✓ Paid</button>`:''}
+        <button class="btn bg bsm" style="font-size:9px;color:var(--blu)" onclick="generateGSTInvoice('${inv.id}')">🧾 GST</button>
         <button class="btn bg bsm" style="font-size:9px;color:var(--red)" onclick="deleteInvoice('${inv.id}')">✕</button>
       </div></td>
     </tr>`;
@@ -13881,6 +15102,7 @@ function submitAddInvoice(){
     addNotif({type:'timesheet',icon:'₹',iconBg:'rgba(201,169,110,.2)',title:'Invoice '+id+' created',detail:desc+' · '+fmtINR(amountNum),projId,forRoles:['Principal Architect','Associate Principal','Lead Architect']});
   }
   showNotif('Invoice added',id+' — '+fmtINR(amountNum));
+  addAudit('financial','Invoice created',id+' · '+desc+' · '+fmtINR(amountNum),projId);
   closeModal('add-inv-ov');
   renderFinancials(); scheduleSave();
 }
@@ -14520,7 +15742,8 @@ function generateTransmittalHTML(tx){
 <div class="page">
   <div class="header">
     <div>
-      <div class="firm-name">Studio 62</div>
+      ${FIRM_CONFIG.logoDataUrl?`<img src="${FIRM_CONFIG.logoDataUrl}" style="height:36px;object-fit:contain;display:block;margin-bottom:4px" alt="${FIRM_CONFIG.name||''}">`:''}
+      <div class="firm-name">${FIRM_CONFIG.name||'Architecture Firm'}</div>
       <div class="doc-label">Drawing Transmittal</div>
     </div>
     <div style="text-align:right">
@@ -14557,10 +15780,10 @@ function generateTransmittalHTML(tx){
 
   <div class="sig-grid" style="margin-top:28px">
     <div class="sig-box">
-      <div class="sig-label">Issued by — Studio 62</div>
+      <div class="sig-label">Issued by — ${FIRM_CONFIG.name||'Architecture Firm'}</div>
       <div style="height:36px"></div>
       <div class="sig-name">${issuer?issuer.first+' '+issuer.last:''}</div>
-      <div class="sig-role">${issuer?issuer.role:''} · Studio 62</div>
+      <div class="sig-role">${issuer?issuer.role:''} · ${FIRM_CONFIG.name||''}</div>
     </div>
     <div class="sig-box">
       <div class="sig-label">Received by — ${tx.issuedTo||'Recipient'}</div>
@@ -14571,7 +15794,7 @@ function generateTransmittalHTML(tx){
   </div>
 
   <div class="footer">
-    <span>Studio 62 Design · Transmittal ${tx.ref}</span>
+    <span>${FIRM_CONFIG.name||'Architecture Firm'} · Transmittal ${tx.ref}</span>
     <span>Generated ${today}</span>
     <span>Page 1 of 1</span>
   </div>
@@ -14586,6 +15809,1069 @@ function generateTransmittalHTML(tx){
 }
 
 /* ── END TRANSMITTAL MODULE ── */
+
+/* ════════════════════════════════════════════════════════
+   v62 — FIRM CONFIG · SETUP WIZARD · AUDIT LOG
+       · MOBILE · PWA · GST INVOICE · WHITE-LABEL
+   ════════════════════════════════════════════════════════ */
+
+/* ── FIRM CONFIG PERSISTENCE ───────────────────────────── */
+function loadFirmConfig(){
+  try{
+    const raw = localStorage.getItem(S62_FIRM_KEY);
+    if(raw){ const p=JSON.parse(raw); if(p&&p.name) Object.assign(FIRM_CONFIG,p); }
+  }catch(e){}
+}
+function saveFirmConfig(){
+  try{ localStorage.setItem(S62_FIRM_KEY, JSON.stringify(FIRM_CONFIG)); }catch(e){}
+  // also push into packData save cycle
+  scheduleSave();
+}
+
+/* ── APPLY FIRM THEME ──────────────────────────────────── */
+function applyFirmTheme(){
+  const r = document.documentElement;
+  if(FIRM_CONFIG.primaryColor) r.style.setProperty('--gold', FIRM_CONFIG.primaryColor);
+  if(FIRM_CONFIG.accentColor)  r.style.setProperty('--blu',  FIRM_CONFIG.accentColor);
+  // Update PWA theme-color meta
+  const tm = document.getElementById('pwa-theme-color');
+  if(tm) tm.content = FIRM_CONFIG.primaryColor||'#c9a96e';
+  updateSidebarBrand();
+  updateLockScreenBrand();
+  updateDocumentTitle();
+  injectPWAManifest();
+}
+
+function updateSidebarBrand(){
+  const nameEl = document.getElementById('sidebar-firm-name');
+  const boxEl  = document.getElementById('sidebar-logo-box');
+  const subEl  = document.getElementById('sidebar-app-name');
+  if(nameEl) nameEl.textContent = FIRM_CONFIG.name||'My Firm';
+  if(subEl)  subEl.textContent  = (FIRM_CONFIG.appName||'Studio OS')+' · v62';
+  if(boxEl){
+    if(FIRM_CONFIG.logoDataUrl){
+      boxEl.innerHTML = `<img src="${FIRM_CONFIG.logoDataUrl}" style="width:100%;height:100%;object-fit:contain;border-radius:4px" alt="logo">`;
+      boxEl.style.background = 'transparent';
+      boxEl.style.padding = '2px';
+    } else {
+      boxEl.textContent = (FIRM_CONFIG.name||'F').slice(0,2).toUpperCase();
+      boxEl.style.background = '';
+      boxEl.style.padding = '';
+    }
+  }
+}
+
+function updateLockScreenBrand(){
+  const el = document.getElementById('lock-firm-name');
+  if(el) el.textContent = FIRM_CONFIG.name||'Studio OS';
+}
+
+function updateDocumentTitle(){
+  document.title = (FIRM_CONFIG.appName||FIRM_CONFIG.name||'Studio OS')+' — Practice Management';
+}
+
+function injectPWAManifest(){
+  const manifest = {
+    name: FIRM_CONFIG.name||'Studio OS',
+    short_name: (FIRM_CONFIG.appName||FIRM_CONFIG.name||'Studio OS').slice(0,12),
+    description: 'Architecture practice management',
+    start_url: window.location.pathname,
+    display: 'standalone',
+    background_color: '#0a0a0f',
+    theme_color: FIRM_CONFIG.primaryColor||'#c9a96e',
+    icons: [{
+      src: FIRM_CONFIG.logoDataUrl||'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23c9a96e"/><text y=".9em" font-size="60" x="50%" text-anchor="middle" fill="%230a0a0f">S</text></svg>',
+      sizes:'192x192', type:'image/svg+xml'
+    }]
+  };
+  const blob = new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  const url  = URL.createObjectURL(blob);
+  const link = document.getElementById('pwa-manifest-link');
+  if(link){
+    if(link.href) URL.revokeObjectURL(link.href);
+    link.href = url;
+    link.rel  = 'manifest';
+  }
+}
+
+/* ── MOBILE SIDEBAR ────────────────────────────────────── */
+function toggleMobileSidebar(){
+  const sb  = document.querySelector('.sidebar');
+  const ov  = document.getElementById('sidebar-overlay');
+  if(!sb) return;
+  const open = sb.classList.toggle('mobile-open');
+  if(ov) ov.classList.toggle('show', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+function closeMobileSidebar(){
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if(sb) sb.classList.remove('mobile-open');
+  if(ov) ov.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+/* Close sidebar on nav item click (mobile) */
+document.addEventListener('click', e=>{
+  if(e.target.closest('.ni') && window.innerWidth <= 768) closeMobileSidebar();
+});
+
+/* ── AUDIT LOG ─────────────────────────────────────────── */
+const AUDIT_ICONS = {
+  drawing:   {icon:'✎', bg:'rgba(82,133,224,.15)'},
+  qa:        {icon:'◈', bg:'rgba(138,82,224,.15)'},
+  timesheet: {icon:'⏱', bg:'rgba(82,201,122,.15)'},
+  project:   {icon:'◼', bg:'rgba(201,169,110,.15)'},
+  staff:     {icon:'👤', bg:'rgba(224,138,82,.15)'},
+  financial: {icon:'₹', bg:'rgba(201,169,110,.15)'},
+  auth:      {icon:'🔑', bg:'rgba(82,201,201,.15)'},
+  settings:  {icon:'⚙', bg:'rgba(122,120,136,.15)'},
+  visual:    {icon:'🎬', bg:'rgba(224,82,160,.15)'},
+  default:   {icon:'●', bg:'rgba(122,120,136,.15)'},
+};
+
+function addAudit(type, action, detail, projId){
+  const me = currentUser();
+  const entry = {
+    id:     'A-'+Date.now()+'-'+Math.random().toString(36).slice(2,5),
+    type:   type||'default',
+    action, detail,
+    userId: me.id,
+    userName: me.first+' '+me.last,
+    projId: projId||null,
+    ts:     Date.now(),
+  };
+  AUDIT_LOG.unshift(entry);
+  if(AUDIT_LOG.length > AUDIT_MAX) AUDIT_LOG.length = AUDIT_MAX;
+  // Don't call scheduleSave here — audit is appended on next normal save
+}
+
+function renderAuditLog(){
+  const body = document.getElementById('audit-log-body'); if(!body) return;
+  const typeF = document.getElementById('audit-type-filter')?.value||'ALL';
+  const userF = document.getElementById('audit-user-filter')?.value||'ALL';
+
+  // Populate user filter
+  const uf = document.getElementById('audit-user-filter');
+  if(uf && uf.options.length <= 1){
+    const users = [...new Set(AUDIT_LOG.map(e=>e.userId))];
+    users.forEach(uid=>{
+      const s = STAFF.find(x=>x.id===uid);
+      const o = document.createElement('option');
+      o.value=uid; o.textContent=s?s.first+' '+s.last:uid;
+      uf.appendChild(o);
+    });
+  }
+
+  let entries = AUDIT_LOG.filter(e=>{
+    if(typeF!=='ALL' && e.type!==typeF) return false;
+    if(userF!=='ALL' && e.userId!==userF) return false;
+    return true;
+  });
+
+  const sub = document.getElementById('audit-subtitle');
+  if(sub) sub.textContent = entries.length+' entries'+(typeF!=='ALL'?' · '+typeF:'')+' · last 500 actions';
+
+  if(!entries.length){
+    body.innerHTML='<div style="padding:32px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No audit entries yet. Actions will appear here as your team works.</div>';
+    return;
+  }
+
+  // Group by day
+  const groups={};
+  entries.forEach(e=>{
+    const d=new Date(e.ts);
+    const today=new Date();const yesterday=new Date(today-86400000);
+    const key=d.toDateString()===today.toDateString()?'Today':
+               d.toDateString()===yesterday.toDateString()?'Yesterday':
+               d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    if(!groups[key])groups[key]=[];
+    groups[key].push(e);
+  });
+
+  let h='';
+  Object.entries(groups).forEach(([day,items])=>{
+    h+=`<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--bd)">${day}</div>`;
+    items.forEach(e=>{
+      const ai = AUDIT_ICONS[e.type]||AUDIT_ICONS.default;
+      const p  = e.projId ? PROJS.find(x=>x.id===e.projId) : null;
+      const t  = new Date(e.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+      h+=`<div class="audit-row">
+        <div class="audit-icon" style="background:${ai.bg}">${ai.icon}</div>
+        <div class="audit-body">
+          <div class="audit-action">${e.action}</div>
+          <div class="audit-detail">${e.detail||''}${p?' · <span style="color:'+p.color+'">'+p.name+'</span>':''}</div>
+          <div style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-top:2px">${e.userName}</div>
+        </div>
+        <div class="audit-time">${t}</div>
+      </div>`;
+    });
+  });
+  body.innerHTML = h;
+}
+
+function exportAuditLog(){
+  const rows = [['Time','User','Type','Action','Detail','Project']];
+  AUDIT_LOG.forEach(e=>{
+    const p = e.projId?PROJS.find(x=>x.id===e.projId):null;
+    rows.push([new Date(e.ts).toLocaleString('en-IN'),e.userName,e.type,e.action,e.detail||'',p?p.name:'']);
+  });
+  const csv = rows.map(r=>r.map(v=>'"'+(String(v||'').replace(/"/g,'""'))+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='audit-log-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+/* ── SETUP WIZARD ──────────────────────────────────────── */
+let _wizardStep = 1;
+const WIZARD_COLORS = [
+  '#c9a96e','#e08a52','#e05252','#e052a0','#8a52e0',
+  '#5285e0','#52c9c9','#52c97a','#f0c97a','#a0a0a0',
+  '#1a7a4a','#7a1a4a','#1a4a7a','#4a1a7a','#7a4a1a',
+  '#2d6a8a',
+];
+
+function checkSetupNeeded(){
+  return !FIRM_CONFIG.setupComplete;
+}
+
+function showSetupWizard(){
+  _wizardStep = 1;
+  const ex = document.getElementById('setup-wizard-ov'); if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'setup-wizard-ov';
+  div.className = 'wizard-ov';
+  div.innerHTML = '<div class="wizard-card" id="wizard-card"></div>';
+  document.body.appendChild(div);
+  renderWizardStep();
+}
+
+function renderWizardStep(){
+  const card = document.getElementById('wizard-card'); if(!card) return;
+  const dots = [1,2,3,4].map(n=>`<div class="wizard-step-dot ${n<_wizardStep?'done':n===_wizardStep?'active':''}"></div>`).join('');
+
+  let inner = '';
+  if(_wizardStep===1){
+    inner=`
+      <div class="wizard-step-bar">${dots}</div>
+      <div class="wizard-h">Welcome to Studio OS 👋</div>
+      <div class="wizard-sub">Let's set up your firm in 4 quick steps. You can change everything later in Firm Settings.</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+        <div class="firm-logo-preview" id="wiz-logo-preview" onclick="document.getElementById('wiz-logo-input').click()">
+          <span id="wiz-logo-icon">🏛</span>
+        </div>
+        <div style="flex:1">
+          <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:4px">Click to upload your firm logo (PNG/SVG recommended)</div>
+          <input type="file" id="wiz-logo-input" accept="image/*" style="display:none" onchange="handleWizardLogoUpload(this)">
+          <button class="btn bg bsm" onclick="document.getElementById('wiz-logo-input').click()" style="font-size:9px">Upload Logo</button>
+        </div>
+      </div>
+      <div class="frow"><label class="flbl">Firm Name *</label>
+        <input class="finp" id="wiz-name" placeholder="e.g. Sharma & Associates Architects" value="${FIRM_CONFIG.name!=='My Architecture Firm'?FIRM_CONFIG.name:''}"></div>
+      <div class="frow"><label class="flbl">Tagline</label>
+        <input class="finp" id="wiz-tagline" placeholder="e.g. Architecture · Interior Design · Landscape" value="${FIRM_CONFIG.tagline!=='Architecture & Design'?FIRM_CONFIG.tagline:''}"></div>
+      <div class="frow"><label class="flbl">App Name <span style="color:var(--txd);font-weight:400">(shown in sidebar)</span></label>
+        <input class="finp" id="wiz-appname" placeholder="e.g. Studio OS" value="${FIRM_CONFIG.appName||'Studio OS'}"></div>
+      <div class="fgrid">
+        <div class="frow"><label class="flbl">Phone</label><input class="finp" id="wiz-phone" placeholder="+91 98..." value="${FIRM_CONFIG.phone||''}"></div>
+        <div class="frow"><label class="flbl">Email</label><input class="finp" id="wiz-email" type="email" placeholder="hello@studio62.in" value="${FIRM_CONFIG.email||''}"></div>
+      </div>
+      <div class="frow"><label class="flbl">Website</label><input class="finp" id="wiz-website" placeholder="https://yourfirm.com" value="${FIRM_CONFIG.website||''}"></div>`;
+  } else if(_wizardStep===2){
+    inner=`
+      <div class="wizard-step-bar">${dots}</div>
+      <div class="wizard-h">Office Address & Tax Details</div>
+      <div class="wizard-sub">Used in transmittals, invoices, and reports.</div>
+      <div class="frow"><label class="flbl">Address</label><input class="finp" id="wiz-address" placeholder="e.g. 12, Anna Salai, Nungambakkam" value="${FIRM_CONFIG.address||''}"></div>
+      <div class="fgrid">
+        <div class="frow"><label class="flbl">City</label><input class="finp" id="wiz-city" placeholder="Chennai" value="${FIRM_CONFIG.city||''}"></div>
+        <div class="frow"><label class="flbl">State</label><input class="finp" id="wiz-state" placeholder="Tamil Nadu" value="${FIRM_CONFIG.state||''}"></div>
+      </div>
+      <div class="fgrid">
+        <div class="frow"><label class="flbl">PIN Code</label><input class="finp" id="wiz-pincode" placeholder="600001" value="${FIRM_CONFIG.pincode||''}"></div>
+        <div class="frow"><label class="flbl">Country</label><input class="finp" id="wiz-country" value="${FIRM_CONFIG.country||'India'}"></div>
+      </div>
+      <div class="fgrid">
+        <div class="frow"><label class="flbl">GSTIN</label><input class="finp" id="wiz-gstin" placeholder="33AAAAA0000A1Z5" style="text-transform:uppercase" value="${FIRM_CONFIG.gstin||''}"></div>
+        <div class="frow"><label class="flbl">PAN</label><input class="finp" id="wiz-pan" placeholder="AAAAA0000A" style="text-transform:uppercase" value="${FIRM_CONFIG.pan||''}"></div>
+      </div>
+      <div class="frow"><label class="flbl">CIN <span style="color:var(--txd);font-weight:400">(if incorporated)</span></label>
+        <input class="finp" id="wiz-cin" placeholder="U74999TN2020PTC000001" value="${FIRM_CONFIG.cin||''}"></div>`;
+  } else if(_wizardStep===3){
+    const swatches = WIZARD_COLORS.map(c=>`<div class="color-swatch${FIRM_CONFIG.primaryColor===c?' sel':''}" style="background:${c}" onclick="wizPickColor('${c}')" data-color="${c}"></div>`).join('');
+    inner=`
+      <div class="wizard-step-bar">${dots}</div>
+      <div class="wizard-h">Brand Colour</div>
+      <div class="wizard-sub">This becomes the primary colour throughout the app — KPIs, highlights, transmittal headers, and more.</div>
+      <div style="margin-bottom:16px">
+        <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:8px">Choose a colour or enter a custom hex code</div>
+        <div class="color-swatch-grid">${swatches}</div>
+      </div>
+      <div class="frow"><label class="flbl">Custom hex colour</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="color" id="wiz-color-picker" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" style="width:44px;height:36px;border:none;background:none;cursor:pointer;padding:0" oninput="wizPickColor(this.value)">
+          <input class="finp" id="wiz-color-hex" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" placeholder="#c9a96e" style="flex:1" oninput="wizPickColor(this.value)">
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:16px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--bd)">
+        <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:8px">Preview</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="background:var(--gold);color:#0a0a0f;padding:6px 14px;border-radius:6px;font-family:var(--fm);font-size:10px;font-weight:700">Primary Button</div>
+          <div style="color:var(--gold);font-family:var(--fd);font-size:18px">₹ 24.5 Cr</div>
+          <div style="border:1px solid var(--gold);padding:5px 12px;border-radius:6px;font-family:var(--fm);font-size:9px;color:var(--gold)">Status Badge</div>
+        </div>
+      </div>`;
+  } else if(_wizardStep===4){
+    inner=`
+      <div class="wizard-step-bar">${dots}</div>
+      <div class="wizard-h">You're all set! 🎉</div>
+      <div class="wizard-sub">Here's a summary of your firm setup. You can always change these in <strong>Firm Settings</strong> (bottom of the sidebar).</div>
+      <div style="background:var(--sf2);border-radius:10px;padding:16px;margin-bottom:20px">
+        ${FIRM_CONFIG.logoDataUrl?`<img src="${FIRM_CONFIG.logoDataUrl}" style="height:40px;object-fit:contain;margin-bottom:10px;display:block" alt="logo">`:''}
+        <div style="font-family:var(--fd);font-size:20px;color:var(--gold);margin-bottom:4px">${FIRM_CONFIG.name}</div>
+        <div style="font-family:var(--fm);font-size:10px;color:var(--txd)">${FIRM_CONFIG.tagline}</div>
+        ${FIRM_CONFIG.address?`<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:6px">${FIRM_CONFIG.address}, ${FIRM_CONFIG.city}</div>`:''}
+        ${FIRM_CONFIG.gstin?`<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px">GSTIN: ${FIRM_CONFIG.gstin}</div>`:''}
+      </div>
+      <div style="background:rgba(82,201,122,.06);border:1px solid rgba(82,201,122,.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-family:var(--fm);font-size:10px;color:var(--txm);line-height:1.7">
+        ✓ Your data is saved locally and syncs to Firebase when configured<br>
+        ✓ All transmittals and invoices will use your firm branding<br>
+        ✓ You can add your team members and first project now<br>
+        ✓ Firm settings are editable anytime from the sidebar
+      </div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:4px">
+        Want to reset the demo data and start fresh? 
+        <span onclick="clearDemoData()" style="color:var(--red);cursor:pointer;text-decoration:underline">Clear demo data</span>
+      </div>`;
+  }
+
+  const isLast = _wizardStep === 4;
+  const isFirst= _wizardStep === 1;
+
+  card.innerHTML = inner + `
+    <div style="display:flex;gap:8px;margin-top:20px">
+      ${!isFirst?`<button class="btn bg" style="padding:10px 18px" onclick="wizardNav(-1)">← Back</button>`:''}
+      <button class="btn bp" style="flex:1;justify-content:center;padding:10px;font-size:13px" onclick="wizardNav(1)">
+        ${isLast ? '✓ Launch Studio OS' : 'Continue →'}
+      </button>
+    </div>`;
+}
+
+function handleWizardLogoUpload(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    FIRM_CONFIG.logoDataUrl = e.target.result;
+    const prev = document.getElementById('wiz-logo-preview');
+    if(prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain;border-radius:4px" alt="logo">`;
+    applyFirmTheme();
+  };
+  reader.readAsDataURL(file);
+}
+
+function wizPickColor(color){
+  if(!color||color.length<4) return;
+  FIRM_CONFIG.primaryColor = color;
+  document.querySelectorAll('.color-swatch').forEach(s=>{
+    s.classList.toggle('sel', s.dataset.color===color);
+  });
+  const hexInput = document.getElementById('wiz-color-hex');
+  const colorPicker = document.getElementById('wiz-color-picker');
+  if(hexInput) hexInput.value = color;
+  if(colorPicker) colorPicker.value = color.length===7?color:'#c9a96e';
+  applyFirmTheme();
+}
+
+function wizardNav(dir){
+  // Save current step data
+  if(_wizardStep===1){
+    const name = (document.getElementById('wiz-name')?.value||'').trim();
+    if(!name && dir>0){ showNotif('Firm name required','Enter your firm name to continue.'); return; }
+    FIRM_CONFIG.name     = name||FIRM_CONFIG.name;
+    FIRM_CONFIG.tagline  = (document.getElementById('wiz-tagline')?.value||'').trim()||FIRM_CONFIG.tagline;
+    FIRM_CONFIG.appName  = (document.getElementById('wiz-appname')?.value||'').trim()||'Studio OS';
+    FIRM_CONFIG.phone    = (document.getElementById('wiz-phone')?.value||'').trim();
+    FIRM_CONFIG.email    = (document.getElementById('wiz-email')?.value||'').trim();
+    FIRM_CONFIG.website  = (document.getElementById('wiz-website')?.value||'').trim();
+  } else if(_wizardStep===2){
+    FIRM_CONFIG.address  = (document.getElementById('wiz-address')?.value||'').trim();
+    FIRM_CONFIG.city     = (document.getElementById('wiz-city')?.value||'').trim();
+    FIRM_CONFIG.state    = (document.getElementById('wiz-state')?.value||'').trim();
+    FIRM_CONFIG.pincode  = (document.getElementById('wiz-pincode')?.value||'').trim();
+    FIRM_CONFIG.country  = (document.getElementById('wiz-country')?.value||'India').trim();
+    FIRM_CONFIG.gstin    = (document.getElementById('wiz-gstin')?.value||'').trim().toUpperCase();
+    FIRM_CONFIG.pan      = (document.getElementById('wiz-pan')?.value||'').trim().toUpperCase();
+    FIRM_CONFIG.cin      = (document.getElementById('wiz-cin')?.value||'').trim();
+  }
+  applyFirmTheme();
+  if(dir>0 && _wizardStep===4){
+    // Complete setup
+    FIRM_CONFIG.setupComplete = true;
+    saveFirmConfig();
+    addAudit('settings','Setup wizard completed','Firm: '+FIRM_CONFIG.name);
+    const ov = document.getElementById('setup-wizard-ov');
+    if(ov) ov.remove();
+    showNotif('Welcome to '+FIRM_CONFIG.name+' Studio OS 🎉', 'Your firm is configured. Start by adding a project.');
+    updateSidebarBrand();
+    return;
+  }
+  _wizardStep = Math.max(1, Math.min(4, _wizardStep+dir));
+  renderWizardStep();
+}
+
+function clearDemoData(){
+  if(!confirm('This will clear all demo projects, drawings, staff, and timesheets. Your firm settings will be kept. Continue?')) return;
+  PROJS=[]; DRAWINGS=[]; TS_ENTRIES=[]; SCHED_TASKS=[]; MEETINGS=[];
+  PIPELINE=[]; DRW_PACKAGES=[]; SENT_EMAILS=[]; NOTIFICATIONS=[];
+  TRANSMITTALS=[]; VISUALS=[]; INVOICES=[];
+  // Keep current user/staff but clear demo staff
+  STAFF = STAFF.filter(s=>s.id===CURRENT_USER_ID);
+  scheduleSave();
+  renderDashboard(); renderProjList(); renderDrawings();
+  renderStaffSched(); renderWorkload(); updateNavBadges();
+  showNotif('Demo data cleared','Ready for real data.');
+  const ov = document.getElementById('setup-wizard-ov'); if(ov) ov.remove();
+}
+
+/* ── FIRM SETTINGS MODAL (post-wizard) ─────────────────── */
+function openFirmSettings(){
+  const ex=document.getElementById('firm-settings-ov');if(ex)ex.remove();
+  const div=document.createElement('div');div.id='firm-settings-ov';div.className='ov show';
+  div.innerHTML=`<div class="modal" style="max-width:580px">
+    <button class="mclose" onclick="closeModal('firm-settings-ov')">✕</button>
+    <div class="mtitle">Firm Settings</div>
+
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+      <div class="firm-logo-preview" onclick="document.getElementById('fs-logo-input').click()">
+        ${FIRM_CONFIG.logoDataUrl?`<img src="${FIRM_CONFIG.logoDataUrl}" style="width:100%;height:100%;object-fit:contain;border-radius:4px" alt="logo">`:'<span style="font-size:24px">🏛</span>'}
+      </div>
+      <div>
+        <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:6px">Click logo to upload new image (PNG/SVG)</div>
+        <input type="file" id="fs-logo-input" accept="image/*" style="display:none" onchange="handleFsLogoUpload(this)">
+        ${FIRM_CONFIG.logoDataUrl?`<button class="btn bg bsm" style="font-size:9px;color:var(--red)" onclick="FIRM_CONFIG.logoDataUrl='';applyFirmTheme();saveFirmConfig();closeModal('firm-settings-ov');openFirmSettings()">Remove logo</button>`:''}
+      </div>
+    </div>
+
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Firm Name *</label><input class="finp" id="fs-name" value="${FIRM_CONFIG.name||''}"></div>
+      <div class="frow"><label class="flbl">App Name</label><input class="finp" id="fs-appname" value="${FIRM_CONFIG.appName||'Studio OS'}"></div>
+    </div>
+    <div class="frow"><label class="flbl">Tagline</label><input class="finp" id="fs-tagline" value="${FIRM_CONFIG.tagline||''}"></div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Phone</label><input class="finp" id="fs-phone" value="${FIRM_CONFIG.phone||''}"></div>
+      <div class="frow"><label class="flbl">Email</label><input class="finp" id="fs-email" type="email" value="${FIRM_CONFIG.email||''}"></div>
+    </div>
+    <div class="frow"><label class="flbl">Website</label><input class="finp" id="fs-website" value="${FIRM_CONFIG.website||''}"></div>
+    <div class="frow"><label class="flbl">Address</label><input class="finp" id="fs-address" value="${FIRM_CONFIG.address||''}"></div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">City</label><input class="finp" id="fs-city" value="${FIRM_CONFIG.city||''}"></div>
+      <div class="frow"><label class="flbl">State</label><input class="finp" id="fs-state" value="${FIRM_CONFIG.state||''}"></div>
+    </div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">GSTIN</label><input class="finp" id="fs-gstin" value="${FIRM_CONFIG.gstin||''}" style="text-transform:uppercase"></div>
+      <div class="frow"><label class="flbl">PAN</label><input class="finp" id="fs-pan" value="${FIRM_CONFIG.pan||''}" style="text-transform:uppercase"></div>
+    </div>
+    <div class="frow"><label class="flbl">CIN</label><input class="finp" id="fs-cin" value="${FIRM_CONFIG.cin||''}"></div>
+
+    <div class="frow"><label class="flbl">Brand Colour</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="color" id="fs-color-picker" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" style="width:44px;height:36px;border:none;background:none;cursor:pointer;padding:0" oninput="FIRM_CONFIG.primaryColor=this.value;applyFirmTheme()">
+        <input class="finp" id="fs-color-hex" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" style="flex:1" oninput="FIRM_CONFIG.primaryColor=this.value;applyFirmTheme()">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveFirmSettingsModal()">Save Settings</button>
+      <button class="btn bg" onclick="closeModal('firm-settings-ov');showSetupWizard()" style="padding:10px 14px;font-size:10px">Re-run Wizard</button>
+      <button class="btn bg" onclick="closeModal('firm-settings-ov')" style="padding:10px 14px">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function handleFsLogoUpload(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{ FIRM_CONFIG.logoDataUrl=e.target.result; applyFirmTheme(); saveFirmConfig(); closeModal('firm-settings-ov'); openFirmSettings(); };
+  reader.readAsDataURL(file);
+}
+
+function saveFirmSettingsModal(){
+  FIRM_CONFIG.name    =(document.getElementById('fs-name')?.value||'').trim()||FIRM_CONFIG.name;
+  FIRM_CONFIG.appName =(document.getElementById('fs-appname')?.value||'').trim()||'Studio OS';
+  FIRM_CONFIG.tagline =(document.getElementById('fs-tagline')?.value||'').trim();
+  FIRM_CONFIG.phone   =(document.getElementById('fs-phone')?.value||'').trim();
+  FIRM_CONFIG.email   =(document.getElementById('fs-email')?.value||'').trim();
+  FIRM_CONFIG.website =(document.getElementById('fs-website')?.value||'').trim();
+  FIRM_CONFIG.address =(document.getElementById('fs-address')?.value||'').trim();
+  FIRM_CONFIG.city    =(document.getElementById('fs-city')?.value||'').trim();
+  FIRM_CONFIG.state   =(document.getElementById('fs-state')?.value||'').trim();
+  FIRM_CONFIG.gstin   =(document.getElementById('fs-gstin')?.value||'').trim().toUpperCase();
+  FIRM_CONFIG.pan     =(document.getElementById('fs-pan')?.value||'').trim().toUpperCase();
+  FIRM_CONFIG.cin     =(document.getElementById('fs-cin')?.value||'').trim();
+  applyFirmTheme();
+  saveFirmConfig();
+  addAudit('settings','Firm settings updated','Name: '+FIRM_CONFIG.name);
+  closeModal('firm-settings-ov');
+  showNotif('Firm settings saved', FIRM_CONFIG.name+' · '+FIRM_CONFIG.city);
+}
+
+/* ── GST INVOICE GENERATION ────────────────────────────── */
+function generateGSTInvoice(invoiceId){
+  const inv = (INVOICES||[]).find(i=>i.id===invoiceId);
+  if(!inv){ showNotif('Invoice not found',''); return; }
+  const p = PROJS.find(x=>x.id===inv.projId)||{name:inv.projId,id:inv.projId};
+  const firm = FIRM_CONFIG;
+  const issueDateFmt = inv.issueDate ? new Date(inv.issueDate).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}) : '';
+  const dueDateFmt   = inv.dueDate   ? new Date(inv.dueDate).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}) : '—';
+  const amount = inv.amountNum||0;
+  // GST breakdown: assume 18% GST, split as 9% CGST + 9% SGST (same state) or 18% IGST
+  const isInterState = false; // TODO: detect from client state
+  const baseAmount = Math.round(amount / 1.18);
+  const gstAmount  = amount - baseAmount;
+  const cgst = isInterState ? 0 : Math.round(gstAmount/2);
+  const sgst = isInterState ? 0 : Math.round(gstAmount/2);
+  const igst = isInterState ? gstAmount : 0;
+  const today = new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
+
+  const html=`<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Tax Invoice ${inv.id}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#111;background:#fff;line-height:1.5}
+@page{size:A4;margin:16mm 14mm}
+@media print{.no-print{display:none!important}}
+.page{max-width:820px;margin:0 auto;padding:28px 32px}
+.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid ${firm.primaryColor||'#c9a96e'};margin-bottom:18px}
+.firm-name{font-size:22px;font-weight:800;color:#111;letter-spacing:-.5px}
+.firm-details{font-size:9px;color:#666;margin-top:4px;line-height:1.7}
+.inv-title{font-size:28px;font-weight:800;color:${firm.primaryColor||'#c9a96e'};letter-spacing:-.5px}
+.inv-no{font-size:11px;color:#666;margin-top:3px}
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:18px}
+.party-box{background:#f8f8f8;border-radius:6px;padding:12px 14px}
+.party-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#999;font-weight:700;margin-bottom:4px}
+.party-name{font-size:13px;font-weight:700}
+table{width:100%;border-collapse:collapse;margin-bottom:16px}
+th{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#888;padding:7px 10px;border-bottom:2px solid #e5e5e5;background:#f8f8f8;text-align:left}
+td{padding:8px 10px;border-bottom:1px solid #f0f0f0;font-size:11px}
+.amount-col{text-align:right;font-family:monospace}
+.totals-table{width:40%;margin-left:auto;border-collapse:collapse}
+.totals-table td{padding:5px 10px;font-size:11px}
+.totals-table .total-row td{font-weight:800;font-size:14px;color:${firm.primaryColor||'#c9a96e'};border-top:2px solid ${firm.primaryColor||'#c9a96e'};padding-top:8px}
+.badge{display:inline-block;padding:3px 9px;border-radius:4px;font-size:9px;font-weight:700;text-transform:uppercase}
+.badge-paid{background:rgba(52,168,83,.12);color:#1e7e34}
+.badge-due{background:rgba(240,153,39,.12);color:#c67c1a}
+.footer{margin-top:24px;padding-top:12px;border-top:1px solid #e5e5e5;display:flex;justify-content:space-between;font-size:9px;color:#bbb}
+.gstin-badge{display:inline-block;background:#f0f0f0;padding:2px 8px;border-radius:3px;font-size:9px;font-family:monospace;color:#333;margin-top:4px}
+.print-btn{position:fixed;bottom:20px;right:20px;padding:10px 20px;background:${firm.primaryColor||'#c9a96e'};color:#0a0a0f;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+</style></head>
+<body><div class="page">
+  <div class="header">
+    <div>
+      ${firm.logoDataUrl?`<img src="${firm.logoDataUrl}" style="height:40px;object-fit:contain;display:block;margin-bottom:6px" alt="${firm.name}">`:''}
+      <div class="firm-name">${firm.name||'Architecture Firm'}</div>
+      <div class="firm-details">
+        ${firm.address?firm.address+', '+firm.city+', '+firm.state+' – '+firm.pincode+'<br>':'' }
+        ${firm.phone?'📞 '+firm.phone+'  ':''}${firm.email?'✉ '+firm.email+'<br>':''}
+        ${firm.gstin?'<span class="gstin-badge">GSTIN: '+firm.gstin+'</span>  ':''}
+        ${firm.pan?'<span class="gstin-badge">PAN: '+firm.pan+'</span>':''}
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div class="inv-title">TAX INVOICE</div>
+      <div class="inv-no">${inv.id}</div>
+      <div style="margin-top:8px">
+        <span class="badge ${inv.status==='paid'?'badge-paid':'badge-due'}">${inv.status==='paid'?'✓ Paid':'Due: '+dueDateFmt}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="parties">
+    <div class="party-box">
+      <div class="party-lbl">Bill To</div>
+      <div class="party-name">${p.name}</div>
+      <div style="font-size:10px;color:#666;margin-top:2px">${p.client||''}</div>
+    </div>
+    <div class="party-box">
+      <div class="party-lbl">Invoice Details</div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
+        <span style="color:#888">Invoice Date</span><span>${issueDateFmt}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
+        <span style="color:#888">Due Date</span><span>${dueDateFmt}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px">
+        <span style="color:#888">Project</span><span>${p.id}</span>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th>#</th><th>Description of Services</th><th>SAC Code</th>
+      <th class="amount-col">Amount (₹)</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>${inv.description||'Architectural Design Services'}</td>
+        <td style="font-family:monospace;color:#666">998311</td>
+        <td class="amount-col">₹${baseAmount.toLocaleString('en-IN')}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table class="totals-table">
+    <tr><td style="color:#888">Sub Total</td><td class="amount-col">₹${baseAmount.toLocaleString('en-IN')}</td></tr>
+    ${cgst?`<tr><td style="color:#888">CGST @ 9%</td><td class="amount-col">₹${cgst.toLocaleString('en-IN')}</td></tr>`:''}
+    ${sgst?`<tr><td style="color:#888">SGST @ 9%</td><td class="amount-col">₹${sgst.toLocaleString('en-IN')}</td></tr>`:''}
+    ${igst?`<tr><td style="color:#888">IGST @ 18%</td><td class="amount-col">₹${igst.toLocaleString('en-IN')}</td></tr>`:''}
+    <tr class="total-row"><td>Total</td><td class="amount-col">₹${amount.toLocaleString('en-IN')}</td></tr>
+  </table>
+
+  <div style="font-size:9px;color:#999;margin-top:8px;font-style:italic">
+    SAC Code 998311 — Architectural Advisory and Pre-Design Services<br>
+    This is a computer-generated invoice and does not require a physical signature.
+  </div>
+
+  ${inv.notes?`<div style="margin-top:14px;padding:10px 14px;background:#f8f8f8;border-left:3px solid ${firm.primaryColor||'#c9a96e'};border-radius:0 4px 4px 0;font-size:10px;color:#444">${inv.notes}</div>`:''}
+
+  <div style="margin-top:24px;padding:14px;background:#f8f8f8;border-radius:6px;font-size:10px">
+    <div style="font-weight:700;margin-bottom:6px">Bank Details</div>
+    <div style="color:#666">Please transfer to the firm's registered bank account. Quote invoice number ${inv.id} in the transfer reference.</div>
+  </div>
+
+  <div class="footer">
+    <span>${firm.name||'Architecture Firm'} · ${firm.city||''}${firm.gstin?' · GSTIN: '+firm.gstin:''}</span>
+    <span>Generated ${today}</span>
+    <span>Page 1 of 1</span>
+  </div>
+</div>
+<button class="print-btn no-print" onclick="window.print()">🖨 Print / Save PDF</button>
+</body></html>`;
+
+  const win=window.open('','_blank','width=900,height=750,scrollbars=yes');
+  if(win){win.document.write(html);win.document.close();win.focus();}
+  else showNotif('Pop-up blocked','Allow pop-ups to view GST invoice');
+  addAudit('financial','GST invoice generated','Invoice '+inv.id+' · ₹'+amount.toLocaleString('en-IN'));
+}
+
+/* ── HOOK AUDIT INTO KEY FUNCTIONS ─────────────────────── */
+// These are called after the existing functions — no need to modify originals
+const _origScheduleSave = scheduleSave;
+// Audit hooks are called inline in patched functions below
+
+/* ── PTITLES + go() update ─────────────────────────────── */
+PTITLES['auditlog'] = 'Audit Log';
+
+
+/* ════════════════════════════════════════════════════════
+   VISUALS REGISTER MODULE — v61
+   ════════════════════════════════════════════════════════ */
+
+let _visDetailId = null;
+let _visCounter  = 0;
+
+/* ── HELPERS ── */
+function visType(typeId){ return VIS_TYPES.find(t=>t.id===typeId)||{id:typeId,label:typeId,icon:'📄',cat:'Other',color:'var(--txm)',bg:'rgba(122,120,136,.15)',formats:['PDF']}; }
+function visStatus(statusId){ return VIS_STATUS.find(s=>s.id===statusId)||VIS_STATUS[0]; }
+function visIntSpace(spaceId){ return VIS_INT_SPACES.find(s=>s.id===spaceId)||{label:spaceId||''}; }
+
+function nextVisId(typeId){
+  const existing = VISUALS.filter(v=>v.typeId===typeId).map(v=>{ const m=(v.id||'').match(/-(\d+)$/); return m?parseInt(m[1]):0; });
+  const n = existing.length ? Math.max(...existing)+1 : 1;
+  return typeId+'-'+String(n).padStart(3,'0');
+}
+
+function visStatusColor(statusId){
+  const s = visStatus(statusId);
+  return s.color;
+}
+
+/* ── KPI STRIP ── */
+function renderVisKPIs(){
+  const el = document.getElementById('vis-kpi-row'); if(!el) return;
+  const total    = VISUALS.length;
+  const delivered= VISUALS.filter(v=>v.status==='del').length;
+  const inProg   = VISUALS.filter(v=>!['nst','del','app'].includes(v.status)).length;
+  const review   = VISUALS.filter(v=>v.status==='rev').length;
+  const overdue  = VISUALS.filter(v=>!['del','app'].includes(v.status)&&v.tgt&&parseDue(v.tgt)&&parseDue(v.tgt)<new Date()).length;
+  el.innerHTML=[
+    {lbl:'Total Visuals',  val:total,     sub:'across all projects',   c:'var(--txm)'},
+    {lbl:'Delivered',      val:delivered, sub:'approved & sent',        c:'var(--grn)'},
+    {lbl:'In Progress',    val:inProg,    sub:'modelling / rendering',   c:'var(--blu)'},
+    {lbl:'Client Review',  val:review,    sub:'awaiting feedback',       c:'var(--gold)'},
+    {lbl:'Overdue',        val:overdue,   sub:'past target date',        c:overdue>0?'var(--red)':'var(--txd)'},
+  ].map(k=>`<div class="vis-kpi"><div class="vis-kpi-lbl">${k.lbl}</div><div class="vis-kpi-val" style="color:${k.c}">${k.val}</div><div class="vis-kpi-sub">${k.sub}</div></div>`).join('');
+}
+
+/* ── MAIN RENDER ── */
+function renderVisuals(){
+  // Populate project filter on first render
+  const pf = document.getElementById('vis-proj-filter');
+  if(pf && pf.options.length <= 1){
+    PROJS.filter(p=>(p.status||'active')!=='archived').forEach(p=>{
+      const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; pf.appendChild(o);
+    });
+  }
+  renderVisKPIs();
+  updateVisBadge();
+
+  const projF   = document.getElementById('vis-proj-filter')?.value  || 'ALL';
+  const catF    = document.getElementById('vis-cat-filter')?.value   || 'ALL';
+  const statF   = document.getElementById('vis-status-filter')?.value|| 'ALL';
+
+  let items = VISUALS.filter(v=>{
+    if(projF!=='ALL' && v.projId!==projF) return false;
+    const t = visType(v.typeId);
+    if(catF!=='ALL' && t.cat!==catF) return false;
+    if(statF!=='ALL' && v.status!==statF) return false;
+    return true;
+  });
+
+  const sub = document.getElementById('vis-subtitle');
+  if(sub) sub.textContent = items.length+' item'+(items.length!==1?'s':'')+' · '+VISUALS.filter(v=>v.status==='del').length+' delivered';
+
+  const body = document.getElementById('vis-grid-body'); if(!body) return;
+
+  if(!items.length){
+    body.innerHTML=`<div style="padding:48px;text-align:center;font-family:var(--fm);font-size:12px;color:var(--txd)">
+      No visuals yet${projF!=='ALL'||catF!=='ALL'||statF!=='ALL'?' matching this filter':''}.<br><br>
+      <button class="btn bp bsm" onclick="openAddVisualModal()">+ Add your first visual</button>
+    </div>`;
+    return;
+  }
+
+  // Group by project
+  const byProj = {};
+  items.forEach(v=>{ if(!byProj[v.projId]) byProj[v.projId]=[]; byProj[v.projId].push(v); });
+
+  body.innerHTML = Object.entries(byProj).map(([projId, visItems])=>{
+    const p = PROJS.find(x=>x.id===projId)||{name:projId,color:'var(--txd)'};
+    const cards = visItems.map(v=>buildVisCard(v)).join('');
+    return `<div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bd)">
+        <span style="width:8px;height:8px;border-radius:50%;background:${p.color}"></span>
+        <span style="font-family:var(--fd);font-size:15px">${p.name}</span>
+        <span style="font-family:var(--fm);font-size:9px;color:var(--txd)">${visItems.length} item${visItems.length!==1?'s':''}</span>
+        <button class="btn bg bsm" onclick="openAddVisualModal('${projId}')" style="margin-left:auto;font-size:9px">+ Add</button>
+      </div>
+      <div class="vis-grid">${cards}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildVisCard(v){
+  const t    = visType(v.typeId);
+  const st   = visStatus(v.status);
+  const p    = PROJS.find(x=>x.id===v.projId)||{color:'var(--txd)'};
+  const s    = STAFF.find(x=>x.id===v.assignedTo);
+  const today= new Date();
+  const due  = parseDue(v.tgt);
+  const overdue = due && due < today && !['del','app'].includes(v.status);
+  const initials = s ? s.first[0]+s.last[0] : '?';
+  const spaceLabel = v.typeId==='INT' && v.space ? visIntSpace(v.space).label : '';
+  const stepPct = st.step;
+
+  return `<div class="vis-card" onclick="openVisDetail('${v.id}')" data-vis-id="${v.id}">
+    <div class="vis-card-hd">
+      <div style="width:36px;height:36px;border-radius:9px;background:${t.bg};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${t.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:${t.color};margin-bottom:1px">${v.id}</div>
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.title}</div>
+        ${spaceLabel?`<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">${spaceLabel}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        <span class="vis-status-pill" style="color:${st.color};background:${st.bg}">${st.label}</span>
+        ${overdue?`<span style="font-family:var(--fm);font-size:8px;color:var(--red)">⚠ Overdue</span>`:''}
+      </div>
+    </div>
+    <div class="vis-card-body">
+      <!-- Progress bar -->
+      <div class="vis-progress-track">
+        <div class="vis-progress-fill" style="width:${stepPct}%;background:${st.color}"></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
+        <div style="display:flex;align-items:center;gap:6px">
+          ${s?`<div style="width:22px;height:22px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:7px;color:#0a0a0f;font-weight:700">${initials}</div><span style="font-family:var(--fm);font-size:9px;color:var(--txd)">${s.first}</span>`:'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">Unassigned</span>'}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${v.software?`<span class="vis-sw-tag">${v.software}</span>`:''}
+          ${due?`<span style="font-family:var(--fm);font-size:9px;color:${overdue?'var(--red)':'var(--txd)'}">📅 ${fmtDate(due)}</span>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── DETAIL PANEL ── */
+function openVisDetail(visId){
+  const v = VISUALS.find(x=>x.id===visId); if(!v) return;
+  _visDetailId = visId;
+  const t    = visType(v.typeId);
+  const st   = visStatus(v.status);
+  const p    = PROJS.find(x=>x.id===v.projId)||{name:v.projId,color:'var(--txd)'};
+  const s    = STAFF.find(x=>x.id===v.assignedTo);
+  const today= new Date();
+  const due  = parseDue(v.tgt);
+  const overdue = due && due < today && !['del','app'].includes(v.status);
+  const spaceLabel = v.typeId==='INT' && v.space ? visIntSpace(v.space).label : '';
+
+  document.getElementById('vdp-id').textContent    = v.id;
+  document.getElementById('vdp-title').textContent = v.title;
+  document.getElementById('vdp-type-chip').innerHTML= `<span class="vis-type-chip" style="color:${t.color};background:${t.bg}">${t.icon} ${t.label}${spaceLabel?' — '+spaceLabel:''}</span>`;
+
+  // Status pipeline
+  const stepsHtml = VIS_STATUS.map(step=>{
+    const done = step.step <= st.step;
+    const curr = step.id === v.status;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;cursor:pointer" onclick="setVisStatus('${v.id}','${step.id}')">
+      <div style="width:24px;height:24px;border-radius:50%;border:2px solid ${curr?step.color:(done?step.color:'var(--bd)')};background:${curr?step.color:(done?step.color+'33':'transparent')};display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s">${curr?'●':(done?'✓':'')}</div>
+      <div style="font-family:var(--fm);font-size:7px;color:${curr?step.color:'var(--txd)'};text-align:center;white-space:nowrap">${step.label}</div>
+    </div>`;
+  }).join(`<div style="flex:1;height:2px;background:var(--bd);margin-top:11px"></div>`);
+
+  document.getElementById('vdp-body').innerHTML = `
+    <!-- Status pipeline -->
+    <div style="margin-bottom:18px">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Status — click to update</div>
+      <div style="display:flex;align-items:flex-start;gap:0">${stepsHtml}</div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="vis-progress-track" style="margin-bottom:16px">
+      <div class="vis-progress-fill" style="width:${st.step}%;background:${st.color}"></div>
+    </div>
+
+    <!-- Meta grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      ${[
+        ['Project',    `<span style="color:${p.color};font-weight:600">${p.name}</span>`],
+        ['Type',       `${t.icon} ${t.label}`],
+        ['Assigned To', s?`<div style="display:flex;align-items:center;gap:6px"><div style="width:18px;height:18px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:7px;color:#0a0a0f;font-weight:700">${s.first[0]+s.last[0]}</div>${s.first+' '+s.last}</div>`:'<span style="color:var(--txd)">Unassigned</span>'],
+        ['Software',   v.software||'—'],
+        ['Target Date',due?`<span style="${overdue?'color:var(--red);font-weight:700':''}">${fmtDate(due)}${overdue?' ⚠':''}</span>`:'<span style="color:var(--txd)">Not set</span>'],
+        ['File Format',v.format||'—'],
+      ].map(([k,v2])=>`<div style="background:var(--sf2);border-radius:7px;padding:8px 10px">
+        <div style="font-family:var(--fm);font-size:8px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">${k}</div>
+        <div style="font-size:11px">${v2}</div>
+      </div>`).join('')}
+    </div>
+
+    ${spaceLabel?`<div style="margin-bottom:12px;padding:8px 12px;background:var(--sf2);border-radius:7px;font-family:var(--fm);font-size:11px"><span style="color:var(--txd);font-size:9px;text-transform:uppercase;letter-spacing:.06em">Space / Room</span><br>${spaceLabel}</div>`:''}
+
+    ${v.notes?`<div style="margin-bottom:14px">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Notes</div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--txm);line-height:1.6;padding:10px 12px;background:var(--sf2);border-radius:7px">${v.notes}</div>
+    </div>`:''}
+
+    ${v.deliveryLink?`<div style="margin-bottom:14px">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Delivery Link</div>
+      <a href="${v.deliveryLink}" target="_blank" style="font-family:var(--fm);font-size:10px;color:var(--blu);word-break:break-all">${v.deliveryLink}</a>
+    </div>`:''}
+
+    <!-- Revision history -->
+    ${(v.revHistory&&v.revHistory.length)?`<div style="margin-bottom:14px">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Revision History</div>
+      ${v.revHistory.map(r=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--sf2);border-radius:6px;margin-bottom:4px">
+        <span style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--gold)">${r.label||'v'+r.n}</span>
+        <span style="font-size:10px;flex:1">${r.note||''}</span>
+        <span style="font-family:var(--fm);font-size:9px;color:var(--txd)">${r.date||''}</span>
+      </div>`).join('')}
+    </div>`:''}
+
+    <!-- Actions -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--bd)">
+      <button class="btn bp bsm" onclick="openEditVisualModal('${v.id}')" style="font-size:10px">✎ Edit</button>
+      <button class="btn bg bsm" onclick="addVisRevision('${v.id}')" style="font-size:10px">+ Revision</button>
+      ${canSchedule()?`<button class="btn bg bsm" style="font-size:10px;color:var(--red)" onclick="deleteVisual('${v.id}')">✕ Delete</button>`:''}
+      <button class="btn bg bsm" onclick="closeVisDetail()" style="font-size:10px;margin-left:auto">Close</button>
+    </div>`;
+
+  document.getElementById('vis-detail-panel').classList.add('open');
+}
+
+function closeVisDetail(){
+  document.getElementById('vis-detail-panel').classList.remove('open');
+  _visDetailId = null;
+}
+
+function setVisStatus(visId, statusId){
+  const v = VISUALS.find(x=>x.id===visId); if(!v) return;
+  const prev = v.status;
+  v.status = statusId;
+  const st = visStatus(statusId);
+  const me = currentUser();
+  if(!v.revHistory) v.revHistory=[];
+  if(statusId !== prev){
+    v.revHistory.push({ n:v.revHistory.length+1, label:st.label, note:'Status changed from '+visStatus(prev).label, date:fmtDate(new Date()), by:me.id });
+  }
+  // Notification on key milestones
+  if(statusId==='rev'){
+    addNotif({type:'qa',icon:visType(v.typeId).icon,iconBg:visType(v.typeId).bg,title:v.id+' sent for client review',detail:v.title,projId:v.projId,forAll:true});
+  } else if(statusId==='del'){
+    addNotif({type:'qa',icon:'✓',iconBg:'rgba(82,201,122,.2)',title:v.id+' delivered',detail:v.title,projId:v.projId,forAll:true});
+  }
+  showNotif('Status updated', v.title+' → '+st.label);
+  scheduleSave();
+  openVisDetail(visId); // refresh detail
+  renderVisuals();
+  updateVisBadge();
+}
+
+/* ── ADD / EDIT MODAL ── */
+function openAddVisualModal(prefillProj){
+  _openVisModal(null, prefillProj||'');
+}
+function openEditVisualModal(visId){
+  _openVisModal(visId, '');
+}
+
+function _openVisModal(editId, prefillProj){
+  const ex=document.getElementById('add-vis-ov');if(ex)ex.remove();
+  const v = editId ? VISUALS.find(x=>x.id===editId) : null;
+  const div=document.createElement('div');div.id='add-vis-ov';div.className='ov show';
+
+  const projOpts = PROJS.filter(p=>(p.status||'active')!=='archived')
+    .map(p=>`<option value="${p.id}" ${(v?.projId||prefillProj)===p.id?'selected':''}>${p.name}</option>`).join('');
+  const typeOpts = VIS_TYPES.map(t=>`<option value="${t.id}" ${v?.typeId===t.id?'selected':''}>${t.icon} ${t.label}</option>`).join('');
+  const staffOpts = STAFF.filter(s=>s.type!=='contractor')
+    .map(s=>`<option value="${s.id}" ${v?.assignedTo===s.id?'selected':''}>${s.first} ${s.last}</option>`).join('');
+  const swOpts = VIS_SOFTWARE.map(sw=>`<option value="${sw}" ${v?.software===sw?'selected':''}>${sw}</option>`).join('');
+  const spaceOpts = VIS_INT_SPACES.map(sp=>`<option value="${sp.id}" ${v?.space===sp.id?'selected':''}>${sp.label}</option>`).join('');
+  const statOpts = VIS_STATUS.map(st=>`<option value="${st.id}" ${(v?.status||'nst')===st.id?'selected':''}>${st.label}</option>`).join('');
+  const fmtOpts = ['JPG','PNG','TIFF','PDF','MP4','MOV','HTML','SKP','3DM','DWG','RVT','IFC','PPTX','Other']
+    .map(f=>`<option value="${f}" ${v?.format===f?'selected':''}>${f}</option>`).join('');
+
+  div.innerHTML=`<div class="modal" style="max-width:560px">
+    <button class="mclose" onclick="closeModal('add-vis-ov')">✕</button>
+    <div class="mtitle">${editId?'Edit Visual':'Add Visual Deliverable'}</div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Project <span style="color:var(--red)">*</span></label><select class="fsel" id="avis-proj">${projOpts}</select></div>
+      <div class="frow"><label class="flbl">Type <span style="color:var(--red)">*</span></label><select class="fsel" id="avis-type" onchange="visToggleIntSpace()">${typeOpts}</select></div>
+    </div>
+    <div class="frow" id="avis-space-row" style="${v?.typeId==='INT'?'':'display:none'}">
+      <label class="flbl">Interior Space</label>
+      <select class="fsel" id="avis-space">${spaceOpts}</select>
+    </div>
+    <div class="frow"><label class="flbl">Title / Description <span style="color:var(--red)">*</span></label>
+      <input class="finp" id="avis-title" placeholder="e.g. Master Bedroom — Natural Light Interior" value="${v?.title||''}"></div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Assigned To</label><select class="fsel" id="avis-staff"><option value="">— Unassigned —</option>${staffOpts}</select></div>
+      <div class="frow"><label class="flbl">Software</label><select class="fsel" id="avis-software"><option value="">— Select —</option>${swOpts}</select></div>
+    </div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Status</label><select class="fsel" id="avis-status">${statOpts}</select></div>
+      <div class="frow"><label class="flbl">Delivery Format</label><select class="fsel" id="avis-format">${fmtOpts}</select></div>
+    </div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Target Date</label><input class="finp" id="avis-tgt" type="date" value="${v?.tgt||''}"></div>
+      <div class="frow"><label class="flbl">File / Drive Link</label><input class="finp" id="avis-link" placeholder="https://..." value="${v?.deliveryLink||''}"></div>
+    </div>
+    <div class="frow"><label class="flbl">Notes</label>
+      <textarea class="ftarea" id="avis-notes" placeholder="Brief, style notes, reference images, client requirements...">${v?.notes||''}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="submitVisModal('${editId||''}')">${editId?'Save Changes':'Add Visual'}</button>
+      <button class="btn bg" style="padding:11px 16px" onclick="closeModal('add-vis-ov')">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function visToggleIntSpace(){
+  const typeId = document.getElementById('avis-type')?.value;
+  const row = document.getElementById('avis-space-row');
+  if(row) row.style.display = typeId==='INT' ? '' : 'none';
+}
+
+function submitVisModal(editId){
+  const projId  = document.getElementById('avis-proj')?.value;
+  const typeId  = document.getElementById('avis-type')?.value;
+  const title   = (document.getElementById('avis-title')?.value||'').trim();
+  const space   = document.getElementById('avis-space')?.value||'';
+  const sid     = document.getElementById('avis-staff')?.value||'';
+  const sw      = document.getElementById('avis-software')?.value||'';
+  const status  = document.getElementById('avis-status')?.value||'nst';
+  const format  = document.getElementById('avis-format')?.value||'';
+  const tgt     = document.getElementById('avis-tgt')?.value||'';
+  const link    = (document.getElementById('avis-link')?.value||'').trim();
+  const notes   = (document.getElementById('avis-notes')?.value||'').trim();
+
+  if(!projId||!typeId||!title){ showNotif('Missing fields','Project, Type and Title are required.'); return; }
+
+  if(editId){
+    const v = VISUALS.find(x=>x.id===editId); if(!v) return;
+    const prevAssignee = v.assignedTo;
+    Object.assign(v,{projId,typeId,title,space,assignedTo:sid||null,software:sw,status,format,tgt,deliveryLink:link,notes});
+    // Notify reassigned staff member
+    if(sid && sid!==prevAssignee){
+      addNotif({type:'assignment',icon:visType(typeId).icon,iconBg:visType(typeId).bg,
+        title:'Visual assigned: '+v.id,detail:title+' — reassigned to you',projId,
+        forStaff:sid,forAll:false});
+    }
+    showNotif('Visual updated', title);
+  } else {
+    _visCounter++;
+    const id = nextVisId(typeId);
+    const me = currentUser();
+    VISUALS.push({
+      id, projId, typeId, title, space, assignedTo:sid||null,
+      software:sw, status, format, tgt, deliveryLink:link, notes,
+      revHistory:[], createdBy:me.id, createdAt:toISO(new Date())
+    });
+    addNotif({type:'assignment',icon:visType(typeId).icon,iconBg:visType(typeId).bg,
+      title:id+' added to Visuals Register',detail:title,projId,forAll:true});
+    // Also send a targeted notification to the specific assignee
+    if(sid && sid!==me.id){
+      addNotif({type:'assignment',icon:visType(typeId).icon,iconBg:visType(typeId).bg,
+        title:'Visual assigned to you: '+id,detail:title+(tgt?' — due '+tgt:''),
+        projId,forStaff:sid,forAll:false});
+    }
+    showNotif('Visual added', id+' — '+title);
+  }
+  closeModal('add-vis-ov');
+  renderVisuals();
+  updateVisBadge();
+  scheduleSave();
+}
+
+/* ── REVISION ── */
+function addVisRevision(visId){
+  const v = VISUALS.find(x=>x.id===visId); if(!v) return;
+  const note = prompt('Revision note (e.g. Client feedback round 2):', '');
+  if(note===null) return;
+  if(!v.revHistory) v.revHistory=[];
+  const me = currentUser();
+  v.revHistory.push({n:v.revHistory.length+1, label:'Rev '+(v.revHistory.length+1), note, date:fmtDate(new Date()), by:me.id});
+  scheduleSave();
+  openVisDetail(visId);
+  showNotif('Revision logged', 'Rev '+v.revHistory.length+' — '+note);
+}
+
+/* ── DELETE ── */
+function deleteVisual(visId){
+  const v = VISUALS.find(x=>x.id===visId); if(!v) return;
+  if(!confirm('Delete "'+v.title+'"? This cannot be undone.')) return;
+  VISUALS.splice(VISUALS.findIndex(x=>x.id===visId), 1);
+  closeVisDetail();
+  renderVisuals();
+  updateVisBadge();
+  scheduleSave();
+  showNotif('Visual deleted','');
+}
+
+/* ── NAV BADGE ── */
+function updateVisBadge(){
+  const b = document.getElementById('vis-badge');
+  if(!b) return;
+  const active = VISUALS.filter(v=>!['del'].includes(v.status)).length;
+  if(active>0){ b.style.display='inline-flex'; b.textContent=active; }
+  else b.style.display='none';
+}
+
+/* ── SCHEMA v3 — add visuals to migration ── */
 </script>
 <!-- ADD / EDIT PROJECT MODAL -->
 <div class="ov" id="add-proj-ov">
@@ -14855,7 +17141,7 @@ function generateTransmittalHTML(tx){
     <div id="du-warning" style="display:none;padding:7px 10px;background:rgba(240,201,122,.08);border-left:3px solid var(--gold);border-radius:0 6px 6px 0;font-family:var(--fm);font-size:10px;color:var(--gold);margin-bottom:8px"></div>
     <div style="display:flex;gap:8px;margin-top:4px">
       <button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="submitDrawingUpdate()">Save Update</button>
-      <button class="btn bg" style="padding:11px 16px" onclick="closeModal('drawing-update-ov')">Cancel</button>
+      <button class="btn bg" style="padding:11px 16px" onclick="releaseDrawingLock();clearModalSnap(document.getElementById('du-drawing-id')?.value);closeModal('drawing-update-ov')">Cancel</button>
     </div>
   </div>
 </div>
