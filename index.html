@@ -1163,16 +1163,8 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   .btn{ min-height:36px }
   .btn.bp{ min-height:44px;font-size:13px!important }
 
-  /* ── WIZARD ── */
-  .wizard-card{ padding:20px!important;border-radius:0!important }
-  .wizard-ov{ padding:0!important;align-items:flex-end }
-  .wizard-h{ font-size:20px!important }
-
   /* ── PRESENCE BAR ── */
   #presence-bar{ display:none }
-
-  /* ── SETUP WIZARD COLOUR GRID ── */
-  .color-swatch-grid{ grid-template-columns:repeat(6,1fr)!important }
 
   /* ── AUDIT LOG ── */
   .audit-row{ gap:6px }
@@ -1194,23 +1186,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   .lock-numpad{ grid-template-columns:repeat(3,1fr);gap:8px!important }
   .lock-key{ height:56px!important;font-size:20px!important }
   .lock-logo-text{ font-size:20px!important }
-  /* Wizard full screen */
-  .wizard-card{ max-height:100vh }
 }
-
-/* ── SETUP WIZARD ──────────────────────────────────────── */
-.wizard-ov{position:fixed;inset:0;background:var(--bg);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px}
-.wizard-card{background:var(--sf);border:1px solid var(--bd2);border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:32px}
-.wizard-step-bar{display:flex;gap:8px;margin-bottom:28px}
-.wizard-step-dot{height:4px;flex:1;border-radius:2px;background:var(--bd2);transition:background .3s}
-.wizard-step-dot.done{background:var(--gold)}
-.wizard-step-dot.active{background:var(--gold);opacity:.6}
-.wizard-h{font-family:var(--fd);font-size:24px;letter-spacing:-.4px;margin-bottom:6px}
-.wizard-sub{font-family:var(--fm);font-size:11px;color:var(--txd);margin-bottom:24px;line-height:1.6}
-.color-swatch-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-top:8px}
-.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s}
-.color-swatch:hover{transform:scale(1.15)}
-.color-swatch.sel{border-color:var(--tx);transform:scale(1.1)}
 
 /* ── AUDIT LOG ─────────────────────────────────────────── */
 .audit-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)}
@@ -11788,7 +11764,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v70',
+    appVersion: 'S62-v71',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -16335,218 +16311,20 @@ function exportAuditLog(){
   a.click();
 }
 
-/* ── SETUP WIZARD ──────────────────────────────────────── */
-let _wizardStep = 1;
-const WIZARD_COLORS = [
-  '#c9a96e','#e08a52','#e05252','#e052a0','#8a52e0',
-  '#5285e0','#52c9c9','#52c97a','#f0c97a','#a0a0a0',
-  '#1a7a4a','#7a1a4a','#1a4a7a','#4a1a7a','#7a4a1a',
-  '#2d6a8a',
-];
-
-function checkSetupNeeded(){
-  return false; // wizard removed — firm settings always accessible via sidebar
-}
-
-function showSetupWizard(){
-  _wizardStep = 1;
-  const ex = document.getElementById('setup-wizard-ov'); if(ex) ex.remove();
-  const div = document.createElement('div');
-  div.id = 'setup-wizard-ov';
-  div.className = 'wizard-ov';
-  div.innerHTML = '<div class="wizard-card" id="wizard-card"></div>';
-  document.body.appendChild(div);
-  renderWizardStep();
-}
-
-function renderWizardStep(){
-  const card = document.getElementById('wizard-card'); if(!card) return;
-  const dots = [1,2,3,4].map(n=>`<div class="wizard-step-dot ${n<_wizardStep?'done':n===_wizardStep?'active':''}"></div>`).join('');
-
-  let inner = '';
-  if(_wizardStep===1){
-    inner=`
-      <div class="wizard-step-bar">${dots}</div>
-      <div class="wizard-h">Welcome to Studio OS 👋</div>
-      <div class="wizard-sub">Let's set up your firm in 4 quick steps. You can change everything later in Firm Settings.</div>
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
-        <div class="firm-logo-preview" id="wiz-logo-preview" onclick="document.getElementById('wiz-logo-input').click()">
-          <span id="wiz-logo-icon">🏛</span>
-        </div>
-        <div style="flex:1">
-          <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:4px">Click to upload your firm logo (PNG/SVG recommended)</div>
-          <input type="file" id="wiz-logo-input" accept="image/*" style="display:none" onchange="handleWizardLogoUpload(this)">
-          <button class="btn bg bsm" onclick="document.getElementById('wiz-logo-input').click()" style="font-size:9px">Upload Logo</button>
-        </div>
-      </div>
-      <div class="frow"><label class="flbl">Firm Name *</label>
-        <input class="finp" id="wiz-name" placeholder="e.g. Sharma & Associates Architects" value="${FIRM_CONFIG.name!=='My Architecture Firm'?FIRM_CONFIG.name:''}"></div>
-      <div class="frow"><label class="flbl">Tagline</label>
-        <input class="finp" id="wiz-tagline" placeholder="e.g. Architecture · Interior Design · Landscape" value="${FIRM_CONFIG.tagline!=='Architecture & Design'?FIRM_CONFIG.tagline:''}"></div>
-      <div class="frow"><label class="flbl">App Name <span style="color:var(--txd);font-weight:400">(shown in sidebar)</span></label>
-        <input class="finp" id="wiz-appname" placeholder="e.g. Studio OS" value="${FIRM_CONFIG.appName||'Studio OS'}"></div>
-      <div class="fgrid">
-        <div class="frow"><label class="flbl">Phone</label><input class="finp" id="wiz-phone" placeholder="+91 98..." value="${FIRM_CONFIG.phone||''}"></div>
-        <div class="frow"><label class="flbl">Email</label><input class="finp" id="wiz-email" type="email" placeholder="hello@studio62.in" value="${FIRM_CONFIG.email||''}"></div>
-      </div>
-      <div class="frow"><label class="flbl">Website</label><input class="finp" id="wiz-website" placeholder="https://yourfirm.com" value="${FIRM_CONFIG.website||''}"></div>`;
-  } else if(_wizardStep===2){
-    inner=`
-      <div class="wizard-step-bar">${dots}</div>
-      <div class="wizard-h">Office Address & Tax Details</div>
-      <div class="wizard-sub">Used in transmittals, invoices, and reports.</div>
-      <div class="frow"><label class="flbl">Address</label><input class="finp" id="wiz-address" placeholder="e.g. 12, Anna Salai, Nungambakkam" value="${FIRM_CONFIG.address||''}"></div>
-      <div class="fgrid">
-        <div class="frow"><label class="flbl">City</label><input class="finp" id="wiz-city" placeholder="Chennai" value="${FIRM_CONFIG.city||''}"></div>
-        <div class="frow"><label class="flbl">State</label><input class="finp" id="wiz-state" placeholder="Tamil Nadu" value="${FIRM_CONFIG.state||''}"></div>
-      </div>
-      <div class="fgrid">
-        <div class="frow"><label class="flbl">PIN Code</label><input class="finp" id="wiz-pincode" placeholder="600001" value="${FIRM_CONFIG.pincode||''}"></div>
-        <div class="frow"><label class="flbl">Country</label><input class="finp" id="wiz-country" value="${FIRM_CONFIG.country||'India'}"></div>
-      </div>
-      <div class="fgrid">
-        <div class="frow"><label class="flbl">GSTIN</label><input class="finp" id="wiz-gstin" placeholder="33AAAAA0000A1Z5" style="text-transform:uppercase" value="${FIRM_CONFIG.gstin||''}"></div>
-        <div class="frow"><label class="flbl">PAN</label><input class="finp" id="wiz-pan" placeholder="AAAAA0000A" style="text-transform:uppercase" value="${FIRM_CONFIG.pan||''}"></div>
-      </div>
-      <div class="frow"><label class="flbl">CIN <span style="color:var(--txd);font-weight:400">(if incorporated)</span></label>
-        <input class="finp" id="wiz-cin" placeholder="U74999TN2020PTC000001" value="${FIRM_CONFIG.cin||''}"></div>`;
-  } else if(_wizardStep===3){
-    const swatches = WIZARD_COLORS.map(c=>`<div class="color-swatch${FIRM_CONFIG.primaryColor===c?' sel':''}" style="background:${c}" onclick="wizPickColor('${c}')" data-color="${c}"></div>`).join('');
-    inner=`
-      <div class="wizard-step-bar">${dots}</div>
-      <div class="wizard-h">Brand Colour</div>
-      <div class="wizard-sub">This becomes the primary colour throughout the app — KPIs, highlights, transmittal headers, and more.</div>
-      <div style="margin-bottom:16px">
-        <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:8px">Choose a colour or enter a custom hex code</div>
-        <div class="color-swatch-grid">${swatches}</div>
-      </div>
-      <div class="frow"><label class="flbl">Custom hex colour</label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="color" id="wiz-color-picker" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" style="width:44px;height:36px;border:none;background:none;cursor:pointer;padding:0" oninput="wizPickColor(this.value)">
-          <input class="finp" id="wiz-color-hex" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" placeholder="#c9a96e" style="flex:1" oninput="wizPickColor(this.value)">
-        </div>
-      </div>
-      <div style="margin-top:16px;padding:16px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--bd)">
-        <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:8px">Preview</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <div style="background:var(--gold);color:#0a0a0f;padding:6px 14px;border-radius:6px;font-family:var(--fm);font-size:10px;font-weight:700">Primary Button</div>
-          <div style="color:var(--gold);font-family:var(--fd);font-size:18px">₹ 24.5 Cr</div>
-          <div style="border:1px solid var(--gold);padding:5px 12px;border-radius:6px;font-family:var(--fm);font-size:9px;color:var(--gold)">Status Badge</div>
-        </div>
-      </div>`;
-  } else if(_wizardStep===4){
-    inner=`
-      <div class="wizard-step-bar">${dots}</div>
-      <div class="wizard-h">You're all set! 🎉</div>
-      <div class="wizard-sub">Here's a summary of your firm setup. You can always change these in <strong>Firm Settings</strong> (bottom of the sidebar).</div>
-      <div style="background:var(--sf2);border-radius:10px;padding:16px;margin-bottom:20px">
-        ${FIRM_CONFIG.logoDataUrl?`<img src="${FIRM_CONFIG.logoDataUrl}" style="height:40px;object-fit:contain;margin-bottom:10px;display:block" alt="logo">`:''}
-        <div style="font-family:var(--fd);font-size:20px;color:var(--gold);margin-bottom:4px">${FIRM_CONFIG.name}</div>
-        <div style="font-family:var(--fm);font-size:10px;color:var(--txd)">${FIRM_CONFIG.tagline}</div>
-        ${FIRM_CONFIG.address?`<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:6px">${FIRM_CONFIG.address}, ${FIRM_CONFIG.city}</div>`:''}
-        ${FIRM_CONFIG.gstin?`<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px">GSTIN: ${FIRM_CONFIG.gstin}</div>`:''}
-      </div>
-      <div style="background:rgba(82,201,122,.06);border:1px solid rgba(82,201,122,.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-family:var(--fm);font-size:10px;color:var(--txm);line-height:1.7">
-        ✓ Your data is saved locally and syncs to Firebase when configured<br>
-        ✓ All transmittals and invoices will use your firm branding<br>
-        ✓ You can add your team members and first project now<br>
-        ✓ Firm settings are editable anytime from the sidebar
-      </div>
-      <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:4px">
-        Want to reset the demo data and start fresh? 
-        <span onclick="clearDemoData()" style="color:var(--red);cursor:pointer;text-decoration:underline">Clear demo data</span>
-      </div>`;
-  }
-
-  const isLast = _wizardStep === 4;
-  const isFirst= _wizardStep === 1;
-
-  card.innerHTML = inner + `
-    <div style="display:flex;gap:8px;margin-top:20px">
-      ${!isFirst?`<button class="btn bg" style="padding:10px 18px" onclick="wizardNav(-1)">← Back</button>`:''}
-      <button class="btn bp" style="flex:1;justify-content:center;padding:10px;font-size:13px" onclick="wizardNav(1)">
-        ${isLast ? '✓ Launch Studio OS' : 'Continue →'}
-      </button>
-    </div>`;
-}
-
-function handleWizardLogoUpload(input){
-  const file = input.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e=>{
-    FIRM_CONFIG.logoDataUrl = e.target.result;
-    const prev = document.getElementById('wiz-logo-preview');
-    if(prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain;border-radius:4px" alt="logo">`;
-    applyFirmTheme();
-  };
-  reader.readAsDataURL(file);
-}
-
-function wizPickColor(color){
-  if(!color||color.length<4) return;
-  FIRM_CONFIG.primaryColor = color;
-  document.querySelectorAll('.color-swatch').forEach(s=>{
-    s.classList.toggle('sel', s.dataset.color===color);
-  });
-  const hexInput = document.getElementById('wiz-color-hex');
-  const colorPicker = document.getElementById('wiz-color-picker');
-  if(hexInput) hexInput.value = color;
-  if(colorPicker) colorPicker.value = color.length===7?color:'#c9a96e';
-  applyFirmTheme();
-}
-
-function wizardNav(dir){
-  // Save current step data
-  if(_wizardStep===1){
-    const name = (document.getElementById('wiz-name')?.value||'').trim();
-    if(!name && dir>0){ showNotif('Firm name required','Enter your firm name to continue.'); return; }
-    FIRM_CONFIG.name     = name||FIRM_CONFIG.name;
-    FIRM_CONFIG.tagline  = (document.getElementById('wiz-tagline')?.value||'').trim()||FIRM_CONFIG.tagline;
-    FIRM_CONFIG.appName  = (document.getElementById('wiz-appname')?.value||'').trim()||'Studio OS';
-    FIRM_CONFIG.phone    = (document.getElementById('wiz-phone')?.value||'').trim();
-    FIRM_CONFIG.email    = (document.getElementById('wiz-email')?.value||'').trim();
-    FIRM_CONFIG.website  = (document.getElementById('wiz-website')?.value||'').trim();
-  } else if(_wizardStep===2){
-    FIRM_CONFIG.address  = (document.getElementById('wiz-address')?.value||'').trim();
-    FIRM_CONFIG.city     = (document.getElementById('wiz-city')?.value||'').trim();
-    FIRM_CONFIG.state    = (document.getElementById('wiz-state')?.value||'').trim();
-    FIRM_CONFIG.pincode  = (document.getElementById('wiz-pincode')?.value||'').trim();
-    FIRM_CONFIG.country  = (document.getElementById('wiz-country')?.value||'India').trim();
-    FIRM_CONFIG.gstin    = (document.getElementById('wiz-gstin')?.value||'').trim().toUpperCase();
-    FIRM_CONFIG.pan      = (document.getElementById('wiz-pan')?.value||'').trim().toUpperCase();
-    FIRM_CONFIG.cin      = (document.getElementById('wiz-cin')?.value||'').trim();
-  }
-  applyFirmTheme();
-  if(dir>0 && _wizardStep===4){
-    // Complete setup
-    FIRM_CONFIG.setupComplete = true;
-    saveFirmConfig();
-    addAudit('settings','Setup wizard completed','Firm: '+FIRM_CONFIG.name);
-    const ov = document.getElementById('setup-wizard-ov');
-    if(ov) ov.remove();
-    showNotif('Welcome to '+FIRM_CONFIG.name+' Studio OS 🎉', 'Your firm is configured. Start by adding a project.');
-    updateSidebarBrand();
-    return;
-  }
-  _wizardStep = Math.max(1, Math.min(4, _wizardStep+dir));
-  renderWizardStep();
-}
-
+/* ── CLEAR DEMO DATA ──────────────────────────────────── */
 function clearDemoData(){
   if(!confirm('This will clear all demo projects, drawings, staff, and timesheets. Your firm settings will be kept. Continue?')) return;
   PROJS=[]; DRAWINGS=[]; TS_ENTRIES=[]; SCHED_TASKS=[]; MEETINGS=[];
   PIPELINE=[]; DRW_PACKAGES=[]; SENT_EMAILS=[]; NOTIFICATIONS=[];
   TRANSMITTALS=[]; VISUALS=[]; INVOICES=[];
-  // Keep current user/staff but clear demo staff
   STAFF = STAFF.filter(s=>s.id===CURRENT_USER_ID);
   scheduleSave();
   renderDashboard(); renderProjList(); renderDrawings();
   renderStaffSched(); renderWorkload(); updateNavBadges();
   showNotif('Demo data cleared','Ready for real data.');
-  const ov = document.getElementById('setup-wizard-ov'); if(ov) ov.remove();
 }
 
-/* ── FIRM SETTINGS MODAL (post-wizard) ─────────────────── */
+/* ── FIRM SETTINGS MODAL ───────────────────────────────── */
 function openFirmSettings(){
   const ex=document.getElementById('firm-settings-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='firm-settings-ov';div.className='ov show';
