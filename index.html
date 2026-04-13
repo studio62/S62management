@@ -4342,6 +4342,16 @@ function go(id,el){
   updatePresencePanel(id);
 }
 
+// ── Navigation shortcuts — safe to call from onclick without nested quotes ──
+function goMeetings(){
+  const el=document.querySelector('.ni[onclick*="meetings"]');
+  go('meetings', el);
+}
+function goMeetingsOpen(mtgId){
+  goMeetings();
+  if(mtgId) setTimeout(()=>openMtgDetail(mtgId), 150);
+}
+
 /* ═══════════════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════════════ */
@@ -6918,7 +6928,7 @@ function renderDashboard(){
             ?'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-left:4px">+'+((m.attendees||[]).length-4)+'</span>':'';
 
           return '<div class="dash-mtg-card" '
-            +'onclick="go(\'meetings\',document.querySelector(\'[onclick*=\\\"meetings\\\"]\'));setTimeout(()=>openMtgDetail(\''+m.id+'\'),150)">'
+            +'onclick="goMeetingsOpen(\''+m.id+'\')">'
             +'<div class="dash-mtg-stripe" style="background:'+col+'"></div>'
             +'<div style="padding-left:8px">'
               +(p?'<div style="font-family:var(--fm);font-size:8px;font-weight:700;color:'+p.color+';margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px">'+p.name+'</div>':'')
@@ -6949,7 +6959,7 @@ function renderDashboard(){
             +'<span style="font-family:var(--fd);font-size:14px">📅 Upcoming Meetings</span>'
             +'<span style="font-family:var(--fm);font-size:10px;color:var(--txd)">'+upcomingMtgs.length+' this week</span>'
           +'</div>'
-          +'<button class="btn bg bsm" onclick="go(\'meetings\',document.querySelector(\'[onclick*=\\\"meetings\\\"]\'))" style="font-size:9px">All Meetings →</button>'
+          +'<button class="btn bg bsm" onclick="goMeetings()" style="font-size:9px">All Meetings →</button>'
         +'</div>'
         +'<div style="display:flex;gap:16px;overflow-x:auto;padding-bottom:6px">'+dayCards+'</div>'
       +'</div>';
@@ -7073,7 +7083,7 @@ function renderDashboard(){
         dayMtgs.slice(0,2).forEach(m=>{
           const col=mtgTypeColor(m.type);
           h+='<div title="'+m.title+( m.time?' · '+m.time:'')+'" style="font-family:var(--fm);font-size:7px;font-weight:700;color:'+col
-            +';background:'+col+'18;border-radius:2px;padding:1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px;cursor:pointer" onclick="go(\'meetings\',document.querySelector(\'[onclick*=\\\"meetings\\\"]\'));setTimeout(()=>openMtgDetail(\''+m.id+'\'),150)">'
+            +';background:'+col+'18;border-radius:2px;padding:1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px;cursor:pointer" onclick="goMeetingsOpen(\''+m.id+'\''+')">'
             +(m.time?m.time.slice(0,5)+' ':'')+'·'
           +'</div>';
         });
@@ -11764,7 +11774,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v71',
+    appVersion: 'S62-v72',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -14974,7 +14984,7 @@ function notifClick(nid){
   } else if(n && n.type==='timesheet'){
     go('timesheets', document.querySelector('[onclick*="timesheets"]'));
   } else if(n && n.type==='meeting'){
-    go('meetings', document.querySelector('[onclick*="meetings"]'));
+    goMeetings();
   }
   scheduleSave();
 }
