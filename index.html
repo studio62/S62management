@@ -162,6 +162,12 @@ body{font-family:var(--fb);background:var(--bg);color:var(--tx);display:flex;hei
 .notif-tray-foot{padding:8px 14px;border-top:1px solid var(--bd);flex-shrink:0;text-align:center}
 
 /* ── FINANCIAL DASHBOARD ─────────────────────────────── */
+/* ── DASHBOARD MEETING CARDS ─────────────────────────── */
+.dash-mtg-card{background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:9px 12px;cursor:pointer;transition:box-shadow .15s,border-color .15s;min-width:200px;flex-shrink:0;position:relative;}
+.dash-mtg-card:hover{border-color:var(--bd2);box-shadow:0 2px 12px rgba(0,0,0,.25);}
+.dash-mtg-card .dash-mtg-stripe{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:7px 0 0 7px;}
+.dash-ph-card{background:var(--sf);border:1px solid var(--bd);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s;}
+.dash-ph-card:hover{border-color:var(--bd2);box-shadow:0 2px 12px rgba(0,0,0,.2);}
 .fin-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
 .fin-kpi{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;transition:border-color .2s}
 .fin-kpi:hover{border-color:var(--bd2)}
@@ -1476,7 +1482,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
       <!-- Cloud Sync button (visibility managed by updateCloudSyncBtn) -->
       <button class="btn bg bsm" onclick="openChangePinModal()" style="font-size:9px" title="Change studio PIN">🔐 PIN</button>
-      <button class="btn bg bsm" id="cloud-sync-btn" onclick="openCloudSetupModal()" style="font-size:9px" title="Live sync">☁ Set up Sync</button>
+      <button class="btn bg bsm" id="cloud-sync-btn" onclick="openCloudSetupModal()" style="font-size:9px;color:var(--gold)" title="Firebase live sync">↻ Connecting</button>
       <span id="save-indicator" style="font-family:var(--fm);font-size:9px;color:var(--txd);white-space:nowrap" title="Auto-save status">● Not saved</span>
       <button class="btn bg bsm" onclick="exportData()" title="Export all data to JSON file" style="font-size:9px">⬇ Export Data</button>
       <button class="btn bg bsm" onclick="importData()" title="Load data from JSON file" style="font-size:9px">📂 Load Data</button>
@@ -1490,14 +1496,14 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 <div class="panel active" id="panel-dashboard">
 
   <!-- Firebase Live Sync Banner — shown until connected -->
-  <div id="dash-drive-banner" style="display:flex;align-items:center;gap:14px;padding:12px 18px;background:linear-gradient(135deg,rgba(245,124,0,.1),rgba(255,202,40,.08));border:1px solid rgba(245,124,0,.3);border-radius:10px;margin-bottom:14px">
-    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#F57C00,#FFCA28);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">⚡</div>
+  <div id="dash-drive-banner" style="display:flex;align-items:center;gap:14px;padding:12px 18px;background:linear-gradient(135deg,rgba(82,201,122,.08),rgba(82,133,224,.06));border:1px solid rgba(82,201,122,.25);border-radius:10px;margin-bottom:14px">
+    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#52c97a,#5285e0);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">⚡</div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:600;margin-bottom:2px" id="dash-drive-title">Set up live sync — all users see changes instantly</div>
-      <div style="font-family:var(--fm);font-size:10px;color:var(--txd)" id="dash-drive-sub">Connect Firebase Realtime Database — free, real-time, drawing updates appear on everyone's screen automatically.</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:2px;color:var(--grn)" id="dash-drive-title">● Live sync active — Studio 62 Firebase</div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--txd)" id="dash-drive-sub">All users see changes in real time · studio62-ca1b7.asia-southeast1</div>
     </div>
-    <button class="btn bp" onclick="openCloudSetupModal()" style="padding:9px 18px;font-size:12px;white-space:nowrap;flex-shrink:0;background:linear-gradient(135deg,#F57C00,#FFCA28);color:#1a1a1a" id="dash-drive-btn">
-      ⚡ Set up Live Sync
+    <button class="btn bg bsm" onclick="openCloudSetupModal()" style="padding:7px 14px;font-size:10px;border-color:rgba(82,201,122,.3);color:var(--grn)" id="dash-drive-btn">
+      ☁ Sync Settings
     </button>
     <button onclick="document.getElementById('dash-drive-banner').style.display='none'" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:16px;flex-shrink:0;padding:4px" title="Dismiss">✕</button>
   </div>
@@ -1529,6 +1535,9 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 
   <!-- Row 3: Workflow metrics -->
   <div id="dash-workflow-bar" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px"></div>
+
+  <!-- Row 3b: Upcoming Meetings strip -->
+  <div id="dash-meetings-strip" style="margin-bottom:14px"></div>
 
   <!-- Row 4: Work queues — Overdue / For Review / Unassigned -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
@@ -3138,8 +3147,16 @@ const S62_FB_PATH     = 's62data';      // Realtime DB path — studio data
 const S62_FB_PRESENCE = 's62presence';  // who is online
 const S62_FB_LOCKS    = 's62locks';     // drawing edit locks
 
-// Config — persisted to localStorage (not a secret)
-let _fbCfg = { dbUrl:'', apiKey:'', enabled:false };
+// Studio 62 Firebase — hardcoded defaults (API key is not a secret in client-side Firebase apps;
+// security is enforced by Realtime Database Rules, not by keeping the key private)
+const S62_FB_DEFAULT = {
+  dbUrl:   'https://studio62-ca1b7-default-rtdb.asia-southeast1.firebasedatabase.app',
+  apiKey:  'AIzaSyDPY3SKAakVqOxTuNPQ-Xkxof7Sfw-leY4',
+  enabled: true
+};
+
+// Config — pre-filled with Studio 62 credentials; localStorage can override if user changes project
+let _fbCfg = Object.assign({}, S62_FB_DEFAULT);
 
 // Firebase state
 let _fbApp          = null;
@@ -3175,8 +3192,14 @@ let _syncWhileModalOpen   = false;
 function loadCloudCfg(){
   try{
     const raw = localStorage.getItem(S62_FB_CFG_KEY);
-    if(raw){ const p=JSON.parse(raw); if(p.dbUrl) _fbCfg=p; }
-  }catch(e){}
+    if(raw){
+      const p=JSON.parse(raw);
+      // Only use stored config if it has a valid (possibly custom) URL
+      if(p.dbUrl && p.dbUrl.trim()) _fbCfg = p;
+      // Always ensure the hardcoded credentials are present as fallback
+      if(!_fbCfg.dbUrl) _fbCfg = Object.assign({}, S62_FB_DEFAULT);
+    }
+  }catch(e){ _fbCfg = Object.assign({}, S62_FB_DEFAULT); }
 }
 function saveCloudCfg(){
   try{ localStorage.setItem(S62_FB_CFG_KEY, JSON.stringify(_fbCfg)); }catch(e){}
@@ -3837,20 +3860,23 @@ function updateSyncStatusBar(){
   if(configured && _fbConnected){
     if(btn){ btn.style.color='var(--grn)'; btn.textContent='● Live'; btn.title='Live sync active — all changes sync instantly'; }
     if(ind){ ind.textContent='● Live'; ind.style.color='var(--grn)'; ind.title='Firebase live sync active'; }
-    if(banner){ banner.style.display='none'; }
+    if(banner) banner.style.display='none';
     updateVersionIndicator();
   } else if(configured && _fbInitDone){
     if(btn){ btn.style.color='var(--gold)'; btn.textContent='↻ Connecting…'; }
     if(ind){ ind.textContent='↻ Connecting'; ind.style.color='var(--gold)'; }
   } else if(configured){
     if(btn){ btn.style.color='var(--gold)'; btn.textContent='↻ Firebase'; btn.title='Firebase configured — connecting'; }
-    if(banner){ banner.style.display='none'; }
+    if(banner) banner.style.display='none';
   } else {
-    if(btn){ btn.style.color=''; btn.textContent='☁ Set up Sync'; btn.title='Set up live sync'; }
-    if(banner){ banner.style.display='flex'; }
-    if(bannerTitle) bannerTitle.textContent='Set up live sync — all users see changes instantly';
-    if(bannerSub) bannerSub.textContent='Connect Firebase Realtime Database — free, real-time, all users stay in sync automatically.';
-    if(bannerBtn){ bannerBtn.textContent='⚡ Set up Live Sync'; bannerBtn.onclick=openCloudSetupModal; }
+    // This branch is now unreachable with hardcoded credentials, but kept as safety net
+    if(btn){ btn.style.color='var(--gold)'; btn.textContent='↻ Firebase'; btn.title='Reconnecting…'; }
+    if(banner){
+      banner.style.display='flex';
+      if(bannerTitle) bannerTitle.textContent='● Reconnecting to Studio 62 Firebase…';
+      if(bannerSub) bannerSub.textContent='studio62-ca1b7.asia-southeast1';
+      if(bannerBtn){ bannerBtn.textContent='☁ Sync Settings'; bannerBtn.onclick=openCloudSetupModal; }
+    }
   }
 }
 
@@ -3879,63 +3905,47 @@ function openCloudSetupModal(){
   const div=document.createElement('div');div.id='cloud-setup-ov';div.className='ov show';
   const configured = isCloudConfigured();
 
-  div.innerHTML=`<div class="modal" style="max-width:580px">
+  div.innerHTML=`<div class="modal" style="max-width:540px">
   <button class="mclose" onclick="closeModal('cloud-setup-ov')">✕</button>
 
   <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
     <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#F57C00,#FFCA28);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px">⚡</div>
     <div>
       <div class="mtitle" style="margin:0">Firebase Live Sync</div>
-      <div style="font-family:var(--fm);font-size:9px;color:var(--txd)">Real-time sync for all users — all changes appear instantly on every screen</div>
+      <div style="font-family:var(--fm);font-size:9px;color:var(--txd)">Real-time sync — all changes appear instantly on every screen</div>
     </div>
   </div>
 
-  ${configured
-    ? `<div style="background:rgba(82,201,122,.08);border:1px solid rgba(82,201,122,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-family:var(--fm);font-size:10px;color:var(--grn);display:flex;align-items:center;gap:8px">
-        <span style="font-size:16px">✓</span>
-        <div><strong>Firebase connected</strong><br><span style="color:var(--txd)">${_fbCfg.dbUrl}</span></div>
-      </div>` : ''}
-
-  <!-- Setup guide -->
-  <div style="background:rgba(245,124,0,.06);border:1px solid rgba(245,124,0,.2);border-radius:8px;padding:13px 16px;margin-bottom:16px">
-    <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:#F57C00;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">One-time setup (5 min · free)</div>
-    <div style="font-family:var(--fm);font-size:10px;color:var(--txm);line-height:2">
-      <b>1.</b> Go to <a href="https://console.firebase.google.com" target="_blank" style="color:#F57C00">console.firebase.google.com</a> → <strong>Add project</strong><br>
-      <span style="color:var(--txd);margin-left:16px">Name: <code style="background:var(--sf3);padding:1px 5px;border-radius:3px">'+( FIRM_CONFIG.name||'Studio OS')+'</code> → disable Google Analytics → <strong>Create project</strong></span><br>
-      <b>2.</b> In your project → left sidebar → <strong>Build → Realtime Database</strong><br>
-      <span style="color:var(--txd);margin-left:16px">Click <strong>Create Database</strong> → choose region (e.g. <em>Singapore</em>) → <strong>Start in test mode</strong> → <strong>Enable</strong></span><br>
-      <b>3.</b> The database URL appears at the top — copy it:<br>
-      <span style="color:var(--txd);margin-left:16px">Looks like: <code style="background:var(--sf3);padding:1px 5px;border-radius:3px">https://studio62-xxxxx-default-rtdb.asia-southeast1.firebasedatabase.app</code></span><br>
-      <b>4.</b> Left sidebar → <strong>Project settings</strong> (gear icon) → <strong>General</strong> tab<br>
-      <span style="color:var(--txd);margin-left:16px">Under "Your apps" → Web app → copy the <strong>Web API Key</strong></span><br>
-      <b>5.</b> Paste both below and click Connect
+  <div style="background:rgba(82,201,122,.08);border:1px solid rgba(82,201,122,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-family:var(--fm);font-size:10px;color:var(--grn);display:flex;align-items:center;gap:8px">
+    <span style="font-size:16px">✓</span>
+    <div>
+      <strong>Studio 62 Firebase project connected</strong><br>
+      <span style="color:var(--txd);font-size:9px">${S62_FB_DEFAULT.dbUrl}</span>
     </div>
   </div>
 
   <div class="frow">
-    <label class="flbl">Database URL <span style="color:var(--red)">*</span></label>
-    <input class="finp" id="fb-db-url" placeholder="https://studio62-xxxxx-default-rtdb.asia-southeast1.firebasedatabase.app"
-      value="${_fbCfg.dbUrl||''}" style="font-family:var(--fm);font-size:11px">
+    <label class="flbl">Database URL</label>
+    <input class="finp" id="fb-db-url" value="${_fbCfg.dbUrl||S62_FB_DEFAULT.dbUrl}" style="font-family:var(--fm);font-size:11px">
   </div>
   <div class="frow">
-    <label class="flbl">Web API Key <span style="color:var(--red)">*</span></label>
-    <input class="finp" id="fb-api-key" placeholder="AIzaSy..."
-      value="${_fbCfg.apiKey||''}" style="font-family:var(--fm);font-size:11px">
+    <label class="flbl">Web API Key</label>
+    <input class="finp" id="fb-api-key" value="${_fbCfg.apiKey||S62_FB_DEFAULT.apiKey}" style="font-family:var(--fm);font-size:11px">
   </div>
   <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin:-6px 0 14px;line-height:1.6">
-    ℹ The API key and database URL are not secrets for client-side apps — they identify your project.
-    Security is controlled by Firebase Database Rules (test mode allows all reads/writes for 30 days).
-    After setup, go to Realtime Database → Rules to lock it down.
+    ℹ The API key identifies your Firebase project — it is not a secret for client-side apps.
+    Security is controlled by Firebase Database Rules. Go to
+    <a href="https://console.firebase.google.com" target="_blank" style="color:#F57C00">console.firebase.google.com</a>
+    → Realtime Database → Rules to restrict access.
   </div>
 
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveFbConfig()">
-      ⚡ Connect &amp; Go Live
+      ⚡ Reconnect / Update
     </button>
-    ${configured?`
-    <button class="btn bg" onclick="cloudLoad(false)" style="padding:10px 14px">↓ Load Now</button>
-    <button class="btn bg bsm" style="color:var(--red)" onclick="clearFbConfig()">Disconnect</button>`:''}
-    <button class="btn bg" onclick="closeModal('cloud-setup-ov')">Cancel</button>
+    <button class="btn bg" onclick="cloudLoad(false)" style="padding:10px 14px">↓ Load Latest</button>
+    <button class="btn bg bsm" style="color:var(--red)" onclick="clearFbConfig()">Disconnect</button>
+    <button class="btn bg" onclick="closeModal('cloud-setup-ov')">Close</button>
   </div>
 </div>`;
   document.body.appendChild(div);
@@ -4441,6 +4451,7 @@ function setScore(sid,mid,val){
   // Update score label
   const scEl=document.getElementById(`fscore-${sid}-${mid}`);
   if(scEl){scEl.textContent=val;scEl.style.color=scoreColor(val);}
+  scheduleSave();
   renderDashboard();
 }
 
@@ -6835,8 +6846,8 @@ function renderDashboard(){
       const spiColor=spi>=0.95?'var(--grn)':spi>=0.85?'var(--gold)':'var(--red)';
       const ragDot=pOverdue>0?'hd-red':pInRev2>0?'hd-amber':(pct2>=80?'hd-green':'hd-amber');
       const pt=PROJECT_TYPES.find(t=>t.id===proj.type);
-      return '<div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s" '
-        +'onclick="go(\'drawings\',null)" onmouseover="this.style.borderColor=\'var(--bd2)\'" onmouseout="this.style.borderColor=\'var(--bd)\'">'
+      return '<div class="dash-ph-card" '
+        +'onclick="go(\'drawings\',null)">'
         // Header
         +'<div style="padding:10px 12px;border-bottom:1px solid var(--bd2);display:flex;align-items:center;gap:8px">'
           +'<span style="width:10px;height:10px;border-radius:50%;background:'+proj.color+';flex-shrink:0;display:inline-block"></span>'
@@ -6862,18 +6873,114 @@ function renderDashboard(){
             .map(x=>'<div><div style="font-family:var(--fd);font-size:15px;color:'+x.c+'">'+x.v+'</div>'
               +'<div style="font-family:var(--fm);font-size:8px;color:var(--txd)">'+x.l+'</div></div>').join('')
         +'</div>'
-        // EVM + deadline + fee
+        // EVM + deadline + fee + next meeting
+        const nextProjMtg=MEETINGS.filter(m=>m.proj===proj.id&&m.status==='scheduled'&&new Date(m.date)>=today)
+          .sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date))[0];
         +(renderFeeBurnBar(proj.id))
         +'<div style="padding:7px 12px;display:flex;align-items:center;justify-content:space-between;font-family:var(--fm);font-size:10px;gap:8px">'
           +'<div>SPI <span style="font-family:var(--fd);font-size:13px;color:'+spiColor+'">'+spi+'</span></div>'
           +(canSeeFin()?'<div style="color:var(--txd)">'+( proj.fee||'—')+'</div>':'')
           +(nextDue?'<div style="color:var(--txd)">Next <span style="color:var(--gold)">'+fmtDate(parseDue(nextDue.tgt||nextDue.due))+'</span></div>':'<div style="color:var(--txd)">No due dates</div>')
         +'</div>'
+        +(nextProjMtg?'<div style="padding:5px 12px;border-top:1px solid var(--bd);background:rgba(82,133,224,.04);display:flex;align-items:center;gap:6px">'
+          +'<span style="font-size:10px">'+mtgTypeEmoji(nextProjMtg.type)+'</span>'
+          +'<span style="font-family:var(--fm);font-size:9px;color:var(--txd);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+            +nextProjMtg.title.split('\u2014').pop().trim()
+          +'</span>'
+          +'<span style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--blu);flex-shrink:0">'
+            +new Date(nextProjMtg.date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})
+            +(nextProjMtg.time?' '+nextProjMtg.time:'')
+          +'</span>'
+        +'</div>':'')
       +'</div>';
     }).join('');
   }
 
-  // ── 2-WEEK LOOKAHEAD ────────────────────────────────────────────
+  // ── MEETINGS STRIP ─────────────────────────────────────────────
+  const msEl=e('dash-meetings-strip');
+  if(msEl){
+    const weekEnd7=new Date(today.getTime()+8*24*60*60*1000); // +8 to include full day 7
+    const todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+    const upcomingMtgs=MEETINGS.filter(m=>{
+      if(m.status==='cancelled') return false;
+      // Compare date strings directly — avoids UTC/local timezone issues
+      return m.date>=todayStr && m.date<=(new Date(today.getTime()+7*24*60*60*1000)).toLocaleDateString('en-CA');
+    }).sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date));
+
+    if(!upcomingMtgs.length){
+      msEl.innerHTML='';
+    } else {
+      // Group by date string
+      const byDay={};
+      upcomingMtgs.forEach(m=>{
+        if(!byDay[m.date]) byDay[m.date]=[];
+        byDay[m.date].push(m);
+      });
+
+      const dayCards=Object.entries(byDay).map(([dateStr,mtgs])=>{
+        // Parse date for display label only — no comparisons against Date objects
+        const [yr,mo,dy]=dateStr.split('-').map(Number);
+        const d=new Date(yr,mo-1,dy); // local date — no timezone shift
+        const isToday2=dateStr===todayStr;
+        const dayLabel=isToday2?'Today':d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+
+        const cards=mtgs.map(m=>{
+          const p=PROJS.find(x=>x.id===m.proj);
+          const col=mtgTypeColor(m.type);
+          // Attendee avatars — first avatar no negative margin, subsequent overlap
+          const attIds=(m.attendees||[]).slice(0,4);
+          const atts=attIds.map((id,idx)=>{
+            const st=STAFF.find(x=>x.id===id);
+            if(!st) return '';
+            return '<div title="'+st.first+' '+st.last+'" style="width:20px;height:20px;border-radius:50%;background:'+st.color
+              +';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:7px;color:#0a0a0f;'
+              +(idx>0?'margin-left:-6px;':'')
+              +'border:2px solid var(--sf);font-weight:700;flex-shrink:0">'
+              +st.first[0]+st.last[0]+'</div>';
+          }).join('');
+          const extraAtts=(m.attendees||[]).length>4
+            ?'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-left:4px">+'+((m.attendees||[]).length-4)+'</span>':'';
+
+          return '<div class="dash-mtg-card" '
+            +'onclick="go(\'meetings\',document.querySelector(\'[onclick*=\\\"meetings\\\"]\'));setTimeout(()=>openMtgDetail(\''+m.id+'\'),150)">'
+            +'<div class="dash-mtg-stripe" style="background:'+col+'"></div>'
+            +'<div style="padding-left:8px">'
+              +(p?'<div style="font-family:var(--fm);font-size:8px;font-weight:700;color:'+p.color+';margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px">'+p.name+'</div>':'')
+              +'<div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px">'+m.title.split('\u2014').pop().trim()+'</div>'
+              +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">'
+                +(m.time?'<span style="font-family:var(--fm);font-size:10px;font-weight:700;color:'+col+'">'+m.time+(m.duration?' \u00b7 '+m.duration+'m':'')+'</span>':'')
+                +'<span style="font-family:var(--fm);font-size:9px;padding:1px 6px;border-radius:4px;background:'+col+'22;color:'+col+'">'+mtgTypeEmoji(m.type)+' '+mtgTypeLabel(m.type)+'</span>'
+              +'</div>'
+              +'<div style="display:flex;align-items:center;gap:4px">'
+                +'<div style="display:flex;align-items:center">'+atts+'</div>'
+                +extraAtts
+                +(m.location?'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px">\uD83D\uDCCD '+m.location+'</span>':'')
+              +'</div>'
+            +'</div>'
+          +'</div>';
+        }).join('');
+
+        return '<div style="flex-shrink:0;min-width:0">'
+          +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:'+(isToday2?'var(--gold)':'var(--txd)')+';text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;padding-left:2px;white-space:nowrap">'
+          +(isToday2?'● ':'')+dayLabel+' <span style="font-weight:400;color:var(--txd)">('+mtgs.length+')</span></div>'
+          +'<div style="display:flex;gap:8px">'+cards+'</div>'
+        +'</div>';
+      }).join('');
+
+      msEl.innerHTML='<div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+          +'<div style="display:flex;align-items:center;gap:8px">'
+            +'<span style="font-family:var(--fd);font-size:14px">📅 Upcoming Meetings</span>'
+            +'<span style="font-family:var(--fm);font-size:10px;color:var(--txd)">'+upcomingMtgs.length+' this week</span>'
+          +'</div>'
+          +'<button class="btn bg bsm" onclick="go(\'meetings\',document.querySelector(\'[onclick*=\\\"meetings\\\"]\'))" style="font-size:9px">All Meetings →</button>'
+        +'</div>'
+        +'<div style="display:flex;gap:16px;overflow-x:auto;padding-bottom:6px">'+dayCards+'</div>'
+      +'</div>';
+    }
+  }
+
+
   const laEl=e('dash-lookahead');
   if(laEl){
     const inhouse=STAFF.filter(s=>s.type!=='contractor');
@@ -6931,6 +7038,10 @@ function renderDashboard(){
           return d3>=startD&&d3<=dueD;
         });
 
+        // Check for meetings on this day involving this staff member
+        const dStr=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
+        const staffMtgs=MEETINGS.filter(m=>m.status!=='cancelled'&&m.date===dStr&&(m.attendees||[]).includes(s.id));
+
         // Compute hours for this day from tasks
         const hrsFromTasks=dayTasks.reduce((sum,t)=>{
           const start=new Date(t.start);const due=new Date(t.due);
@@ -6961,10 +7072,43 @@ function renderDashboard(){
         } else {
           h+='<span style="font-family:var(--fm);font-size:9px;color:var(--bd2)">—</span>';
         }
+        // Meeting indicator dot
+        if(staffMtgs.length>0){
+          const col=mtgTypeColor(staffMtgs[0].type);
+          h+='<div style="display:flex;justify-content:center;gap:2px;margin-top:2px">'
+            +staffMtgs.slice(0,3).map(m=>'<div title="'+m.title+' '+( m.time||'')+'" style="width:5px;height:5px;border-radius:50%;background:'+mtgTypeColor(m.type)+';flex-shrink:0"></div>').join('')
+          +'</div>';
+        }
         h+='</td>';
       });
       h+='</tr>';
     });
+
+    // Meetings row at bottom of lookahead
+    h+='<tr style="background:rgba(82,133,224,.04)">'
+      +'<td style="padding:5px 12px;border-top:1px solid var(--bd2);border-right:2px solid var(--bd2);position:sticky;left:0;background:rgba(82,133,224,.06);font-family:var(--fm);font-size:9px;color:var(--blu);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">📅 Meetings</td>';
+    days.forEach(d3=>{
+      const dStr=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
+      const dayMtgs=MEETINGS.filter(m=>m.status!=='cancelled'&&m.date===dStr);
+      const isToday=d3.toDateString()===today.toDateString();
+      h+='<td style="border-top:1px solid var(--bd2);border-left:1px solid var(--bd);padding:4px 5px;text-align:center;background:'+(isToday?'rgba(82,133,224,.06)':'rgba(82,133,224,.03)')+'">';
+      if(dayMtgs.length>0){
+        h+='<div style="display:flex;flex-direction:column;gap:2px">';
+        dayMtgs.slice(0,2).forEach(m=>{
+          const col=mtgTypeColor(m.type);
+          h+='<div title="'+m.title+( m.time?' · '+m.time:'')+'" style="font-family:var(--fm);font-size:7px;font-weight:700;color:'+col
+            +';background:'+col+'18;border-radius:2px;padding:1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px;cursor:pointer" onclick="go(\'meetings\',document.querySelector(\'[onclick*=\\\"meetings\\\"]\'));setTimeout(()=>openMtgDetail(\''+m.id+'\'),150)">'
+            +(m.time?m.time.slice(0,5)+' ':'')+'·'
+          +'</div>';
+        });
+        if(dayMtgs.length>2) h+='<div style="font-family:var(--fm);font-size:7px;color:var(--txd)">+'+(dayMtgs.length-2)+'</div>';
+        h+='</div>';
+      } else {
+        h+='<span style="font-family:var(--fm);font-size:9px;color:var(--bd2)">—</span>';
+      }
+      h+='</td>';
+    });
+    h+='</tr>';
 
     // Total row at bottom
     h+='<tr style="background:var(--sf2)">'
@@ -9247,7 +9391,7 @@ function parseDue(due){
 function fmt8601(d){
   if(!d) return '';
   const dd=new Date(d);
-  return dd.toISOString().slice(0,10);
+  return dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0')+'-'+String(dd.getDate()).padStart(2,'0');
 }
 
 function ragFromSpi(spi){
@@ -9390,7 +9534,7 @@ function toggleGanttProj(projId){ganttExpandedProjs[projId]=!ganttExpandedProjs[
 function renderGanttByProject(con,tasks){
   let h='';
   const today=new Date();today.setHours(0,0,0,0);
-  const todayStr=today.toISOString().slice(0,10);
+  const todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
   PROJS.filter(p=>(p.status||'active')!=='archived'&&(schedProjFilter==='ALL'||p.id===schedProjFilter)).forEach(p=>{
     const ptasks=tasks.filter(t=>t.projId===p.id);
     if(!ptasks.length&&schedProjFilter==='ALL') return;
@@ -10127,6 +10271,13 @@ function renderSSStats(staffList){
   const reviewCount=myDrawings.filter(d=>d.status==='chk').length;
   const todayHrs=staffList.reduce((sum,s)=>sum+SCHED_TASKS.filter(t=>t.staffId===s.id).reduce((sh,t)=>sh+hoursOnDay(t,ssDate),0),0);
 
+  // Meetings: count those today or in the displayed week that any visible staff attends
+  const staffIds=new Set(staffList.map(s=>s.id));
+  const todayStr=ssDate.getFullYear()+'-'+String(ssDate.getMonth()+1).padStart(2,'0')+'-'+String(ssDate.getDate()).padStart(2,'0');
+  const weekStrs=new Set(weekDates.map(d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')));
+  const mtgsToday=MEETINGS.filter(m=>m.status!=='cancelled'&&m.date===todayStr&&(m.attendees||[]).some(id=>staffIds.has(id)));
+  const mtgsWeek=MEETINGS.filter(m=>m.status!=='cancelled'&&weekStrs.has(m.date)&&(m.attendees||[]).some(id=>staffIds.has(id)));
+
   // Update pending count badge
   const badge=document.getElementById('ss-pending-count');
   if(badge) badge.textContent=pendingCount+pendingVisCount;
@@ -10135,6 +10286,8 @@ function renderSSStats(staffList){
     (staffList.length>1?'<span>👥 <strong style="color:var(--tx)">'+staffList.length+'</strong> staff</span>':'')
     +'<span>📋 <strong style="color:var(--red)">'+pendingCount+'</strong> pending drawings</span>'
     +(pendingVisCount?'<span>🎨 <strong style="color:var(--pur)">'+pendingVisCount+'</strong> pending visuals</span>':'')
+    +(mtgsToday.length?'<span>📅 <strong style="color:var(--blu)">'+mtgsToday.length+'</strong> meeting'+(mtgsToday.length!==1?'s':'')+' today</span>':'')
+    +(mtgsWeek.length&&!mtgsToday.length?'<span>📅 <strong style="color:var(--blu)">'+mtgsWeek.length+'</strong> this week</span>':'')
     +(inprogCount?'<span>● <strong style="color:var(--blu)">'+inprogCount+'</strong> in progress</span>':'')
     +(reviewCount?'<span>◎ <strong style="color:var(--gold)">'+reviewCount+'</strong> in review</span>':'')
     +(overdueCount?'<span style="color:var(--red)">⚠ <strong>'+overdueCount+'</strong> overdue</span>':'')
@@ -10310,6 +10463,53 @@ staffList.forEach(s=>{
       html+='</div>';
     }
 
+    // ── MEETINGS this person is attending ──────────────────
+    const today0=new Date();today0.setHours(0,0,0,0);
+    const myMeetings=MEETINGS.filter(m=>{
+      if(m.status==='cancelled') return false;
+      if(!(m.attendees||[]).includes(s.id)) return false;
+      if(ssProjFil!=='ALL'&&m.proj&&m.proj!==ssProjFil) return false;
+      return new Date(m.date)>=today0;
+    }).sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date));
+    const pastMeetings=MEETINGS.filter(m=>{
+      if(m.status==='cancelled') return false;
+      if(!(m.attendees||[]).includes(s.id)) return false;
+      return new Date(m.date)<today0;
+    });
+    if(myMeetings.length>0||pastMeetings.length>0){
+      html+='<div style="border-top:2px solid var(--bd2);padding:10px 18px 0">'
+        +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--blu);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">📅 Meetings ('+myMeetings.length+' upcoming'+(pastMeetings.length?' · '+pastMeetings.length+' past':'')+' )</div>';
+      if(myMeetings.length>0){
+        html+='<div class="pw-list">';
+        myMeetings.forEach(m=>{
+          const p=PROJS.find(x=>x.id===m.proj);
+          const mDate=new Date(m.date);
+          const isToday2=mDate.toDateString()===today0.toDateString();
+          const col=mtgTypeColor(m.type);
+          const dtLabel=isToday2?'Today':(mDate.toLocaleDateString('en-IN',{day:'numeric',month:'short'}));
+          html+='<div class="pw-item" onclick="openMtgDetail(\''+m.id+'\')">'
+            +'<div class="pw-item-left">'
+              +'<div class="pw-status-dot" style="background:'+col+'"></div>'
+              +'<span style="font-size:14px">'+mtgTypeEmoji(m.type)+'</span>'
+              +'<div style="min-width:0">'
+                +'<div class="pw-item-title">'+m.title+'</div>'
+                +'<div class="pw-item-meta" style="font-weight:700;color:'+(p?p.color:'var(--blu)')+'">'
+                  +(p?'\u25a0 '+p.name+' \u00b7 ':'')+mtgTypeLabel(m.type)
+                +'</div>'
+              +'</div>'
+            +'</div>'
+            +'<div class="pw-item-right">'
+              +'<span style="font-family:var(--fm);font-size:9px;font-weight:700;color:'+(isToday2?'var(--gold)':'var(--txd)')+'">'+dtLabel+'</span>'
+              +(m.time?'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+m.time+(m.duration?' · '+m.duration+'m':'')+'</span>':'')
+              +'<span style="font-family:var(--fm);font-size:9px;padding:2px 7px;border-radius:8px;background:'+col+'22;color:'+col+'">'+mtgTypeLabel(m.type)+'</span>'
+            +'</div>'
+          +'</div>';
+        });
+        html+='</div>';
+      }
+      html+='</div>';
+    }
+
     html+='</div>';
   });
 
@@ -10386,7 +10586,20 @@ function renderSSDaily(staffList){
       const disc=DISC.find(x=>x.id===task.disc)||{icon:'📄'};
       const startH=8;const hrsPerSlot=Math.ceil(dayHrs);
       for(let h=startH;h<startH+hrsPerSlot&&h<=18;h++){
-        if(hourMap[h]) hourMap[h].push({task,style,pName,phaseConf,disc,dayHrs,isFirst:h===startH,drawingId:task.drawingId});
+        if(hourMap[h]) hourMap[h].push({task,style,pName,phaseConf,disc,dayHrs,isFirst:h===startH,drawingId:task.drawingId,kind:'drawing'});
+      }
+    });
+
+    // Inject today's meetings into the timeline
+    const ssDateStr=ssDate.getFullYear()+'-'+String(ssDate.getMonth()+1).padStart(2,'0')+'-'+String(ssDate.getDate()).padStart(2,'0');
+    const myMtgsToday=MEETINGS.filter(m=>m.status!=='cancelled'&&m.date===ssDateStr&&(m.attendees||[]).includes(s.id)&&(ssProjFil==='ALL'||m.proj===ssProjFil||!m.proj));
+    myMtgsToday.forEach(m=>{
+      if(!m.time) return;
+      const startH=parseInt(m.time.split(':')[0])||9;
+      const durH=Math.max(1,Math.ceil((m.duration||60)/60));
+      const col=mtgTypeColor(m.type);
+      for(let h=startH;h<startH+durH&&h<=18;h++){
+        if(hourMap[h]) hourMap[h].push({kind:'meeting',mtg:m,col,isFirst:h===startH,durH});
       }
     });
 
@@ -10413,10 +10626,18 @@ function renderSSDaily(staffList){
       html+='<div class="ss-hour-row"><div class="ss-hour-label">'+hLabel+'</div><div class="ss-hour-tasks">';
       blocks.forEach(b=>{
         if(!b.isFirst) return;
-        html+='<div class="ss-task-block" style="background:'+b.style.bg+';border-left-color:'+b.style.border+';color:'+b.style.text+'" onclick="openDrawingUpdate(\''+b.drawingId+'\')" title="'+b.task.title+'">'
-          +'<div class="ss-task-title">'+b.disc.icon+' '+b.task.title+'</div>'
-          +'<div class="ss-task-meta">'+b.pName+' · '+b.dayHrs+'h</div>'
+        if(b.kind==='meeting'){
+          const m=b.mtg;const p=PROJS.find(x=>x.id===m.proj);
+          html+='<div class="ss-task-block" style="background:'+b.col+'1a;border-left-color:'+b.col+';color:'+b.col+'" onclick="openMtgDetail(\''+m.id+'\')" title="'+m.title+'">'
+            +'<div class="ss-task-title">📅 '+m.title.split('\u2014').pop().trim()+'</div>'
+            +'<div class="ss-task-meta">'+(p?p.name:'No project')+' · '+(m.time||'')+(m.duration?' · '+m.duration+'m':'')+'</div>'
           +'</div>';
+        } else {
+          html+='<div class="ss-task-block" style="background:'+b.style.bg+';border-left-color:'+b.style.border+';color:'+b.style.text+'" onclick="openDrawingUpdate(\''+b.drawingId+'\')" title="'+b.task.title+'">'
+            +'<div class="ss-task-title">'+b.disc.icon+' '+b.task.title+'</div>'
+            +'<div class="ss-task-meta">'+b.pName+' · '+b.dayHrs+'h</div>'
+          +'</div>';
+        }
       });
       if(!blocks.length) html+='<div class="ss-empty-slot" style="opacity:.3">—</div>';
       html+='</div></div>';
@@ -10435,9 +10656,10 @@ function renderSSDaily(staffList){
     // Show pending work summary at bottom of daily column
     const pending=DRAWINGS.filter(d=>d.sid===s.id&&d.status!=='done'&&(ssProjFil==='ALL'||d.proj===ssProjFil));
     const pendingVis=VISUALS.filter(v=>v.assignedTo===s.id&&!['del'].includes(v.status)&&(ssProjFil==='ALL'||v.projId===ssProjFil));
-    if(pending.length>0||pendingVis.length>0){
+    const totalBottom=pending.length+pendingVis.length+myMtgsToday.length;
+    if(totalBottom>0){
       html+='<div style="padding:6px 12px;border-top:1px solid var(--bd)">'
-        +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Pending ('+(pending.length+pendingVis.length)+')</div>'
+        +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Pending ('+totalBottom+')</div>'
         +pending.slice(0,2).map(d=>{
           const stColors={nst:'var(--txd)',ip:'var(--blu)',chk:'var(--pur)',done:'var(--grn)'};
           return '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;font-family:var(--fm);font-size:9px;cursor:pointer;color:var(--txm)" onclick="openDrawingUpdate(\''+d.id+'\')">'
@@ -10445,14 +10667,21 @@ function renderSSDaily(staffList){
             +'<span style="color:'+stColors[d.status]+';font-weight:600;flex-shrink:0;margin-left:4px">'+d.pct+'%</span>'
           +'</div>';
         }).join('')
-        +pendingVis.slice(0,2).map(v=>{
+        +pendingVis.slice(0,1).map(v=>{
           const t=visType(v.typeId);const st=visStatus(v.status);
           return '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;font-family:var(--fm);font-size:9px;cursor:pointer;color:var(--txm)" onclick="openVisDetail(\''+v.id+'\')">'
             +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">'+t.icon+' '+v.title+'</span>'
             +'<span style="font-size:8px;padding:1px 5px;border-radius:6px;background:'+st.bg+';color:'+st.color+';flex-shrink:0;margin-left:4px">'+st.label+'</span>'
           +'</div>';
         }).join('')
-        +((pending.length+pendingVis.length)>4?'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">+'+(pending.length+pendingVis.length-4)+' more</div>':'')
+        +myMtgsToday.slice(0,2).map(m=>{
+          const col=mtgTypeColor(m.type);
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;font-family:var(--fm);font-size:9px;cursor:pointer;color:var(--txm)" onclick="openMtgDetail(\''+m.id+'\')">'
+            +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">📅 '+m.title.split('\u2014').pop().trim()+'</span>'
+            +'<span style="font-family:var(--fm);font-size:9px;color:'+col+';font-weight:600;flex-shrink:0;margin-left:4px">'+(m.time||'TBC')+'</span>'
+          +'</div>';
+        }).join('')
+        +(totalBottom>5?'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">+'+(totalBottom-5)+' more</div>':'')
       +'</div>';
     }
 
@@ -10491,7 +10720,7 @@ function renderSSWeekly(staffList){
       +'</div>'
     +'</div>';
 
-    html+='<div class="ss-weekly-body"><table class="ss-weekly-table"><thead><tr><th style="width:130px;text-align:left;padding-left:14px">Drawing</th>';
+    html+='<div class="ss-weekly-body"><table class="ss-weekly-table"><thead><tr><th style="width:130px;text-align:left;padding-left:14px">Item</th>';
     weekDates.forEach((d,i)=>{ html+='<th class="'+(isToday(d)?'today-col':'')+'">'+SS_DAYS[i]+' '+d.getDate()+'/'+(d.getMonth()+1)+(isToday(d)?' ◆':'')+'</th>'; });
     html+='<th style="text-align:center;background:var(--sf3)">Week</th></tr></thead><tbody>';
 
@@ -10500,8 +10729,8 @@ function renderSSWeekly(staffList){
     // Visuals assigned to this staff member (active)
     const myVisuals=VISUALS.filter(v=>v.assignedTo===s.id&&!['del'].includes(v.status)&&(ssProjFil==='ALL'||v.projId===ssProjFil));
 
-    if(!allWeekTasks.length&&!myVisuals.length){
-      html+='<tr><td colspan="'+(weekDates.length+2)+'" style="font-family:var(--fm);font-size:10px;color:var(--txd);padding:12px 14px;font-style:italic">No scheduled tasks or visuals this week.</td></tr>';
+    if(!allWeekTasks.length&&!myVisuals.length&&!MEETINGS.some(m=>m.status!=='cancelled'&&(m.attendees||[]).includes(s.id)&&weekDates.some(d=>(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))===m.date))){
+      html+='<tr><td colspan="'+(weekDates.length+2)+'" style="font-family:var(--fm);font-size:10px;color:var(--txd);padding:12px 14px;font-style:italic">No scheduled tasks, visuals, or meetings this week.</td></tr>';
     } else {
       allWeekTasks.forEach(task=>{
         const style=taskBlockStyle(task);
@@ -10564,6 +10793,47 @@ function renderSSWeekly(staffList){
           html+='<td style="text-align:center;background:rgba(138,82,224,.05)">'
             +'<span class="vis-status-pill" style="font-size:8px;padding:2px 6px;background:'+st.bg+';color:'+st.color+'">'+st.label+'</span>'
           +'</td></tr>';
+        });
+      }
+
+      // ── Meeting rows ────────────────────────────────────────
+      const myWeekMtgs=MEETINGS.filter(m=>{
+        if(m.status==='cancelled') return false;
+        if(!(m.attendees||[]).includes(s.id)) return false;
+        if(ssProjFil!=='ALL'&&m.proj!==ssProjFil&&m.proj) return false;
+        const dStr=m.date;
+        return weekDates.some(d=>(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))===dStr);
+      }).sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date));
+      if(myWeekMtgs.length>0){
+        html+='<tr><td colspan="'+(weekDates.length+2)+'" style="padding:4px 14px;background:rgba(82,133,224,.06);border-top:2px solid rgba(82,133,224,.2)">'
+          +'<span style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--blu);text-transform:uppercase;letter-spacing:.06em">📅 Meetings</span>'
+        +'</td></tr>';
+        myWeekMtgs.forEach(m=>{
+          const col=mtgTypeColor(m.type);
+          const p=PROJS.find(x=>x.id===m.proj);
+          html+='<tr style="background:rgba(82,133,224,.03)"><td style="padding:6px 14px;border-right:2px solid rgba(82,133,224,.2);cursor:pointer" onclick="openMtgDetail(\''+m.id+'\')">'
+            +'<div style="display:flex;align-items:center;gap:5px">'
+              +'<span style="font-size:13px">'+mtgTypeEmoji(m.type)+'</span>'
+              +'<div style="min-width:0">'
+                +'<div style="font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px" title="'+m.title+'">'+m.title.split('\u2014').pop().trim()+'</div>'
+                +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+(p?p.name:'No project')+'</div>'
+              +'</div>'
+            +'</div></td>';
+          weekDates.forEach(d=>{
+            const dStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+            const todayCls=isToday(d)?'background:rgba(224,82,82,.04);':'';
+            if(m.date===dStr){
+              html+='<td style="'+todayCls+'cursor:pointer" onclick="openMtgDetail(\''+m.id+'\')">'
+                +'<div style="background:'+col+'1a;border-left:2px solid '+col+';border-radius:3px;padding:2px 5px;font-family:var(--fm);font-size:8px;font-weight:700;color:'+col+'">'
+                +(m.time?m.time+' · ':'')+mtgTypeLabel(m.type)
+                +(m.duration?' · '+m.duration+'m':'')
+                +'</div></td>';
+            } else {
+              html+='<td style="'+todayCls+'"></td>';
+            }
+          });
+          const atts=(m.attendees||[]).length;
+          html+='<td style="text-align:center;background:rgba(82,133,224,.05);font-family:var(--fm);font-size:9px;color:var(--txd)">'+atts+' att.</td></tr>';
         });
       }
     }
@@ -11038,7 +11308,7 @@ function setDrawingTarget(drawingId, newTgt){
   }
   const task=SCHED_TASKS.find(t=>t.drawingId===drawingId);
   if(task&&d.tgt){
-    try{const td=parseDue(d.tgt);if(td&&!isNaN(td))task.due=td.toISOString().slice(0,10);}catch(e){}
+    try{const td=parseDue(d.tgt);if(td&&!isNaN(td))task.due=td.getFullYear()+'-'+String(td.getMonth()+1).padStart(2,'0')+'-'+String(td.getDate()).padStart(2,'0');}catch(e){}
   }
   showNotif('Target date set',d.id+' → '+(d.tgt||'cleared')+' · set by '+currentUser().first);
   renderDrawings();renderProjList();renderDashboard();
@@ -11415,7 +11685,7 @@ function manualSyncHours(){
    Rule: always add optional fields with defaults, never delete.
    ═══════════════════════════════════════════════════════════════ */
 
-const S62_SCHEMA_VERSION = 4;
+const S62_SCHEMA_VERSION = 5;
 const S62_LS_KEY = 's62_data_v1';
 const S62_SAVE_DEBOUNCE_MS = 2000;
 
@@ -11488,14 +11758,27 @@ const S62_MIGRATIONS = {
   4: function(data) {
     if(!data.firmConfig || !data.firmConfig.name){
       data.firmConfig = {
-        name:'My Architecture Firm', tagline:'Architecture & Design',
-        logoDataUrl:'', address:'', city:'', state:'', pincode:'',
-        country:'India', phone:'', email:'', website:'', gstin:'',
-        cin:'', pan:'', primaryColor:'#c9a96e', accentColor:'#5285e0',
-        appName:'Studio OS', setupComplete:false
+        name:'Studio 62', tagline:'Architecture & Interior Design',
+        logoDataUrl:'', address:'Design Quarter, Nungambakkam', city:'Chennai',
+        state:'Tamil Nadu', pincode:'600034', country:'India',
+        phone:'+91 98201 11200', email:'studio62.design@gmail.com',
+        website:'studio62.in', gstin:'', cin:'', pan:'',
+        primaryColor:'#c9a96e', accentColor:'#5285e0',
+        appName:'Studio OS', setupComplete:true
       };
+    } else {
+      // Always mark setup complete — wizard never auto-launches
+      data.firmConfig.setupComplete = true;
     }
     if(!Array.isArray(data.auditLog)) data.auditLog = [];
+    return data;
+  },
+  /* v4 → v5: v69 — persist PERF_SCORES, DQ_ASSESSMENTS, REVIEWS */
+  5: function(data) {
+    // Seed empty containers if not present — live data fills them from reviews
+    if(!data.perfScores || typeof data.perfScores !== 'object') data.perfScores = {};
+    if(!Array.isArray(data.dqAssessments)) data.dqAssessments = [];
+    if(!data.reviews || typeof data.reviews !== 'object') data.reviews = { daily:[], weekly:[] };
     return data;
   }
 };
@@ -11505,7 +11788,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v64',
+    appVersion: 'S62-v70',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -11525,6 +11808,9 @@ function packData() {
     drwCols:       drwCols,
     meetings:      MEETINGS,
     gcalCfg:       _gcalCfg,
+    perfScores:    PERF_SCORES||{},
+    dqAssessments: DQ_ASSESSMENTS||[],
+    reviews:       REVIEWS||{daily:[],weekly:[]},
     currentUserId: CURRENT_USER_ID,
     activeProjId:  activeProjId,
     tsViewMode:    tsViewMode,
@@ -11560,6 +11846,20 @@ function unpackData(data) {
   // Meetings module
   if(data.meetings&&Array.isArray(data.meetings)) MEETINGS=data.meetings;
   if(data.gcalCfg&&data.gcalCfg.clientId) _gcalCfg=data.gcalCfg;
+  // Performance & review data
+  if(data.perfScores && typeof data.perfScores==='object'){
+    // Merge saved scores over defaults — preserves any FEEDBACK_MARKERS keys
+    Object.keys(data.perfScores).forEach(sid=>{
+      PERF_SCORES[sid] = Object.assign(PERF_SCORES[sid]||{}, data.perfScores[sid]);
+    });
+  }
+  if(Array.isArray(data.dqAssessments) && data.dqAssessments.length){
+    DQ_ASSESSMENTS = data.dqAssessments;
+  }
+  if(data.reviews && typeof data.reviews==='object'){
+    if(Array.isArray(data.reviews.daily))  REVIEWS.daily  = data.reviews.daily;
+    if(Array.isArray(data.reviews.weekly)) REVIEWS.weekly = data.reviews.weekly;
+  }
 }
 
 /* ── MIGRATE: upgrade old schema data to current version ─────
@@ -11635,7 +11935,8 @@ function exportData() {
     const blob = new Blob([json], {type:'application/json'});
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    const date = new Date().toISOString().slice(0,10);
+    const _nd=new Date();
+    const date = _nd.getFullYear()+'-'+String(_nd.getMonth()+1).padStart(2,'0')+'-'+String(_nd.getDate()).padStart(2,'0');
     a.href     = url;
     a.download = 's62-data-'+date+'.json';
     document.body.appendChild(a);
@@ -12506,12 +12807,6 @@ updateCloudSyncBtn(); // Show/hide cloud button based on config + user
 if(isCloudConfigured()){
   setTimeout(()=>fbAutoConnect(), 600);
 }
-// v62: show setup wizard on first run
-setTimeout(()=>{
-  if(checkSetupNeeded()){
-    showSetupWizard();
-  }
-}, 800);
 
 // Prevent clicks inside staff-detail-panel from bubbling to stcard onclick
 (function(){
@@ -13355,18 +13650,33 @@ function saveDqAssessment(){
     const inputs=document.querySelectorAll('.dq-rating-inp');
     if(inputs&&inputs.forEach) inputs.forEach(inp=>{ if(inp.name&&inp.checked) scores[inp.name]=parseInt(inp.value)||0; });
     var _dqU=currentUser();
-    d.qaHistory.push({
+    const dateStr=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    const entry={
       action:'assessment',
       by:_dqU.id,
       byName:_dqU.first+' '+_dqU.last,
       date:toISO(new Date()),
-      dateFmt:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
+      dateFmt:dateStr,
       note:notes||'DQ assessment',
       fromStatus:d.status,
       toStatus:d.status,
       scores:scores
+    };
+    d.qaHistory.push(entry);
+    // Also record in the standalone DQ_ASSESSMENTS register
+    const overall=Object.keys(scores).length
+      ? Math.round(Object.values(scores).reduce((a,b)=>a+b,0)/Object.keys(scores).length*10)/10
+      : 0;
+    DQ_ASSESSMENTS.push({
+      drawingId,
+      staffId:d.sid||'',
+      date:dateStr,
+      scores,
+      overall,
+      notes
     });
     closeModal('dq-modal-ov');
+    scheduleSave();
     showNotif('Quality saved',d.id+' assessed by '+currentUser().first);
   }
 }
@@ -14028,7 +14338,9 @@ function openMtgModal(mtgId,prefillDate){
   const pfill=(!mtgId&&_mtgPrefill)?_mtgPrefill:null;if(pfill)_mtgPrefill=null;
   const pds=prefillDate&&prefillDate.includes('T')?prefillDate.slice(0,10):prefillDate;
   const pts=prefillDate&&prefillDate.includes('T')?prefillDate.slice(11,16):null;
-  const defDate=pds||m?.date||new Date().toISOString().slice(0,10);
+  const _now=new Date();
+  const _todayLocal=_now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0')+'-'+String(_now.getDate()).padStart(2,'0');
+  const defDate=pds||m?.date||_todayLocal;
   const defTime=pts||m?.time||'10:00';
   const ex=document.getElementById('mtg-edit-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='mtg-edit-ov';div.className='ov show';
@@ -14355,7 +14667,7 @@ function setAttendStatus(mtgId, staffId, status){
 
 /* ════ FEATURE G: Free/busy check ════════════════════════ */
 async function openFreeBusy(mtgId){
-  const m=MEETINGS.find(x=>x.id===mtgId)||{date:new Date().toISOString().slice(0,10),time:'10:00',duration:60,attendees:[]};
+  const m=MEETINGS.find(x=>x.id===mtgId)||{date:(()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');})(),time:'10:00',duration:60,attendees:[]};
   if(!isGcalConnected()){showNotif('Google Calendar required','Connect Google Calendar to check availability.');return;}
   const atts=STAFF.filter(s=>(m.attendees||[]).includes(s.id)&&s.email);
   if(!atts.length){showNotif('No attendees','Add staff attendees with Google email addresses first.');return;}
@@ -14371,7 +14683,7 @@ async function openFreeBusy(mtgId){
 
   // Query freebusy
   try{
-    const date=m.date||new Date().toISOString().slice(0,10);
+    const date=m.date||(()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');})();
     const tMin=date+'T06:00:00Z';
     const tMax=date+'T20:00:00Z';
     const body={timeMin:tMin,timeMax:tMax,items:atts.map(s=>({id:s.email}))};
@@ -16033,7 +16345,7 @@ const WIZARD_COLORS = [
 ];
 
 function checkSetupNeeded(){
-  return !FIRM_CONFIG.setupComplete;
+  return false; // wizard removed — firm settings always accessible via sidebar
 }
 
 function showSetupWizard(){
@@ -16283,7 +16595,6 @@ function openFirmSettings(){
 
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveFirmSettingsModal()">Save Settings</button>
-      <button class="btn bg" onclick="closeModal('firm-settings-ov');showSetupWizard()" style="padding:10px 14px;font-size:10px">Re-run Wizard</button>
       <button class="btn bg" onclick="closeModal('firm-settings-ov')" style="padding:10px 14px">Cancel</button>
     </div>
   </div>`;
