@@ -3,13 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Studio OS — Practice Management</title>
-<meta name="description" content="Architecture practice management — drawings, timesheets, QA, transmittals">
+<title>Studio 62 — Drawing OS</title>
+<meta name="description" content="Studio 62 Drawing OS — architectural practice management. Drawings, timesheets, QA, transmittals, staff scheduling and financials.">
 <meta name="theme-color" content="#c9a96e" id="pwa-theme-color">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Studio OS">
+<meta name="apple-mobile-web-app-title" content="S62 OS">
+<!-- Open Graph (looks good when shared as a link) -->
+<meta property="og:title" content="Studio 62 — Drawing OS">
+<meta property="og:description" content="Architecture practice management — drawings, timesheets, QA, transmittals">
+<meta property="og:type" content="website">
+<!-- Inline SVG favicon — no external file needed, works on GitHub Pages immediately -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23c9a96e'/><text y='72' x='50' font-size='58' font-family='serif' text-anchor='middle' fill='%230a0a0f' font-weight='700'>S</text></svg>">
+<link rel="shortcut icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23c9a96e'/><text y='72' x='50' font-size='58' font-family='serif' text-anchor='middle' fill='%230a0a0f' font-weight='700'>S</text></svg>">
+<!-- Apple touch icon (home screen icon on iOS) — injected dynamically once FIRM_CONFIG loads -->
+<link rel="apple-touch-icon" id="apple-touch-icon-link" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='90' fill='%23c9a96e'/><text y='370' x='256' font-size='300' font-family='serif' text-anchor='middle' fill='%230a0a0f' font-weight='700'>S</text></svg>">
 <link rel="manifest" id="pwa-manifest-link">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <!-- Email/password login only —  Google OAuth removed -->
@@ -11639,7 +11648,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v74',
+    appVersion: 'S62-v75',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -16030,28 +16039,56 @@ function updateLockScreenBrand(){
 }
 
 function updateDocumentTitle(){
-  document.title = (FIRM_CONFIG.appName||FIRM_CONFIG.name||'Studio OS')+' — Practice Management';
+  const firm = FIRM_CONFIG.name||'Studio OS';
+  const app  = FIRM_CONFIG.appName||'Drawing OS';
+  document.title = firm + ' — ' + app;
 }
 
 function injectPWAManifest(){
+  const firm  = FIRM_CONFIG.name||'Studio 62';
+  const app   = FIRM_CONFIG.appName||'Drawing OS';
+  const color = FIRM_CONFIG.primaryColor||'#c9a96e';
+  const dark  = '#0a0a0f';
+  const initials = firm.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+  // Build icon — use custom logo if set, otherwise generate SVG from firm initials
+  const iconSvg = FIRM_CONFIG.logoDataUrl
+    ? FIRM_CONFIG.logoDataUrl
+    : `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='90' fill='${encodeURIComponent(color)}'/><text y='370' x='256' font-size='${initials.length>1?'240':'300'}' font-family='serif' text-anchor='middle' fill='${encodeURIComponent(dark)}' font-weight='700'>${initials}</text></svg>`;
+
+  const smallIconSvg = FIRM_CONFIG.logoDataUrl
+    ? FIRM_CONFIG.logoDataUrl
+    : `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='${encodeURIComponent(color)}'/><text y='72' x='50' font-size='${initials.length>1?'48':'58'}' font-family='serif' text-anchor='middle' fill='${encodeURIComponent(dark)}' font-weight='700'>${initials}</text></svg>`;
+
+  // Update browser favicon dynamically
+  ['link[rel="icon"]','link[rel="shortcut icon"]'].forEach(sel=>{
+    const el=document.querySelector(sel);
+    if(el) el.href=smallIconSvg;
+  });
+
+  // Update apple-touch-icon
+  const atil=document.getElementById('apple-touch-icon-link');
+  if(atil) atil.href=iconSvg;
+
+  // Update PWA manifest
   const manifest = {
-    name: FIRM_CONFIG.name||'Studio OS',
-    short_name: (FIRM_CONFIG.appName||FIRM_CONFIG.name||'Studio OS').slice(0,12),
+    name: firm + ' — ' + app,
+    short_name: firm.slice(0,12),
     description: 'Architecture practice management',
     start_url: window.location.pathname,
     display: 'standalone',
-    background_color: '#0a0a0f',
-    theme_color: FIRM_CONFIG.primaryColor||'#c9a96e',
-    icons: [{
-      src: FIRM_CONFIG.logoDataUrl||'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23c9a96e"/><text y=".9em" font-size="60" x="50%" text-anchor="middle" fill="%230a0a0f">S</text></svg>',
-      sizes:'192x192', type:'image/svg+xml'
-    }]
+    background_color: dark,
+    theme_color: color,
+    icons: [
+      { src: iconSvg,      sizes:'512x512', type: FIRM_CONFIG.logoDataUrl?'image/png':'image/svg+xml', purpose:'any maskable' },
+      { src: smallIconSvg, sizes:'192x192', type: FIRM_CONFIG.logoDataUrl?'image/png':'image/svg+xml' },
+    ]
   };
   const blob = new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
   const url  = URL.createObjectURL(blob);
   const link = document.getElementById('pwa-manifest-link');
   if(link){
-    if(link.href) URL.revokeObjectURL(link.href);
+    if(link.href&&link.href.startsWith('blob:')) URL.revokeObjectURL(link.href);
     link.href = url;
     link.rel  = 'manifest';
   }
