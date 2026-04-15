@@ -1009,8 +1009,12 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   .logo-sub{ display:none }
   /* Compress topbar */
   #sync-version-indicator{ display:none }
-  /* Dashboard grids: 2×2 */
-  #dash-fin-strip{ grid-template-columns:1fr 1fr }
+  /* Dashboard grids */
+  #dash-fin-strip{ grid-template-columns:repeat(3,1fr) }
+  #dash-kpi-strip{ grid-template-columns:repeat(4,1fr) }
+  #dash-workflow-bar{ grid-template-columns:repeat(3,1fr) }
+  .dash-row-halves{ grid-template-columns:1fr }
+  #dash-proj-health{ grid-template-columns:repeat(auto-fill,minmax(240px,1fr)) }
   .fin-kpi-grid{ grid-template-columns:1fr 1fr }
   .vis-kpi-row{ grid-template-columns:1fr 1fr }
   /* Workload: horizontal scroll */
@@ -1069,7 +1073,15 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   .me-av{ width:30px!important;height:30px!important;font-size:10px!important }
 
   /* ── STAT CARDS (dashboard KPI strip) ── */
-  #dash-fin-strip{ grid-template-columns:1fr 1fr!important;gap:8px!important }
+  #dash-kpi-strip{ grid-template-columns:repeat(2,1fr)!important;gap:8px!important }
+  #dash-fin-strip{ grid-template-columns:repeat(2,1fr)!important;gap:8px!important }
+  #dash-workflow-bar{ grid-template-columns:1fr 1fr!important;gap:8px!important }
+  /* Dashboard side-by-side rows → stack */
+  .dash-row-halves{ grid-template-columns:1fr!important;gap:10px!important }
+  /* Project health: single column */
+  #dash-proj-health{ grid-template-columns:1fr!important }
+  /* Quick actions: wrap gracefully */
+  #dash-quick-actions{ flex-wrap:wrap!important;gap:6px!important }
   .sc{ padding:10px!important }
   .sval{ font-size:20px!important }
 
@@ -1166,6 +1178,23 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   /* ── PRESENCE BAR ── */
   #presence-bar{ display:none }
 
+  /* ── MOMENTUM SCROLL — iOS native feel on all scrollable areas ── */
+  .panel,
+  #dash-lookahead,
+  #dash-activity,
+  #dash-work-todo,
+  #dash-work-review,
+  #dash-meetings-strip,
+  #drw-content,
+  #drw-tbl,
+  #workload-main,
+  #sched-main,
+  #pipeline-body,
+  .notif-tray,
+  .modal{
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* ── AUDIT LOG ── */
   .audit-row{ gap:6px }
   .audit-time{ font-size:8px }
@@ -1173,7 +1202,9 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 
 /* ── Phone ≤480px ─────────────────────────────────────── */
 @media (max-width: 480px) {
-  #dash-fin-strip{ grid-template-columns:1fr!important }
+  #dash-fin-strip{ grid-template-columns:1fr 1fr!important }
+  #dash-kpi-strip{ grid-template-columns:1fr 1fr!important }
+  #dash-workflow-bar{ grid-template-columns:1fr!important }
   .fin-kpi-grid{ grid-template-columns:1fr!important }
   .vis-kpi-row{ grid-template-columns:1fr!important }
   .tx-kpi-row{ grid-template-columns:1fr!important }
@@ -1186,6 +1217,9 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   .lock-numpad{ grid-template-columns:repeat(3,1fr);gap:8px!important }
   .lock-key{ height:56px!important;font-size:20px!important }
   .lock-logo-text{ font-size:20px!important }
+  /* Quick actions: stack greeting above buttons */
+  #dash-quick-actions{ flex-direction:column!important;align-items:flex-start!important }
+  #dash-quick-actions>div:last-child{ margin-left:0!important;width:100%;justify-content:flex-start }
 }
 
 /* ── AUDIT LOG ─────────────────────────────────────────── */
@@ -1471,24 +1505,25 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 <!-- ══ DASHBOARD ══════════════════════════════════════════ -->
 <div class="panel active" id="panel-dashboard">
 
-  <!-- Firebase Live Sync Banner — shown until connected -->
-  <div id="dash-drive-banner" style="display:flex;align-items:center;gap:14px;padding:12px 18px;background:linear-gradient(135deg,rgba(82,201,122,.08),rgba(82,133,224,.06));border:1px solid rgba(82,201,122,.25);border-radius:10px;margin-bottom:14px">
+  <!-- Firebase Live Sync Banner -->
+  <div id="dash-drive-banner" style="display:flex;align-items:center;gap:14px;padding:12px 18px;background:linear-gradient(135deg,rgba(82,201,122,.08),rgba(82,133,224,.06));border:1px solid rgba(82,201,122,.25);border-radius:10px;margin-bottom:12px">
     <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#52c97a,#5285e0);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">⚡</div>
     <div style="flex:1;min-width:0">
       <div style="font-size:13px;font-weight:600;margin-bottom:2px;color:var(--grn)" id="dash-drive-title">● Live sync active — Studio 62 Firebase</div>
-      <div style="font-family:var(--fm);font-size:10px;color:var(--txd)" id="dash-drive-sub">All users see changes in real time · studio62-ca1b7.asia-southeast1</div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--txd)" id="dash-drive-sub">studio62-ca1b7.asia-southeast1</div>
     </div>
-    <button class="btn bg bsm" onclick="openCloudSetupModal()" style="padding:7px 14px;font-size:10px;border-color:rgba(82,201,122,.3);color:var(--grn)" id="dash-drive-btn">
-      ☁ Sync Settings
-    </button>
+    <button class="btn bg bsm" onclick="openCloudSetupModal()" style="font-size:10px;border-color:rgba(82,201,122,.3);color:var(--grn)" id="dash-drive-btn">☁ Sync Settings</button>
     <button onclick="document.getElementById('dash-drive-banner').style.display='none'" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:16px;flex-shrink:0;padding:4px" title="Dismiss">✕</button>
   </div>
 
-  <!-- Row 0: Financial Summary -->
-  <div id="dash-fin-strip" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px"></div>
+  <!-- Quick Actions Bar -->
+  <div id="dash-quick-actions" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap"></div>
+
+  <!-- Row 0: Financial / Role Summary -->
+  <div id="dash-fin-strip" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px"></div>
 
   <!-- Row 1: KPI Strip (8 cards) -->
-  <div class="sg" id="dash-kpi-strip" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+  <div class="sg" id="dash-kpi-strip" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px">
     <div class="sc"><div class="slbl">Active Projects</div><div class="sval" id="dk-projects">3</div><div class="schg" id="dk-projects-sub">across 3 phases</div></div>
     <div class="sc"><div class="slbl">Total Drawings</div><div class="sval" id="dk-drawings">21</div><div class="schg" id="dk-drawings-sub">0% issued</div></div>
     <div class="sc" style="border-color:rgba(82,133,224,.3)"><div class="slbl" style="color:var(--blu)">In Progress</div><div class="sval" id="dk-inprogress" style="color:var(--blu)">0</div><div class="schg" id="dk-inprogress-sub">being worked on</div></div>
@@ -1500,72 +1535,63 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   </div>
 
   <!-- Row 2: QA Queue Banner -->
-  <div id="dash-qa-link" style="display:none;align-items:center;gap:12px;padding:10px 16px;background:rgba(138,82,224,.08);border:1px solid rgba(138,82,224,.3);border-radius:8px;margin-bottom:14px">
+  <div id="dash-qa-link" style="display:none;align-items:center;gap:12px;padding:10px 16px;background:rgba(138,82,224,.08);border:1px solid rgba(138,82,224,.3);border-radius:8px;margin-bottom:12px">
     <div style="width:32px;height:32px;border-radius:50%;background:var(--pur);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">&#x25c8;</div>
-    <div style="flex:1">
-      <div style="font-size:13px;font-weight:600"><span id="dash-qa-count">0</span> drawing<span id="dash-qa-plural">s</span> waiting for your approval</div>
-      <div style="font-family:var(--fm);font-size:10px;color:var(--txd)">Drawing Register &#x2192; &#x25c8; For Review tab to check and issue</div>
-    </div>
+    <div style="flex:1"><div style="font-size:13px;font-weight:600"><span id="dash-qa-count">0</span> drawing<span id="dash-qa-plural">s</span> waiting for your approval</div><div style="font-family:var(--fm);font-size:10px;color:var(--txd)">Drawing Register &#x2192; &#x25c8; For Review tab</div></div>
     <button class="btn bsm" style="background:var(--pur);color:#fff;padding:6px 14px;font-size:10px" onclick="go('drawings',null);setTimeout(function(){setDrwView('qa',document.getElementById('sv-qa'));},200)">Open Review Queue &#x2192;</button>
   </div>
 
   <!-- Row 3: Workflow metrics -->
-  <div id="dash-workflow-bar" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px"></div>
+  <div id="dash-workflow-bar" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px"></div>
 
   <!-- Row 3b: Upcoming Meetings strip -->
-  <div id="dash-meetings-strip" style="margin-bottom:14px"></div>
+  <div id="dash-meetings-strip" style="margin-bottom:12px"></div>
 
-  <!-- Row 4: Work queues — Overdue / For Review / Unassigned -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
-    <div>
-      <div class="sechd"><div class="sectitle">&#x1f534; Overdue &amp; Urgent</div><button class="btn bg bsm" onclick="go('drawings',null);setDrwView('overdue',document.getElementById('sv-overdue'))">All Overdue &#x2192;</button></div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="dash-work-todo" style="max-height:280px;overflow-y:auto"></div></div>
-    </div>
-    <div>
-      <div class="sechd"><div class="sectitle">&#x25c8; For Review</div><button class="btn bg bsm" onclick="go('drawings',null);setTimeout(function(){setDrwView('qa',document.getElementById('sv-qa'));},200)">Review Queue &#x2192;</button></div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="dash-work-review" style="max-height:280px;overflow-y:auto"></div></div>
-    </div>
-    <div>
-      <div class="sechd"><div class="sectitle">&#x25cb; To Be Assigned</div><button class="btn bg bsm" onclick="go('drawings',null);setDrwView('unassigned',document.getElementById('sv-unassigned'))">View All &#x2192;</button></div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="dash-work-unassigned" style="max-height:280px;overflow-y:auto"></div></div>
-    </div>
-  </div>
-
-  <!-- Row 5: Project Health + Discipline Breakdown + Due This Week -->
-  <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px">
+  <!-- Row 4: Condensed — Project Health + Urgent side-by-side -->
+  <div class="dash-row-halves" style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
     <div>
       <div class="sechd"><div class="sectitle">Project Health</div><div style="display:flex;gap:6px"><button id="dash-ph-showall-btn" class="btn bg bsm" style="display:none"></button><button class="btn bg bsm" onclick="go('schedule',null)">Full Gantt &#x2192;</button></div></div>
-      <div id="dash-proj-health" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px"></div>
+      <div id="dash-proj-health" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px"></div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:12px">
       <div>
-        <div class="sechd" style="margin-bottom:8px"><div class="sectitle">Disciplines</div></div>
-        <div class="card" style="padding:14px 16px"><div id="dash-disc-breakdown"></div></div>
+        <div class="sechd" style="margin-bottom:6px"><div class="sectitle">&#x1f534; Overdue</div><button class="btn bg bsm" onclick="go('drawings',null);setDrwView('overdue',document.getElementById('sv-overdue'))">All &#x2192;</button></div>
+        <div class="card" style="padding:0;overflow:hidden"><div id="dash-work-todo" style="max-height:220px;overflow-y:auto"></div></div>
       </div>
       <div>
-        <div class="sechd" style="margin-bottom:8px"><div class="sectitle">&#x1f4c5; Due This Week</div><button class="btn bg bsm" onclick="go('drawings',null);setDrwView('week',document.getElementById('sv-week'))">All &#x2192;</button></div>
-        <div class="card" style="padding:0;overflow:hidden"><div id="dash-work-week" style="max-height:200px;overflow-y:auto"></div></div>
+        <div class="sechd" style="margin-bottom:6px"><div class="sectitle">&#x25c8; For Review</div><button class="btn bg bsm" onclick="go('drawings',null);setTimeout(function(){setDrwView('qa',document.getElementById('sv-qa'));},200)">All &#x2192;</button></div>
+        <div class="card" style="padding:0;overflow:hidden"><div id="dash-work-review" style="max-height:220px;overflow-y:auto"></div></div>
       </div>
     </div>
   </div>
 
-  <!-- Row 6: Activity Feed + 2-Week Lookahead -->
-  <div style="display:grid;grid-template-columns:1fr 2fr;gap:14px;margin-bottom:14px">
-    <div>
-      <div class="sechd"><div class="sectitle">Recent Activity</div></div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="dash-activity" style="max-height:380px;overflow-y:auto"></div></div>
-    </div>
+  <!-- Row 5: Heatmap Lookahead + Activity Feed -->
+  <div class="dash-row-halves" style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
     <div>
       <div class="sechd">
-        <div class="sectitle">&#x1f4c6; 2-Week Staff Lookahead</div>
+        <div class="sectitle">&#x1f4c6; 2-Week Staff Heatmap</div>
         <div style="display:flex;gap:8px;align-items:center">
           <span id="dash-lookahead-total" style="font-family:var(--fm);font-size:10px;color:var(--txd)"></span>
           <button class="btn bg bsm" onclick="go('staffsched',null)">Staff Schedules &#x2192;</button>
         </div>
       </div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="dash-lookahead" style="overflow-x:auto;max-height:380px;overflow-y:auto"></div></div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="dash-lookahead" style="overflow-x:auto;max-height:320px;overflow-y:auto"></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="flex:1">
+        <div class="sechd" style="margin-bottom:6px"><div class="sectitle">Recent Activity</div></div>
+        <div class="card" style="padding:0;overflow:hidden"><div id="dash-activity" style="max-height:200px;overflow-y:auto"></div></div>
+      </div>
+      <div>
+        <div class="sechd" style="margin-bottom:6px"><div class="sectitle">Disciplines</div></div>
+        <div class="card" style="padding:12px 14px"><div id="dash-disc-breakdown"></div></div>
+      </div>
     </div>
   </div>
+
+  <!-- Hidden: unassigned (still rendered for KPI badge) -->
+  <div style="display:none"><div id="dash-work-unassigned"></div></div>
+  <div style="display:none"><div id="dash-work-week"></div></div>
 
 </div>
 
@@ -6424,92 +6450,102 @@ function sendStudioEmail(type){
 
 function renderDashboard(){
   syncSchedTasks();
-  updateCloudSyncBtn(); // refresh Drive banner + topbar button state
+  updateCloudSyncBtn();
 
-// ── LIVE TODAY (not hardcoded) ──────────────────────────────────
-  const today    = new Date();
-  today.setHours(0,0,0,0);
-  const weekEnd  = new Date(today.getTime() + 7*24*60*60*1000);
-  const weekAgo  = new Date(today.getTime() - 7*24*60*60*1000);
-
-  // ── PARSE DUE DATE (use existing parseDue, aliased here) ────────
-  const pdd = (d) => parseDue(d);
-
-  // ── DERIVE DRAWING SETS ─────────────────────────────────────────
-  const allD = DRAWINGS;
-  const done = allD.filter(d=>d.status==='done');
-  const inprog = allD.filter(d=>d.status==='ip');
-  const inrev  = allD.filter(d=>d.status==='chk'); // 'chk' = Ready for Review
-  const nst    = allD.filter(d=>d.status==='nst');
-  const unassigned = allD.filter(d=>!d.sid && d.status!=='done');
-
-  const overdueDrawings = allD.filter(d=>{
-    if(d.status==='done') return false;
-    const dd=pdd(d.tgt); return dd&&dd<today;
-  }).sort((a,b)=>(pdd(a.due)||today)-(pdd(b.due)||today));
-
-  const weekDrawings = allD.filter(d=>{
-    if(d.status==='done') return false;
-    const dd=pdd(d.tgt); return dd&&dd>=today&&dd<=weekEnd;
-  }).sort((a,b)=>(pdd(a.due)||today)-(pdd(b.due)||today));
-
-  const issuedThisWeek = done.filter(d=>{
-    const dd=pdd(d.tgt); return dd&&dd>=weekAgo&&dd<=today;
-  });
-
-  const reviewDrawings = inrev.slice().sort((a,b)=>(pdd(a.due)||today)-(pdd(b.due)||today));
-
-  // ── KPI STRIP ───────────────────────────────────────────────────
-  const pct = allD.length ? Math.round(done.length/allD.length*100) : 0;
+  const today=new Date();today.setHours(0,0,0,0);
+  const weekEnd=new Date(today.getTime()+7*24*60*60*1000);
+  const weekAgo=new Date(today.getTime()-7*24*60*60*1000);
+  const pdd=d=>parseDue(d);
   const e=id=>document.getElementById(id);
   const s=(id,v)=>{const el=e(id);if(el)el.textContent=v;};
+  const me=currentUser();
+  const isAdmin=canSchedule();
+  const canFin=canSeeFin();
 
-  // ── FINANCIAL SUMMARY — visible to Principal + Lead Architect only ──
+  // ── DERIVE DATA ────────────────────────────────────────────────
+  const allD=DRAWINGS;
+  const done=allD.filter(d=>d.status==='done');
+  const inprog=allD.filter(d=>d.status==='ip');
+  const inrev=allD.filter(d=>d.status==='chk');
+  const unassigned=allD.filter(d=>!d.sid&&d.status!=='done');
+  const overdueDrawings=allD.filter(d=>{if(d.status==='done')return false;const dd=pdd(d.tgt);return dd&&dd<today;}).sort((a,b)=>(pdd(a.tgt)||today)-(pdd(b.tgt)||today));
+  const weekDrawings=allD.filter(d=>{if(d.status==='done')return false;const dd=pdd(d.tgt);return dd&&dd>=today&&dd<=weekEnd;}).sort((a,b)=>(pdd(a.tgt)||today)-(pdd(b.tgt)||today));
+  const issuedThisWeek=done.filter(d=>{const dd=pdd(d.tgt);return dd&&dd>=weekAgo&&dd<=today;});
+  const pct=allD.length?Math.round(done.length/allD.length*100):0;
+
+  // ── QUICK ACTIONS BAR (role-aware) ────────────────────────────
+  const qaBarEl=e('dash-quick-actions');
+  if(qaBarEl){
+    const myPending=allD.filter(d=>d.sid===me.id&&d.status!=='done').length;
+    const myMtgsToday=MEETINGS.filter(m=>{
+      if(m.status==='cancelled') return false;
+      const todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+      return m.date===todayStr&&(m.attendees||[]).includes(me.id);
+    }).length;
+
+    const now=new Date();const greetStr=now.getHours()<12?'Good morning':now.getHours()<17?'Good afternoon':'Good evening';
+    qa='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%">'
+      +'<div style="font-family:var(--fd);font-size:16px;color:var(--tx);margin-right:4px">'+greetStr+', '+me.first+'</div>';
+
+    // Contextual action chips
+    if(myMtgsToday>0){
+      qa+='<button class="btn bg bsm" onclick="goMeetings()" style="background:rgba(82,133,224,.1);border-color:rgba(82,133,224,.3);color:var(--blu)">📅 '+myMtgsToday+' meeting'+(myMtgsToday>1?'s':'')+' today</button>';
+    }
+    if(inrev.length>0&&canSchedule()){
+      qa+='<button class="btn bg bsm" onclick="go(\'drawings\',null);setTimeout(()=>setDrwView(\'qa\',document.getElementById(\'sv-qa\')),200)" style="background:rgba(138,82,224,.1);border-color:rgba(138,82,224,.3);color:var(--pur)">◈ '+inrev.length+' awaiting review</button>';
+    }
+    if(overdueDrawings.length>0){
+      qa+='<button class="btn bg bsm" onclick="go(\'drawings\',null);setDrwView(\'overdue\',document.getElementById(\'sv-overdue\'))" style="background:rgba(224,82,82,.08);border-color:rgba(224,82,82,.3);color:var(--red)">⚠ '+overdueDrawings.length+' overdue</button>';
+    }
+    if(myPending>0){
+      qa+='<button class="btn bg bsm" onclick="go(\'staffsched\',null)" style="background:rgba(82,201,122,.08);border-color:rgba(82,201,122,.3);color:var(--grn)">📋 '+myPending+' pending drawings</button>';
+    }
+
+    // Primary actions (right-aligned)
+    qa+='<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">';
+    if(isAdmin){
+      qa+='<button class="btn bp bsm" onclick="openMtgModal(null,null)">+ Meeting</button>';
+      qa+='<button class="btn bg bsm" onclick="openAddProjectModal()">+ Project</button>';
+    }
+    qa+='<button class="btn bg bsm" onclick="go(\'drawings\',null);setTimeout(()=>openAddDrawingModal(activeProjId||PROJS[0]?.id),200)">+ Drawing</button>';
+    qa+='</div></div>';
+    qaBarEl.innerHTML=qa;
+  }
+
+  // ── FINANCIAL SUMMARY ─────────────────────────────────────────
   const finEl=e('dash-fin-strip');
   if(finEl){
-    if(!canSeeFin()){
-      // Non-financial roles: show hours + progress only, no money
+    if(!canFin){
       const hoursLogged2=allD.reduce((s,d)=>s+d.hrs,0);
       finEl.innerHTML=[
-        {lbl:'Drawings Issued',val:done.length+' / '+allD.length,sub:pct+'% complete',col:pct>=70?'var(--grn)':pct>=40?'var(--gold)':'var(--blu)'},
+        {lbl:'Issued',val:done.length+' / '+allD.length,sub:pct+'% complete',col:pct>=70?'var(--grn)':pct>=40?'var(--gold)':'var(--blu)'},
         {lbl:'Hours Logged',val:hoursLogged2+'h',sub:'across all drawings',col:'var(--blu)'},
-        {lbl:'For Review',val:allD.filter(d=>d.status==='chk').length+'',sub:'awaiting QA',col:'var(--pur)'},
-        {lbl:'Overdue',val:allD.filter(d=>d.status!=='done'&&parseDue(d.tgt)&&parseDue(d.tgt)<today).length+'',sub:'past target date',col:'var(--red)'},
-      ].map(x=>
-        '<div class="sc" style="border-color:rgba(255,255,255,.08)">'
+        {lbl:'For Review',val:inrev.length+'',sub:'awaiting QA',col:'var(--pur)'},
+        {lbl:'Overdue',val:overdueDrawings.length+'',sub:'past target date',col:overdueDrawings.length>0?'var(--red)':'var(--grn)'},
+      ].map(x=>'<div class="sc" style="border-color:rgba(255,255,255,.08)">'
         +'<div class="slbl" style="color:'+x.col+'">'+x.lbl+'</div>'
         +'<div class="sval" style="color:'+x.col+'">'+x.val+'</div>'
         +'<div class="schg">'+x.sub+'</div></div>'
       ).join('');
     } else {
-      // Financial roles: full money view
-      const totalFee=PROJS.reduce((sum,p)=>{
-        if(!p.fee)return sum;
-        const fStr=String(p.fee).replace(/[^\d.]/g,'');
-        const mult=p.fee.includes('Cr')?1e7:p.fee.includes('L')?1e5:1;
-        return sum+(parseFloat(fStr)||0)*mult;
-      },0);
+      const totalFee=PROJS.reduce((sum,p)=>{if(!p.fee)return sum;const fStr=String(p.fee).replace(/[^\d.]/g,'');const mult=p.fee.includes('Cr')?1e7:p.fee.includes('L')?1e5:1;return sum+(parseFloat(fStr)||0)*mult;},0);
       const fmtFee=v=>v>=1e7?(v/1e7).toFixed(1)+' Cr':v>=1e5?(v/1e5).toFixed(1)+' L':'\u20b9'+Math.round(v).toLocaleString('en-IN');
       const hoursLogged=allD.reduce((s,d)=>s+d.hrs,0);
-      const billingRate=STAFF.filter(s=>s.type!=='contractor').reduce((sum,s)=>{
-        const r=parseInt(String(s.rate||0).replace(/[^\d]/g,''))||0;return sum+r;},0)
-        /Math.max(STAFF.filter(s=>s.type!=='contractor').length,1);
+      const billingRate=STAFF.filter(s=>s.type!=='contractor').reduce((sum,s)=>{const r=parseInt(String(s.rate||0).replace(/[^\d]/g,''))||0;return sum+r;},0)/Math.max(STAFF.filter(s=>s.type!=='contractor').length,1);
       const estCost=Math.round(hoursLogged*billingRate);
+      const paid=(INVOICES||[]).filter(i=>i.status==='paid').reduce((s,i)=>s+(i.amountNum||0),0);
+      const outstanding=(INVOICES||[]).filter(i=>['pending','overdue'].includes(i.status)).reduce((s,i)=>s+(i.amountNum||0),0);
       finEl.innerHTML=[
-        {lbl:'Total Contract Value',val:'\u20b9'+fmtFee(totalFee),sub:PROJS.length+' active projects',col:'var(--gold)'},
-        {lbl:'Hours Logged',val:hoursLogged+'h',sub:'across all drawings',col:'var(--blu)'},
-        {lbl:'Est. Staff Cost',val:'\u20b9'+fmtFee(estCost),sub:'at avg \u20b9'+Math.round(billingRate).toLocaleString('en-IN')+'/hr',col:'var(--txm)'},
-        {lbl:'Drawings Issued',val:done.length+' / '+allD.length,sub:pct+'% complete',col:pct>=70?'var(--grn)':pct>=40?'var(--gold)':'var(--blu)'},
-      ].map(x=>
-        '<div class="sc" style="border-color:rgba(255,255,255,.08);cursor:pointer" onclick="go(\'financials\',document.getElementById(\'ni-financials\'))">'
+        {lbl:'Contract Value',val:'\u20b9'+fmtFee(totalFee),sub:PROJS.length+' projects',col:'var(--gold)',nav:"go('financials',document.getElementById('ni-financials'))"},
+        {lbl:'Received',val:'\u20b9'+fmtFee(paid),sub:'invoiced & paid',col:'var(--grn)',nav:"go('financials',document.getElementById('ni-financials'))"},
+        {lbl:'Outstanding',val:'\u20b9'+fmtFee(outstanding),sub:(INVOICES||[]).filter(i=>i.status==='overdue').length+' overdue',col:outstanding>0?'var(--red)':'var(--txd)',nav:"go('financials',document.getElementById('ni-financials'))"},
+        {lbl:'Staff Cost Est.',val:'\u20b9'+fmtFee(estCost),sub:'avg \u20b9'+Math.round(billingRate).toLocaleString('en-IN')+'/hr',col:'var(--txm)',nav:"go('financials',document.getElementById('ni-financials'))"},
+        {lbl:'Drawings Issued',val:done.length+' / '+allD.length,sub:pct+'% complete',col:pct>=70?'var(--grn)':pct>=40?'var(--gold)':'var(--blu)',nav:"go('drawings',null)"},
+      ].map(x=>'<div class="sc" style="border-color:rgba(255,255,255,.08);cursor:pointer" onclick="'+x.nav+'">'
         +'<div class="slbl" style="color:'+x.col+'">'+x.lbl+'</div>'
         +'<div class="sval" style="color:'+x.col+'">'+x.val+'</div>'
         +'<div class="schg">'+x.sub+'</div></div>'
-      ).join('')
-      +'<div class="sc" style="border-color:rgba(201,169,110,.3);background:rgba(201,169,110,.06);cursor:pointer" onclick="go(\'financials\',document.getElementById(\'ni-financials\'))">'
-      +'<div class="slbl" style="color:var(--gold)">Full Financials</div>'
-      +'<div class="sval" style="color:var(--gold);font-size:18px">→</div>'
-      +'<div class="schg">Invoices · Profitability · Fee burn</div></div>';
+      ).join('');
     }
   }
 
@@ -6517,28 +6553,16 @@ function renderDashboard(){
   const discEl=e('dash-disc-breakdown');
   if(discEl){
     const discCounts={};
-    allD.forEach(d=>{
-      if(!discCounts[d.disc])discCounts[d.disc]={total:0,done:0};
-      discCounts[d.disc].total++;
-      if(d.status==='done')discCounts[d.disc].done++;
-    });
+    allD.forEach(d=>{if(!discCounts[d.disc])discCounts[d.disc]={total:0,done:0};discCounts[d.disc].total++;if(d.status==='done')discCounts[d.disc].done++;});
     const discList=Object.entries(discCounts).sort((a,b)=>b[1].total-a[1].total);
     discEl.innerHTML=discList.map(([disc,counts])=>{
       const di=DISC.find(x=>x.id===disc)||{color:'var(--txm)',icon:'\ud83d\udcc4',label:disc};
       const pctD=counts.total?Math.round(counts.done/counts.total*100):0;
       const barCol=pctD>=80?'var(--grn)':pctD>=50?'var(--gold)':'var(--blu)';
-      return '<div style="margin-bottom:8px">'
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">'
-          +'<div style="display:flex;align-items:center;gap:6px">'
-            +'<span style="font-size:13px">'+di.icon+'</span>'
-            +'<span style="font-family:var(--fm);font-size:10px;color:var(--txm)">'+di.label+'</span>'
-          +'</div>'
-          +'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+counts.done+'/'+counts.total+' \u00b7 '+pctD+'%</span>'
-        +'</div>'
-        +'<div style="background:var(--sf3);border-radius:3px;height:5px;overflow:hidden">'
-          +'<div style="height:100%;width:'+pctD+'%;background:'+barCol+';border-radius:3px;transition:width .3s"></div>'
-        +'</div>'
-      +'</div>';
+      return '<div style="margin-bottom:7px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">'
+        +'<div style="display:flex;align-items:center;gap:5px"><span style="font-size:12px">'+di.icon+'</span><span style="font-family:var(--fm);font-size:10px;color:var(--txm)">'+di.label+'</span></div>'
+        +'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+counts.done+'/'+counts.total+'</span></div>'
+        +'<div style="background:var(--sf3);border-radius:3px;height:5px;overflow:hidden"><div style="height:100%;width:'+pctD+'%;background:'+barCol+';border-radius:3px;transition:width .3s"></div></div></div>';
     }).join('');
   }
 
@@ -6546,52 +6570,67 @@ function renderDashboard(){
   const qaCountEl=e('dash-qa-count');
   const qaLinkEl=e('dash-qa-link');
   if(qaCountEl)qaCountEl.textContent=inrev.length||'0';
-  const qaPlural=document.getElementById('dash-qa-plural');
+  const qaPlural=e('dash-qa-plural');
   if(qaPlural)qaPlural.textContent=inrev.length===1?'':'s';
-  if(qaLinkEl)qaLinkEl.style.display=inrev.length?'flex':'none';
+  if(qaLinkEl)qaLinkEl.style.display=inrev.length&&canSchedule()?'flex':'none';
 
-  // ── ACTIVITY FEED ─────────────────────────────────────────────
+  // ── ACTIVITY FEED (expanded — includes meetings + visuals) ───
   const actEl=e('dash-activity');
   if(actEl){
-    // Gather recent events from qaHistory and revHistory across all drawings
     const events=[];
     allD.forEach(d=>{
       const p=PROJS.find(x=>x.id===d.proj)||{name:d.proj};
       (d.qaHistory||[]).forEach(q=>{
         events.push({dateISO:q.date,dateFmt:q.dateFmt||q.date,
           type:q.action==='approved'?'approved':q.action==='assessment'?'assessed':'rejected',
-          drawing:d.id,title:d.title,proj:p.name,by:q.byName,note:q.note||''});
+          drawing:d.id,title:d.title,proj:p.name,projColor:p.color||'var(--txd)',by:q.byName,note:q.note||''});
       });
       if(d.submittedAt){
         events.push({dateISO:d.submittedAt,dateFmt:fmtDate(parseDue(d.submittedAt)),
-          type:'submitted',drawing:d.id,title:d.title,proj:p.name,
+          type:'submitted',drawing:d.id,title:d.title,proj:p.name,projColor:p.color||'var(--txd)',
           by:(STAFF.find(x=>x.id===d.submittedBy)||{first:'Staff'}).first});
       }
     });
-    // Sort by date desc, take top 12
-    events.sort((a,b)=>{
-      const da=a.dateISO?new Date(a.dateISO):new Date(0);
-      const db=b.dateISO?new Date(b.dateISO):new Date(0);
-      return db-da;
+    // Add recent meetings (last 14 days + upcoming)
+    MEETINGS.filter(m=>m.status!=='cancelled').slice(0,8).forEach(m=>{
+      const p=PROJS.find(x=>x.id===m.proj);
+      events.push({dateISO:m.date+(m.time?'T'+m.time:''),dateFmt:new Date(m.date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}),
+        type:'meeting',title:m.title.split('\u2014').pop().trim(),proj:p?p.name:'',projColor:p?p.color:'var(--blu)',
+        icon:mtgTypeEmoji(m.type),col:mtgTypeColor(m.type),by:'',mtgId:m.id});
     });
+    // Add recent visuals status changes
+    VISUALS.filter(v=>v.revHistory&&v.revHistory.length).forEach(v=>{
+      const last=v.revHistory[v.revHistory.length-1];
+      const p=PROJS.find(x=>x.id===v.projId);
+      events.push({dateISO:last.date,dateFmt:last.date,type:'visual',title:v.title,proj:p?p.name:'',
+        projColor:p?p.color:'var(--pur)',icon:visType(v.typeId).icon,col:'var(--pur)',by:last.by||'',note:last.note||''});
+    });
+    events.sort((a,b)=>{const da=a.dateISO?new Date(a.dateISO):new Date(0);const db=b.dateISO?new Date(b.dateISO):new Date(0);return db-da;});
     const actTypes={
-      approved:   {icon:'\u2713',col:'var(--grn)',  label:'Issued'},
-      rejected:   {icon:'\u2717',col:'var(--red)',  label:'Returned'},
-      submitted:  {icon:'\u25c8',col:'var(--pur)',  label:'Submitted for check'},
-      assessed:   {icon:'\u2605',col:'var(--gold)', label:'Assessed'},
+      approved:{icon:'\u2713',col:'var(--grn)',label:'Issued'},
+      rejected:{icon:'\u2717',col:'var(--red)',label:'Returned'},
+      submitted:{icon:'\u25c8',col:'var(--pur)',label:'Submitted'},
+      assessed:{icon:'\u2605',col:'var(--gold)',label:'Assessed'},
+      meeting:{label:'Meeting'},
+      visual:{label:'Visual'},
     };
     if(!events.length){
-      actEl.innerHTML='<div style="padding:20px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No recent activity yet</div>';
+      actEl.innerHTML='<div style="padding:16px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No recent activity yet</div>';
     } else {
-      actEl.innerHTML=events.slice(0,30).map(ev=>{
+      actEl.innerHTML=events.slice(0,20).map(ev=>{
         const t=actTypes[ev.type]||{icon:'\u25cf',col:'var(--txd)',label:ev.type};
-        return '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:1px solid var(--bd)">'
-          +'<div style="width:22px;height:22px;border-radius:50%;background:'+t.col+'1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:'+t.col+';">'+t.icon+'</div>'
+        const icon=ev.icon||t.icon||'\u25cf';
+        const col=ev.col||t.col||'var(--txd)';
+        const clickable=ev.drawing?'onclick="selectProj(DRAWINGS.find(x=>x.id===\''+ev.drawing+'\')?.proj||\'\');setTimeout(()=>openDrwDetail(\''+ev.drawing+'\'),80)"'
+          :ev.mtgId?'onclick="goMeetingsOpen(\''+ev.mtgId+'\')"':'';
+        return '<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 12px;border-bottom:1px solid var(--bd);cursor:pointer" '+clickable+'>'
+          +'<div style="width:20px;height:20px;border-radius:50%;background:'+col+'1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;color:'+col+';margin-top:1px">'+icon+'</div>'
           +'<div style="flex:1;min-width:0">'
-            +'<div style="font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer" onclick="selectProj(DRAWINGS.find(x=>x.id===\''+ev.drawing+'\')?.proj||\'\');setTimeout(()=>openDrwDetail(\''+ev.drawing+'\'),80)">'+ev.drawing+' \u2014 '+ev.title+'</div>'
+            +'<div style="font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+ev.title+'</div>'
             +'<div style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-top:1px">'
-              +'<span style="color:'+t.col+'">'+t.label+'</span>'
-              +(ev.by?' \u00b7 by '+ev.by:'')+(function(){var _p=PROJS.find(x=>x.name===ev.proj);return ' \u00b7 <span style="font-weight:700;color:'+(_p?_p.color:'var(--txd)')+'">\u25a0 '+ev.proj+'</span>';})()
+              +'<span style="color:'+col+'">'+t.label+'</span>'
+              +(ev.by?' \u00b7 '+ev.by:'')
+              +(ev.proj?' \u00b7 <span style="font-weight:700;color:'+(ev.projColor||'var(--txd)')+'">'+ev.proj+'</span>':'')
             +'</div>'
           +'</div>'
           +'<div style="font-family:var(--fm);font-size:8px;color:var(--txd);flex-shrink:0">'+ev.dateFmt+'</div>'
@@ -6600,209 +6639,117 @@ function renderDashboard(){
     }
   }
 
-
-  s('dk-projects',      PROJS.length);
-  s('dk-projects-sub',  PROJS.map(p=>p.phase).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'—');
-  s('dk-drawings',      allD.length);
-  s('dk-drawings-sub',  pct+'% issued · '+done.length+' of '+allD.length);
-  s('dk-inprogress',    inprog.length);
+  // ── KPI BADGES ────────────────────────────────────────────────
+  s('dk-projects',PROJS.length);
+  s('dk-projects-sub',PROJS.map(p=>p.phase).filter((v,i,a)=>a.indexOf(v)===i).join(' \u00b7 ')||'\u2014');
+  s('dk-drawings',allD.length);
+  s('dk-drawings-sub',pct+'% issued \u00b7 '+done.length+' of '+allD.length);
+  s('dk-inprogress',inprog.length);
   s('dk-inprogress-sub',inprog.length+' drawing'+(inprog.length!==1?'s':'')+' active');
-  s('dk-review',        inrev.length);
-  s('dk-review-sub',    inrev.length ? inrev.length+' awaiting check' : 'queue clear ✓');
-  s('dk-overdue',       overdueDrawings.length);
-  s('dk-overdue-sub',   overdueDrawings.length ? overdueDrawings.length+' need action' : 'all on track ✓');
-  s('dk-unassigned',    unassigned.length);
-  s('dk-unassigned-sub',unassigned.length ? unassigned.length+' no owner' : 'all assigned ✓');
-  s('dk-week',          weekDrawings.length);
-  s('dk-week-sub',      'due by '+weekEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
-  s('dk-issued-week',   issuedThisWeek.length);
-  s('dk-issued-week-sub',issuedThisWeek.length ? '+'+issuedThisWeek.length+' this week' : 'none issued this week');
+  s('dk-review',inrev.length);
+  s('dk-review-sub',inrev.length?inrev.length+' awaiting check':'queue clear \u2713');
+  s('dk-overdue',overdueDrawings.length);
+  s('dk-overdue-sub',overdueDrawings.length?overdueDrawings.length+' need action':'all on track \u2713');
+  s('dk-unassigned',unassigned.length);
+  s('dk-unassigned-sub',unassigned.length?unassigned.length+' no owner':'all assigned \u2713');
+  s('dk-week',weekDrawings.length);
+  s('dk-week-sub','due by '+weekEnd.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+  s('dk-issued-week',issuedThisWeek.length);
+  s('dk-issued-week-sub',issuedThisWeek.length?'+'+issuedThisWeek.length+' this week':'none issued this week');
 
-  // Colour the overdue KPI card dynamically
   const ovCard=document.querySelector('#dash-kpi-strip .sc:nth-child(5) .sval');
   if(ovCard) ovCard.style.color=overdueDrawings.length?'var(--red)':'var(--grn)';
 
-  // Nav badges
   const badge=e('drw-badge');if(badge)badge.textContent=PROJS.length;
   const sbadge=e('sched-badge');if(sbadge){sbadge.textContent=SCHED_TASKS.filter(t=>t.status!=='done').length;sbadge.style.background='var(--blu)';}
   const svOct=e('sv-overdue-ct');if(svOct)svOct.textContent=overdueDrawings.length?overdueDrawings.length+' ':'';
   const svAllCt=e('sv-all-ct');if(svAllCt)svAllCt.textContent=allD.length?'('+allD.length+')':'';
 
-  // ── WORKFLOW SUMMARY BAR ────────────────────────────────────────
+  // ── WORKFLOW SUMMARY BAR ──────────────────────────────────────
   const wfEl=e('dash-workflow-bar');
   if(wfEl){
-    // Capacity: total hours scheduled this week from SCHED_TASKS
-    const weekTasks=SCHED_TASKS.filter(t=>{
-      const start=t.start?new Date(t.start):null;
-      const due=t.due?new Date(t.due):null;
-      return start&&due&&start<=weekEnd&&due>=today&&t.status!=='done';
-    });
-    const weekHrs=weekTasks.reduce((sum,t)=>{
-      let wd=0,c=new Date(Math.max(t.start?new Date(t.start):today,today));
-      const dueD=t.due?new Date(t.due):weekEnd;
-      while(c<=dueD&&c<=weekEnd){if(c.getDay()!==0&&c.getDay()!==6)wd++;c.setDate(c.getDate()+1);}
-      return sum+(wd>0?Math.round(t.estHrs/Math.max(
-        (()=>{let w=0,cc=new Date(t.start||today);const dd=new Date(t.due||weekEnd);while(cc<=dd){if(cc.getDay()!==0&&cc.getDay()!==6)w++;cc.setDate(cc.getDate()+1);}return w||1;})(),1)*wd*10)/10:0);
-    },0);
-
-    // Overall completion velocity (% change over last 7 days — proxy: issued this week)
+    const weekTasks=SCHED_TASKS.filter(t=>{const start=t.start?new Date(t.start):null;const due=t.due?new Date(t.due):null;return start&&due&&start<=weekEnd&&due>=today&&t.status!=='done';});
+    const weekHrs=weekTasks.reduce((sum,t)=>{let wd=0,c=new Date(Math.max(t.start?new Date(t.start):today,today));const dueD=t.due?new Date(t.due):weekEnd;while(c<=dueD&&c<=weekEnd){if(c.getDay()!==0&&c.getDay()!==6)wd++;c.setDate(c.getDate()+1);}return sum+(wd>0?Math.round(t.estHrs/Math.max((()=>{let w=0,cc=new Date(t.start||today);const dd=new Date(t.due||weekEnd);while(cc<=dd){if(cc.getDay()!==0&&cc.getDay()!==6)w++;cc.setDate(cc.getDate()+1);}return w||1;})(),1)*wd*10)/10:0);},0);
     const velocityPct=allD.length?Math.round(issuedThisWeek.length/allD.length*100):0;
-
-    // Staff utilisation (staff with ≥1 active task / total in-house staff)
     const inhouse=STAFF.filter(s=>s.type!=='contractor');
     const activeStaff=new Set(SCHED_TASKS.filter(t=>t.status!=='done'&&t.staffId).map(t=>t.staffId));
     const utilPct=inhouse.length?Math.round(activeStaff.size/inhouse.length*100):0;
     const utilColor=utilPct>=80?'var(--grn)':utilPct>=50?'var(--gold)':'var(--red)';
-
+    const todayMtgs=MEETINGS.filter(m=>{const todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');return m.status!=='cancelled'&&m.date===todayStr;});
     wfEl.innerHTML=[
-      {icon:'⏱',label:'Hours Scheduled This Week',val:Math.round(weekHrs*10)/10+'h',
-       sub:weekTasks.length+' tasks across '+new Set(weekTasks.map(t=>t.projId)).size+' projects',
-       bar:Math.min(weekHrs/40*100,100),barColor:'var(--blu)'},
-      {icon:'👥',label:'Team Utilisation',val:utilPct+'%',
-       sub:activeStaff.size+' of '+inhouse.length+' staff on active tasks',
-       bar:utilPct,barColor:utilColor},
-      {icon:'📈',label:'Velocity This Week',val:issuedThisWeek.length+' issued',
-       sub:velocityPct+'% of register · '+done.length+' total issued',
-       bar:pct,barColor:pct>=70?'var(--grn)':pct>=40?'var(--gold)':'var(--blu)'},
-    ].map(card=>
-      '<div class="card" style="padding:14px 16px">'
-      +'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">'
-        +'<span style="font-size:20px;line-height:1">'+card.icon+'</span>'
+      {icon:'\u23f1',label:'Scheduled This Week',val:Math.round(weekHrs*10)/10+'h',sub:weekTasks.length+' tasks \u00b7 '+new Set(weekTasks.map(t=>t.projId)).size+' projects',bar:Math.min(weekHrs/40*100,100),barColor:'var(--blu)',nav:''},
+      {icon:'\ud83d\udc65',label:'Team Utilisation',val:utilPct+'%',sub:activeStaff.size+' of '+inhouse.length+' staff active',bar:utilPct,barColor:utilColor,nav:"go('staffsched',null)"},
+      {icon:'\ud83d\udcc8',label:'Delivery Velocity',val:issuedThisWeek.length+' issued',sub:velocityPct+'% of register \u00b7 '+done.length+' total',bar:pct,barColor:pct>=70?'var(--grn)':pct>=40?'var(--gold)':'var(--blu)',nav:"go('drawings',null)"},
+    ].map(card=>'<div class="card" style="padding:12px 14px;'+(card.nav?'cursor:pointer':'')+'" '+(card.nav?'onclick="'+card.nav+'"':'')+'>'
+      +'<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">'
+        +'<span style="font-size:18px;line-height:1">'+card.icon+'</span>'
         +'<div style="flex:1;min-width:0">'
-          +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">'+card.label+'</div>'
-          +'<div style="font-family:var(--fd);font-size:22px;line-height:1;color:var(--tx)">'+card.val+'</div>'
-          +'<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:3px">'+card.sub+'</div>'
+          +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">'+card.label+'</div>'
+          +'<div style="font-family:var(--fd);font-size:20px;line-height:1;color:var(--tx)">'+card.val+'</div>'
+          +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:2px">'+card.sub+'</div>'
         +'</div>'
       +'</div>'
-      +'<div style="background:var(--sf3);border-radius:3px;height:4px;overflow:hidden">'
-        +'<div style="height:100%;width:'+Math.round(card.bar)+'%;background:'+card.barColor+';border-radius:3px;transition:width .4s"></div>'
-      +'</div>'
-      +'</div>'
-    ).join('');
+      +'<div style="background:var(--sf3);border-radius:3px;height:4px;overflow:hidden"><div style="height:100%;width:'+Math.round(card.bar)+'%;background:'+card.barColor+';border-radius:3px;transition:width .4s"></div></div>'
+    +'</div>').join('');
   }
 
-  // ── WORK TO-DO COLUMN (overdue + urgent) ────────────────────────
+  // ── WORK COLUMNS ─────────────────────────────────────────────
   const mkDrawingRow=(d,urgency)=>{
     const p=PROJS.find(x=>x.id===d.proj);
     const ss=STAFF.find(x=>x.id===d.sid);
-    const disc=DISC.find(x=>x.id===d.disc)||{color:'var(--txm)',icon:'📄'};
+    const disc=DISC.find(x=>x.id===d.disc)||{color:'var(--txm)',icon:'\ud83d\udcc4'};
     const dd=pdd(d.tgt);
     const daysAgo=dd?Math.floor((today-dd)/(1000*60*60*24)):0;
     const isOverdue=urgency==='overdue';
-    const isRev=urgency==='rev';
-    const urgColor=isOverdue?'var(--red)':isRev?'var(--gold)':'var(--blu)';
-    const urgLabel=isOverdue?daysAgo+'d overdue':isRev?'In Review':'Due '+( d.tgt||'—');
+    const urgColor=isOverdue?'var(--red)':'var(--gold)';
+    const urgLabel=isOverdue?daysAgo+'d overdue':'In Review';
     const init=ss?ss.first[0]+ss.last[0]:'?';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .12s" '
-      +'onclick="go(\'drawings\',null)" onmouseover="this.style.background=\'rgba(255,255,255,.025)\'" onmouseout="this.style.background=\'\'">'
-      +'<span style="width:3px;height:36px;border-radius:2px;background:'+(p?.color||'var(--txd)')+';flex-shrink:0;display:inline-block"></span>'
-      +'<span style="font-size:13px;flex-shrink:0">'+disc.icon+'</span>'
-      +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer" onclick="event.stopPropagation();selectProj(\''+d.proj+'\');setTimeout(()=>openDrwDetail(\''+d.id+'\'),80)">'+d.title+'</div>'
-        +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:'+(p?p.color:'var(--txd)')+'">\u25a0 '+(p?p.name:d.proj)+'</div>'
-      +'</div>'
-      +'<div style="text-align:right;flex-shrink:0">'
-        +'<div style="font-family:var(--fm);font-size:9px;color:'+urgColor+';font-weight:600">'+urgLabel+'</div>'
-        +(ss?'<div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:2px">'
-          +'<div style="width:14px;height:14px;border-radius:50%;background:'+( ss.color||'var(--txd)')+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:6px;color:#0a0a0f">'+init+'</div>'
-          +'<span style="font-family:var(--fm);font-size:8px;color:var(--txd)">'+ss.first+'</span>'
-          +'</div>':'')
-      +'</div>'
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="selectProj(\''+d.proj+'\');go(\'drawings\',null)">'
+      +'<span style="width:3px;height:32px;border-radius:0;background:'+(p?.color||'var(--txd)')+';flex-shrink:0;display:inline-block"></span>'
+      +'<span style="font-size:12px;flex-shrink:0">'+disc.icon+'</span>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+d.title+'</div>'
+        +'<div style="font-family:var(--fm);font-size:8px;color:var(--txd)">'+(p?p.name:d.proj)+(ss?' \u00b7 '+ss.first:'')+'</div></div>'
+      +'<div style="font-family:var(--fm);font-size:8px;font-weight:700;color:'+urgColor+';flex-shrink:0">'+urgLabel+'</div>'
     +'</div>';
   };
 
   const todoEl=e('dash-work-todo');
   if(todoEl){
-    if(!overdueDrawings.length){
-      todoEl.innerHTML='<div style="padding:24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">🎉 Nothing overdue</div>';
-    } else {
-      todoEl.innerHTML=overdueDrawings.slice(0,10).map(d=>mkDrawingRow(d,'overdue')).join('');
-    }
+    if(!overdueDrawings.length){todoEl.innerHTML='<div style="padding:16px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">\ud83c\udf89 Nothing overdue</div>';}
+    else{todoEl.innerHTML=overdueDrawings.slice(0,12).map(d=>mkDrawingRow(d,'overdue')).join('');}
   }
-
-  // ── IN REVIEW COLUMN ────────────────────────────────────────────
   const revEl=e('dash-work-review');
   if(revEl){
-    if(!reviewDrawings.length){
-      revEl.innerHTML='<div style="padding:24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">✓ No drawings in review</div>';
-    } else {
-      revEl.innerHTML=reviewDrawings.slice(0,10).map(d=>mkDrawingRow(d,'rev')).join('');
-    }
+    const reviewDrawings=inrev.slice().sort((a,b)=>(pdd(a.due)||today)-(pdd(b.due)||today));
+    if(!reviewDrawings.length){revEl.innerHTML='<div style="padding:16px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">Review queue clear \u2713</div>';}
+    else{revEl.innerHTML=reviewDrawings.slice(0,12).map(d=>mkDrawingRow(d,'rev')).join('');}
   }
-
-  // ── TO BE ASSIGNED COLUMN ───────────────────────────────────────
-  const unassEl=e('dash-work-unassigned');
-  if(unassEl){
-    if(!unassigned.length){
-      unassEl.innerHTML='<div style="padding:24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">✓ All drawings assigned</div>';
-    } else {
-      unassEl.innerHTML=unassigned.slice(0,10).map(d=>{
-        const p=PROJS.find(x=>x.id===d.proj);
-        const disc=DISC.find(x=>x.id===d.disc)||{color:'var(--txm)',icon:'📄'};
-        return '<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bd)">'
-          +'<span style="width:3px;height:36px;border-radius:2px;background:'+(p?.color||'var(--txd)')+';flex-shrink:0;display:inline-block"></span>'
-          +'<span style="font-size:13px">'+disc.icon+'</span>'
-          +'<div style="flex:1;min-width:0">'
-            +'<div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+d.title+'</div>'
-            +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+( p?.name||d.proj)+' · '+disc.label+'</div>'
-          +'</div>'
-          +'<button class="btn bp bsm" style="font-size:9px;padding:2px 8px;flex-shrink:0" onclick="event.stopPropagation();openAssignModal(\''+( p?.id||'')+'\')">Assign</button>'
-        +'</div>';
-      }).join('');
-    }
+  const unEl=e('dash-work-unassigned');
+  if(unEl){
+    if(!unassigned.length){unEl.innerHTML='';}
+    else{unEl.innerHTML=unassigned.slice(0,10).map(d=>mkDrawingRow(d,'unassigned')).join('');}
   }
-
-  // ── DUE THIS WEEK ───────────────────────────────────────────────
   const weekEl=e('dash-work-week');
-  if(weekEl){
-    if(!weekDrawings.length){
-      weekEl.innerHTML='<div style="padding:24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No drawings due this week</div>';
-    } else {
-      weekEl.innerHTML=weekDrawings.slice(0,30).map(d=>{
-        const p=PROJS.find(x=>x.id===d.proj);
-        const ss=STAFF.find(x=>x.id===d.sid);
-        const disc=DISC.find(x=>x.id===d.disc)||{color:'var(--txm)',icon:'📄'};
-        const dd2=pdd(d.tgt);
-        const daysLeft=dd2?Math.ceil((dd2-today)/(1000*60*60*24)):999;
-        const urgColor=daysLeft<=1?'var(--red)':daysLeft<=3?'var(--gold)':'var(--grn)';
-        const init=ss?ss.first[0]+ss.last[0]:'?';
-        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bd)">'
-          +'<span style="width:3px;height:32px;border-radius:2px;background:'+(p?.color||'var(--txd)')+';flex-shrink:0;display:inline-block"></span>'
-          +'<div style="width:7px;height:7px;border-radius:50%;background:'+urgColor+';flex-shrink:0"></div>'
-          +'<div style="flex:1;min-width:0">'
-            +'<div style="font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+d.title+'</div>'
-            +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+(ss?ss.first+' '+ss.last:'Unassigned')+'</div>'
-          +'</div>'
-          +'<div style="text-align:right;flex-shrink:0">'
-            +'<div style="font-family:var(--fm);font-size:9px;color:'+urgColor+';font-weight:600">'+daysLeft+'d</div>'
-            +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+( d.tgt||'—')+'</div>'
-          +'</div>'
-        +'</div>';
-      }).join('');
-    }
-  }
+  if(weekEl){weekEl.innerHTML=weekDrawings.slice(0,10).map(d=>mkDrawingRow(d,'week')).join('');}
 
-  // ── PROJECT HEALTH CARDS ────────────────────────────────────────
+  // ── PROJECT HEALTH CARDS (upgraded — direct project navigation) ─
   const phEl=e('dash-proj-health');
-  const phShowAll=e('dash-ph-showall');
   const phShowAllBtn=e('dash-ph-showall-btn');
   if(phEl){
     const sortedProjs=[...PROJS].filter(p=>(p.status||'active')!=='archived').sort((a,b)=>{
       const pa=DRAWINGS.filter(d=>d.proj===a.id);const pb=DRAWINGS.filter(d=>d.proj===b.id);
       const aOv=pa.filter(d=>{if(d.status==='done')return false;const dd=pdd(d.tgt);return dd&&dd<today;}).length;
       const bOv=pb.filter(d=>{if(d.status==='done')return false;const dd=pdd(d.tgt);return dd&&dd<today;}).length;
+      if(aOv!==bOv)return bOv-aOv;
       const aChk=pa.filter(d=>d.status==='chk').length;const bChk=pb.filter(d=>d.status==='chk').length;
-      // Sort: overdue first, then has review, then by % incomplete
-      if(aOv!==bOv)return bOv-aOv;if(aChk!==bChk)return bChk-aChk;
-      const aPct=pa.length?pa.filter(d=>d.status==='done').length/pa.length:0;
-      const bPct=pb.length?pb.filter(d=>d.status==='done').length/pb.length:0;
-      return aPct-bPct;
+      if(aChk!==bChk)return bChk-aChk;
+      return 0;
     });
     const showAllProjs=phEl.dataset.showAll==='1';
-    const projs2show=showAllProjs?sortedProjs:sortedProjs.slice(0,8);
+    const projs2show=showAllProjs?sortedProjs:sortedProjs.slice(0,6);
     if(phShowAllBtn){
-      phShowAllBtn.style.display=sortedProjs.length>6?'inline-flex':'none';
-      phShowAllBtn.textContent=showAllProjs?'Show less ▴':'Show all '+sortedProjs.length+' ▾';
+      phShowAllBtn.style.display=sortedProjs.length>4?'inline-flex':'none';
+      phShowAllBtn.textContent=showAllProjs?'Show less \u25b4':'Show all '+sortedProjs.length+' \u25be';
       phShowAllBtn.onclick=()=>{phEl.dataset.showAll=showAllProjs?'0':'1';renderDashboard();};
     }
     phEl.innerHTML=projs2show.map(proj=>{
@@ -6812,19 +6759,8 @@ function renderDashboard(){
       const pInProg=pd.filter(d=>d.status==='ip').length;
       const pInRev2=pd.filter(d=>d.status==='chk').length;
       const pNst=pd.filter(d=>d.status==='nst').length;
-      const pOverdue=pd.filter(d=>{
-        if(d.status==='done')return false;
-        const dd3=pdd(d.tgt);return dd3&&dd3<today;
-      }).length;
-      const nextDue=pd.filter(d=>d.status!=='done'&&d.tgt&&d.tgt!=='TBC')
-        .sort((a,b)=>pdd(a.tgt)-pdd(b.tgt))[0];
-      // Next stage deadline
-      const today3=new Date();
-      const nextStage=proj.stages?Object.entries(proj.stages)
-        .map(([stg,sd])=>({stg,end:sd.end?parseDue(sd.end):null}))
-        .filter(x=>x.end&&x.end>today3)
-        .sort((a,b)=>a.end-b.end)[0]:null;
-      // EVM for this project
+      const pOverdue=pd.filter(d=>{if(d.status==='done')return false;const dd3=pdd(d.tgt);return dd3&&dd3<today;}).length;
+      const nextDue=pd.filter(d=>d.status!=='done'&&d.tgt&&d.tgt!=='TBC').sort((a,b)=>pdd(a.tgt)-pdd(b.tgt))[0];
       const tasks=SCHED_TASKS.filter(t=>t.projId===proj.id);
       const totalPV=tasks.reduce((a,t)=>a+t.estHrs,0);
       const totalEV=tasks.reduce((a,t)=>a+t.pct/100*t.estHrs,0);
@@ -6832,50 +6768,64 @@ function renderDashboard(){
       const spiColor=spi>=0.95?'var(--grn)':spi>=0.85?'var(--gold)':'var(--red)';
       const ragDot=pOverdue>0?'hd-red':pInRev2>0?'hd-amber':(pct2>=80?'hd-green':'hd-amber');
       const pt=PROJECT_TYPES.find(t=>t.id===proj.type);
-      return '<div class="dash-ph-card" '
-        +'onclick="go(\'drawings\',null)">'
+      const projMtgs=MEETINGS.filter(m=>m.proj===proj.id&&m.status==='scheduled').filter(m=>{const [yr,mo,dy]=m.date.split('-').map(Number);return new Date(yr,mo-1,dy)>=today;}).sort((a,b)=>a.date.localeCompare(b.date));
+      const nextMtg=projMtgs[0];
+      const mtgCount=projMtgs.length;
+      // Stage progress strip
+      const phases=['SD','DD','CD','CA'];
+      const phaseIdx=phases.indexOf(proj.phase||'SD');
+      const phaseStrip=phases.map((ph,i)=>{
+        const active=i===phaseIdx;
+        const done2=i<phaseIdx;
+        return '<div style="flex:1;height:3px;border-radius:2px;background:'+(done2?proj.color:active?proj.color+'88':'var(--sf3)')+';transition:background .3s"></div>';
+      }).join('');
+
+      return '<div class="dash-ph-card" onclick="selectProj(\''+proj.id+'\');go(\'drawings\',null)">'
         // Header
         +'<div style="padding:10px 12px;border-bottom:1px solid var(--bd2);display:flex;align-items:center;gap:8px">'
           +'<span style="width:10px;height:10px;border-radius:50%;background:'+proj.color+';flex-shrink:0;display:inline-block"></span>'
           +'<div style="flex:1;min-width:0">'
-            +'<div style="font-family:var(--fd);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+proj.name+'</div>'
-            +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+proj.client+' · '+proj.phase+(pt?' · '+pt.label:'')+'</div>'
+            +'<div style="font-family:var(--fd);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+proj.name+'</div>'
+            +'<div style="font-family:var(--fm);font-size:8px;color:var(--txd)">'+proj.client+(pt?' \u00b7 '+pt.label:'')+'</div>'
           +'</div>'
-          +'<span class="'+ragDot+'" title="'+(pOverdue?pOverdue+' overdue':pInRev2?pInRev2+' in review':'On track')+'"></span>'
+          +'<div style="display:flex;align-items:center;gap:5px">'
+            +(pOverdue?'<span style="font-family:var(--fm);font-size:8px;font-weight:700;color:var(--red)">'+pOverdue+'\u26a0</span>':'')
+            +'<span class="'+ragDot+'"></span>'
+          +'</div>'
+        +'</div>'
+        // Phase strip
+        +'<div style="display:flex;gap:2px;padding:5px 12px 0;align-items:center">'
+          +phaseStrip
+          +'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-left:6px;flex-shrink:0">'+proj.phase+'</span>'
         +'</div>'
         // Progress bar
-        +'<div style="padding:8px 12px;border-bottom:1px solid var(--bd)">'
-          +'<div style="display:flex;justify-content:space-between;font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:4px">'
+        +'<div style="padding:5px 12px 6px;">'
+          +'<div style="display:flex;justify-content:space-between;font-family:var(--fm);font-size:8px;color:var(--txd);margin-bottom:3px">'
             +'<span>'+issued2+' / '+pd.length+' issued</span><span style="color:var(--tx);font-weight:600">'+pct2+'%</span>'
           +'</div>'
-          +'<div style="background:var(--sf3);border-radius:3px;height:6px;overflow:hidden">'
-            +'<div style="height:100%;width:'+pct2+'%;background:'+proj.color+';border-radius:3px;transition:width .3s"></div>'
-          +'</div>'
+          +'<div style="background:var(--sf3);border-radius:3px;height:5px;overflow:hidden"><div style="height:100%;width:'+pct2+'%;background:'+proj.color+';border-radius:3px;transition:width .3s"></div></div>'
         +'</div>'
-        // Stats row
-        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;text-align:center;padding:7px 0;border-bottom:1px solid var(--bd)">'
-          +[{v:pInProg,l:'Active',c:'var(--blu)'},{v:pInRev2,l:'Review',c:'var(--gold)'},
-            {v:pOverdue,l:'Overdue',c:'var(--red)'},{v:pNst,l:'Not Started',c:'var(--txd)'}]
-            .map(x=>'<div><div style="font-family:var(--fd);font-size:15px;color:'+x.c+'">'+x.v+'</div>'
-              +'<div style="font-family:var(--fm);font-size:8px;color:var(--txd)">'+x.l+'</div></div>').join('')
+        // Stats row — compact 4-col
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;text-align:center;padding:5px 0;border-top:1px solid var(--bd)">'
+          +[{v:pInProg,l:'Active',c:'var(--blu)'},{v:pInRev2,l:'Review',c:'var(--gold)'},{v:pOverdue,l:'Overdue',c:pOverdue?'var(--red)':'var(--txd)'},{v:pNst,l:'Not Started',c:'var(--txd)'}]
+          .map(x=>'<div style="cursor:pointer" onclick="event.stopPropagation();selectProj(\''+proj.id+'\');go(\'drawings\',null)"><div style="font-family:var(--fd);font-size:14px;color:'+x.c+'">'+x.v+'</div><div style="font-family:var(--fm);font-size:7px;color:var(--txd)">'+x.l+'</div></div>').join('')
         +'</div>'
-        // EVM + deadline + fee + next meeting
-        const nextProjMtg=MEETINGS.filter(m=>m.proj===proj.id&&m.status==='scheduled'&&new Date(m.date)>=today)
-          .sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date))[0];
+        // Fee burn (principals only)
         +(renderFeeBurnBar(proj.id))
-        +'<div style="padding:7px 12px;display:flex;align-items:center;justify-content:space-between;font-family:var(--fm);font-size:10px;gap:8px">'
-          +'<div>SPI <span style="font-family:var(--fd);font-size:13px;color:'+spiColor+'">'+spi+'</span></div>'
-          +(canSeeFin()?'<div style="color:var(--txd)">'+( proj.fee||'—')+'</div>':'')
-          +(nextDue?'<div style="color:var(--txd)">Next <span style="color:var(--gold)">'+fmtDate(parseDue(nextDue.tgt||nextDue.due))+'</span></div>':'<div style="color:var(--txd)">No due dates</div>')
+        // Footer: SPI + next meeting + next drawing due
+        +'<div style="padding:6px 12px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:9px">'
+          +'<div style="display:flex;align-items:baseline;gap:3px">SPI <span style="font-family:var(--fd);font-size:12px;color:'+spiColor+'">'+spi+'</span></div>'
+          +(canFin&&proj.fee?'<div style="color:var(--txd)">'+proj.fee+'</div>':'')
+          +(nextDue?'<div style="color:var(--txd);margin-left:auto">due <span style="color:var(--gold)">'+fmtDate(parseDue(nextDue.tgt||nextDue.due))+'</span></div>':'')
         +'</div>'
-        +(nextProjMtg?'<div style="padding:5px 12px;border-top:1px solid var(--bd);background:rgba(82,133,224,.04);display:flex;align-items:center;gap:6px">'
-          +'<span style="font-size:10px">'+mtgTypeEmoji(nextProjMtg.type)+'</span>'
-          +'<span style="font-family:var(--fm);font-size:9px;color:var(--txd);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
-            +nextProjMtg.title.split('\u2014').pop().trim()
-          +'</span>'
-          +'<span style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--blu);flex-shrink:0">'
-            +new Date(nextProjMtg.date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})
-            +(nextProjMtg.time?' '+nextProjMtg.time:'')
+        // Next meeting chip
+        +(nextMtg?'<div style="padding:4px 12px;border-top:1px solid var(--bd);background:rgba(82,133,224,.04);display:flex;align-items:center;gap:5px;cursor:pointer" onclick="event.stopPropagation();goMeetingsOpen(\''+nextMtg.id+'\')">'
+          +'<span style="font-size:10px">'+mtgTypeEmoji(nextMtg.type)+'</span>'
+          +'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+nextMtg.title.split('\u2014').pop().trim()+'</span>'
+          +'<span style="font-family:var(--fm);font-size:8px;font-weight:700;color:var(--blu);flex-shrink:0">'
+            +new Date(nextMtg.date.split('-').map(Number)[0], nextMtg.date.split('-').map(Number)[1]-1, nextMtg.date.split('-').map(Number)[2]).toLocaleDateString('en-IN',{day:'numeric',month:'short'})
+            +(nextMtg.time?' '+nextMtg.time:'')
+            +(mtgCount>1?' +'+( mtgCount-1):'')
           +'</span>'
         +'</div>':'')
       +'</div>';
@@ -6885,237 +6835,152 @@ function renderDashboard(){
   // ── MEETINGS STRIP ─────────────────────────────────────────────
   const msEl=e('dash-meetings-strip');
   if(msEl){
-    const weekEnd7=new Date(today.getTime()+8*24*60*60*1000); // +8 to include full day 7
     const todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
-    const upcomingMtgs=MEETINGS.filter(m=>{
-      if(m.status==='cancelled') return false;
-      // Compare date strings directly — avoids UTC/local timezone issues
-      return m.date>=todayStr && m.date<=(new Date(today.getTime()+7*24*60*60*1000)).toLocaleDateString('en-CA');
-    }).sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date));
-
-    if(!upcomingMtgs.length){
-      msEl.innerHTML='';
-    } else {
-      // Group by date string
+    const weekEnd7Str=(new Date(today.getTime()+7*24*60*60*1000)).toLocaleDateString('en-CA');
+    const upcomingMtgs=MEETINGS.filter(m=>m.status!=='cancelled'&&m.date>=todayStr&&m.date<=weekEnd7Str).sort((a,b)=>a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date));
+    if(!upcomingMtgs.length){msEl.innerHTML='';}
+    else{
       const byDay={};
-      upcomingMtgs.forEach(m=>{
-        if(!byDay[m.date]) byDay[m.date]=[];
-        byDay[m.date].push(m);
-      });
-
+      upcomingMtgs.forEach(m=>{if(!byDay[m.date])byDay[m.date]=[];byDay[m.date].push(m);});
       const dayCards=Object.entries(byDay).map(([dateStr,mtgs])=>{
-        // Parse date for display label only — no comparisons against Date objects
         const [yr,mo,dy]=dateStr.split('-').map(Number);
-        const d=new Date(yr,mo-1,dy); // local date — no timezone shift
+        const d=new Date(yr,mo-1,dy);
         const isToday2=dateStr===todayStr;
         const dayLabel=isToday2?'Today':d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
-
         const cards=mtgs.map(m=>{
           const p=PROJS.find(x=>x.id===m.proj);
           const col=mtgTypeColor(m.type);
-          // Attendee avatars — first avatar no negative margin, subsequent overlap
           const attIds=(m.attendees||[]).slice(0,4);
-          const atts=attIds.map((id,idx)=>{
-            const st=STAFF.find(x=>x.id===id);
-            if(!st) return '';
-            return '<div title="'+st.first+' '+st.last+'" style="width:20px;height:20px;border-radius:50%;background:'+st.color
-              +';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:7px;color:#0a0a0f;'
-              +(idx>0?'margin-left:-6px;':'')
-              +'border:2px solid var(--sf);font-weight:700;flex-shrink:0">'
-              +st.first[0]+st.last[0]+'</div>';
-          }).join('');
-          const extraAtts=(m.attendees||[]).length>4
-            ?'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-left:4px">+'+((m.attendees||[]).length-4)+'</span>':'';
-
-          return '<div class="dash-mtg-card" '
-            +'onclick="goMeetingsOpen(\''+m.id+'\')">'
+          const atts=attIds.map((id,idx)=>{const st=STAFF.find(x=>x.id===id);if(!st)return '';return '<div title="'+st.first+' '+st.last+'" style="width:20px;height:20px;border-radius:50%;background:'+st.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:7px;color:#0a0a0f;'+(idx>0?'margin-left:-6px;':'')+'border:2px solid var(--sf);font-weight:700;flex-shrink:0">'+st.first[0]+st.last[0]+'</div>';}).join('');
+          const extraAtts=(m.attendees||[]).length>4?'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-left:4px">+'+((m.attendees||[]).length-4)+'</span>':'';
+          return '<div class="dash-mtg-card" onclick="goMeetingsOpen(\''+m.id+'\''+')">'
             +'<div class="dash-mtg-stripe" style="background:'+col+'"></div>'
             +'<div style="padding-left:8px">'
-              +(p?'<div style="font-family:var(--fm);font-size:8px;font-weight:700;color:'+p.color+';margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px">'+p.name+'</div>':'')
-              +'<div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px">'+m.title.split('\u2014').pop().trim()+'</div>'
-              +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">'
+              +(p?'<div style="font-family:var(--fm);font-size:8px;font-weight:700;color:'+p.color+';margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px">'+p.name+'</div>':'')
+              +'<div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px">'+m.title.split('\u2014').pop().trim()+'</div>'
+              +'<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">'
                 +(m.time?'<span style="font-family:var(--fm);font-size:10px;font-weight:700;color:'+col+'">'+m.time+(m.duration?' \u00b7 '+m.duration+'m':'')+'</span>':'')
-                +'<span style="font-family:var(--fm);font-size:9px;padding:1px 6px;border-radius:4px;background:'+col+'22;color:'+col+'">'+mtgTypeEmoji(m.type)+' '+mtgTypeLabel(m.type)+'</span>'
+                +'<span style="font-family:var(--fm);font-size:9px;padding:1px 5px;border-radius:4px;background:'+col+'22;color:'+col+'">'+mtgTypeEmoji(m.type)+' '+mtgTypeLabel(m.type)+'</span>'
               +'</div>'
-              +'<div style="display:flex;align-items:center;gap:4px">'
-                +'<div style="display:flex;align-items:center">'+atts+'</div>'
-                +extraAtts
-                +(m.location?'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px">\uD83D\uDCCD '+m.location+'</span>':'')
-              +'</div>'
+              +'<div style="display:flex;align-items:center;gap:3px"><div style="display:flex;align-items:center">'+atts+'</div>'+extraAtts+(m.location?'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px">\uD83D\uDCCD '+m.location+'</span>':'')+'</div>'
             +'</div>'
           +'</div>';
         }).join('');
-
-        return '<div style="flex-shrink:0;min-width:0">'
-          +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:'+(isToday2?'var(--gold)':'var(--txd)')+';text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;padding-left:2px;white-space:nowrap">'
-          +(isToday2?'● ':'')+dayLabel+' <span style="font-weight:400;color:var(--txd)">('+mtgs.length+')</span></div>'
-          +'<div style="display:flex;gap:8px">'+cards+'</div>'
-        +'</div>';
+        return '<div style="flex-shrink:0;min-width:0"><div style="font-family:var(--fm);font-size:9px;font-weight:700;color:'+(isToday2?'var(--gold)':'var(--txd)')+';text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;padding-left:2px;white-space:nowrap">'+(isToday2?'\u25cf ':'')+dayLabel+' <span style="font-weight:400;color:var(--txd)">('+mtgs.length+')</span></div><div style="display:flex;gap:7px">'+cards+'</div></div>';
       }).join('');
-
-      msEl.innerHTML='<div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px">'
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-          +'<div style="display:flex;align-items:center;gap:8px">'
-            +'<span style="font-family:var(--fd);font-size:14px">📅 Upcoming Meetings</span>'
-            +'<span style="font-family:var(--fm);font-size:10px;color:var(--txd)">'+upcomingMtgs.length+' this week</span>'
-          +'</div>'
-          +'<button class="btn bg bsm" onclick="goMeetings()" style="font-size:9px">All Meetings →</button>'
+      msEl.innerHTML='<div style="background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:10px 12px">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+          +'<div style="display:flex;align-items:center;gap:7px"><span style="font-family:var(--fd);font-size:13px">\ud83d\udcc5 Upcoming Meetings</span><span style="font-family:var(--fm);font-size:10px;color:var(--txd)">'+upcomingMtgs.length+' this week</span></div>'
+          +'<button class="btn bg bsm" onclick="goMeetings()" style="font-size:9px">All \u2192</button>'
         +'</div>'
-        +'<div style="display:flex;gap:16px;overflow-x:auto;padding-bottom:6px">'+dayCards+'</div>'
+        +'<div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:4px">'+dayCards+'</div>'
       +'</div>';
     }
   }
 
-
+  // ── HEATMAP LOOKAHEAD ─────────────────────────────────────────
   const laEl=e('dash-lookahead');
   if(laEl){
     const inhouse=STAFF.filter(s=>s.type!=='contractor');
-    // Build 10 working days from today
-    const days=[];
-    let d2=new Date(today);
-    while(days.length<10){
-      if(d2.getDay()!==0&&d2.getDay()!==6) days.push(new Date(d2));
-      d2.setDate(d2.getDate()+1);
-    }
-
-    // Total hours per day (for bottom summary row)
+    const days=[];let d2=new Date(today);
+    while(days.length<10){if(d2.getDay()!==0&&d2.getDay()!==6)days.push(new Date(d2));d2.setDate(d2.getDate()+1);}
     const dayTotals=days.map(()=>0);
 
-    let h='<table style="width:100%;border-collapse:collapse;font-size:11px;min-width:700px">'
-      +'<thead><tr>'
-      +'<th style="background:var(--sf2);padding:7px 12px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;text-align:left;border-bottom:2px solid var(--bd2);min-width:130px;position:sticky;left:0;z-index:2">Staff</th>';
+    // Heatmap cell bg based on utilisation
+    const heatBg=(hrs)=>{
+      if(hrs<=0)return'background:var(--sf2)';
+      if(hrs>9) return'background:rgba(224,82,82,.25)';
+      if(hrs>6) return'background:rgba(201,169,110,.18)';
+      if(hrs>3) return'background:rgba(82,201,122,.15)';
+      return'background:rgba(82,133,224,.1)';
+    };
+    const heatCol=(hrs)=>hrs>9?'var(--red)':hrs>6?'var(--gold)':hrs>3?'var(--grn)':'var(--blu)';
+
+    let h='<table style="width:100%;border-collapse:collapse;font-size:11px;min-width:600px">'
+      +'<thead><tr><th style="background:var(--sf2);padding:6px 10px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;text-align:left;border-bottom:2px solid var(--bd2);min-width:110px;position:sticky;left:0;z-index:2">Staff</th>';
     days.forEach((d3,di)=>{
       const isToday=d3.toDateString()===today.toDateString();
-      const dayLabel=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d3.getDay()];
-      const dateLabel=d3.getDate()+'/'+(d3.getMonth()+1);
-      h+='<th style="background:'+(isToday?'rgba(82,133,224,.12)':'var(--sf2)')+';padding:5px 6px;font-family:var(--fm);font-size:9px;'
-        +'color:'+(isToday?'var(--blu)':'var(--txd)')+';text-transform:uppercase;letter-spacing:.06em;'
-        +'text-align:center;border-bottom:2px solid var(--bd2);border-left:1px solid var(--bd);white-space:nowrap;min-width:72px">'
-        +dayLabel+' '+dateLabel+(isToday?' ◆':'')+'</th>';
+      const dayLabel=['S','M','T','W','T','F','S'][d3.getDay()];
+      h+='<th style="background:'+(isToday?'rgba(82,133,224,.12)':'var(--sf2)')+';padding:4px 3px;font-family:var(--fm);font-size:8px;color:'+(isToday?'var(--blu)':'var(--txd)')+';text-align:center;border-bottom:2px solid var(--bd2);border-left:1px solid var(--bd);white-space:nowrap;min-width:52px">'
+        +dayLabel+' '+d3.getDate()+(isToday?' ◆':'')+'</th>';
     });
     h+='</tr></thead><tbody>';
 
     inhouse.forEach(s=>{
       const init=s.first[0]+s.last[0];
+      // Overload alert: any day >9h this week
+      const weekOverload=days.some(d3=>{
+        const dt=SCHED_TASKS.filter(t=>{if(t.staffId!==s.id||t.status==='done')return false;const start=t.start?new Date(t.start):null;const due=t.due?new Date(t.due):null;return start&&due&&d3>=start&&d3<=due;});
+        const hrs=dt.reduce((sum,t)=>{let wd=0,c=new Date(t.start);const due=new Date(t.due);while(c<=due){if(c.getDay()!==0&&c.getDay()!==6)wd++;c.setDate(c.getDate()+1);}return sum+(wd>0?Math.round(t.estHrs/wd*10)/10:0);},0);
+        return hrs>9;
+      });
       h+='<tr>';
-      h+='<td style="padding:6px 12px;border-bottom:1px solid var(--bd);border-right:2px solid var(--bd2);position:sticky;left:0;background:var(--sf);z-index:1">'
-        +'<div style="display:flex;align-items:center;gap:7px">'
-          +'<div style="width:22px;height:22px;border-radius:50%;background:'+s.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:7px;color:#0a0a0f;flex-shrink:0">'+init+'</div>'
-          +'<div><div style="font-size:11px;font-weight:500">'+s.first+' '+s.last+'</div>'
-          +'<div style="font-family:var(--fm);font-size:8px;color:var(--txd)">'+s.role.split(' ')[0]+'</div></div>'
+      h+='<td style="padding:5px 10px;border-bottom:1px solid var(--bd);border-right:2px solid var(--bd2);position:sticky;left:0;background:var(--sf);z-index:1">'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+          +'<div style="width:20px;height:20px;border-radius:50%;background:'+s.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:7px;color:#0a0a0f;flex-shrink:0">'+init+'</div>'
+          +'<div style="min-width:0"><div style="font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px">'+s.first+'</div>'
+          +'<div style="font-family:var(--fm);font-size:7px;color:var(--txd)">'+s.role.split(' ')[0]+(weekOverload?' \u26a0':'')+'</div></div>'
         +'</div></td>';
 
       days.forEach((d3,di)=>{
         const isToday=d3.toDateString()===today.toDateString();
-        // Tasks from SCHED_TASKS
-        const dayTasks=SCHED_TASKS.filter(t=>{
-          if(t.staffId!==s.id||t.status==='done') return false;
-          const start=t.start?new Date(t.start):null;
-          const due=t.due?new Date(t.due):null;
-          return start&&due&&d3>=start&&d3<=due;
-        });
-        // Fallback: DRAWINGS with due date covering this day
-        const drwFallback=DRAWINGS.filter(dwg=>{
-          if(dwg.sid!==s.id||dwg.status==='done') return false;
-          if(dayTasks.find(t=>t.drawingId===dwg.id)) return false;
-          const dueD=parseDue(dwg.tgt)||parseDue(dwg.tgt);
-          if(!dueD) return false;
-          const startD=new Date(dueD.getTime()-5*24*60*60*1000);
-          return d3>=startD&&d3<=dueD;
-        });
-
-        // Check for meetings on this day involving this staff member
         const dStr=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
+        const dayTasks=SCHED_TASKS.filter(t=>{if(t.staffId!==s.id||t.status==='done')return false;const start=t.start?new Date(t.start):null;const due=t.due?new Date(t.due):null;return start&&due&&d3>=start&&d3<=due;});
+        const drwFallback=DRAWINGS.filter(dwg=>{if(dwg.sid!==s.id||dwg.status==='done')return false;if(dayTasks.find(t=>t.drawingId===dwg.id))return false;const dueD=parseDue(dwg.tgt);if(!dueD)return false;const startD=new Date(dueD.getTime()-5*24*60*60*1000);return d3>=startD&&d3<=dueD;});
         const staffMtgs=MEETINGS.filter(m=>m.status!=='cancelled'&&m.date===dStr&&(m.attendees||[]).includes(s.id));
-
-        // Compute hours for this day from tasks
-        const hrsFromTasks=dayTasks.reduce((sum,t)=>{
-          const start=new Date(t.start);const due=new Date(t.due);
-          let wd=0,c=new Date(start);
-          while(c<=due){if(c.getDay()!==0&&c.getDay()!==6)wd++;c.setDate(c.getDate()+1);}
-          return sum+(wd>0?Math.round(t.estHrs/wd*10)/10:0);
-        },0);
+        const hrsFromTasks=dayTasks.reduce((sum,t)=>{const start=new Date(t.start);const due=new Date(t.due);let wd=0,c=new Date(start);while(c<=due){if(c.getDay()!==0&&c.getDay()!==6)wd++;c.setDate(c.getDate()+1);}return sum+(wd>0?Math.round(t.estHrs/wd*10)/10:0);},0);
         const hrsFromDrw=drwFallback.reduce((sum,dwg)=>sum+Math.round(estimateHours(dwg.title)/5*10)/10,0);
         const totalHrs=Math.round((hrsFromTasks+hrsFromDrw)*10)/10;
-
         dayTotals[di]+=totalHrs;
-
-        // Find primary project for colour
         const mainTask=dayTasks[0]||null;
-        const mainProj=mainTask?PROJS.find(p=>p.id===mainTask.projId)
-          :(drwFallback[0]?PROJS.find(p=>p.id===drwFallback[0].proj):null);
+        const mainProj=mainTask?PROJS.find(p=>p.id===mainTask.projId):(drwFallback[0]?PROJS.find(p=>p.id===drwFallback[0].proj):null);
         const allProjs=[...new Set([...dayTasks.map(t=>t.projId),...drwFallback.map(d=>d.proj)])];
-        const multiProj=allProjs.length>1;
-        const fillColor=mainProj?mainProj.color:'var(--txd)';
-        const bgColor=totalHrs>0?(isToday?'rgba(82,133,224,.04)':'var(--sf)'):'var(--sf2)';
-        const overloaded=totalHrs>9;
 
-        h+='<td style="border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);background:'+bgColor+';padding:4px 5px;text-align:center;vertical-align:middle'+(overloaded?';outline:1px solid rgba(224,82,82,.4);outline-offset:-1px':'')+'">';
+        h+='<td style="border-bottom:1px solid var(--bd);border-left:1px solid var(--bd2);'+heatBg(totalHrs)+';padding:4px 3px;text-align:center;vertical-align:middle;'+(isToday?'outline:1px solid rgba(82,133,224,.2);outline-offset:-1px':'')+'">';
         if(totalHrs>0){
-          h+='<div style="font-family:var(--fd);font-size:12px;color:'+fillColor+(overloaded?';font-weight:700':'')+'">'+totalHrs+'h</div>'
-            +'<div style="font-family:var(--fm);font-size:7px;color:var(--txd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px">'
-            +(multiProj?allProjs.length+'×proj':mainProj?mainProj.name.substring(0,8):'')+'</div>';
+          h+='<div style="font-family:var(--fd);font-size:11px;color:'+heatCol(totalHrs)+'">'+totalHrs+'h</div>';
+          if(allProjs.length>1){h+='<div style="font-family:var(--fm);font-size:6px;color:var(--txd)">'+allProjs.length+'\u00d7</div>';}
+          else if(mainProj){h+='<div style="font-family:var(--fm);font-size:6px;color:var(--txd);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:48px">'+mainProj.name.substring(0,6)+'</div>';}
         } else {
-          h+='<span style="font-family:var(--fm);font-size:9px;color:var(--bd2)">—</span>';
+          h+='<span style="font-family:var(--fm);font-size:8px;color:var(--bd2)">\u2014</span>';
         }
-        // Meeting indicator dot
         if(staffMtgs.length>0){
-          const col=mtgTypeColor(staffMtgs[0].type);
-          h+='<div style="display:flex;justify-content:center;gap:2px;margin-top:2px">'
-            +staffMtgs.slice(0,3).map(m=>'<div title="'+m.title+' '+( m.time||'')+'" style="width:5px;height:5px;border-radius:50%;background:'+mtgTypeColor(m.type)+';flex-shrink:0"></div>').join('')
-          +'</div>';
+          h+='<div style="display:flex;justify-content:center;gap:1px;margin-top:2px">'+staffMtgs.slice(0,3).map(m=>'<div title="'+m.title+'" style="width:4px;height:4px;border-radius:50%;background:'+mtgTypeColor(m.type)+'"></div>').join('')+'</div>';
         }
         h+='</td>';
       });
       h+='</tr>';
     });
 
-    // Meetings row at bottom of lookahead
-    h+='<tr style="background:rgba(82,133,224,.04)">'
-      +'<td style="padding:5px 12px;border-top:1px solid var(--bd2);border-right:2px solid var(--bd2);position:sticky;left:0;background:rgba(82,133,224,.06);font-family:var(--fm);font-size:9px;color:var(--blu);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">📅 Meetings</td>';
+    // Meetings row
+    h+='<tr style="background:rgba(82,133,224,.03)"><td style="padding:4px 10px;border-top:1px solid var(--bd2);border-right:2px solid var(--bd2);position:sticky;left:0;background:rgba(82,133,224,.05);font-family:var(--fm);font-size:8px;color:var(--blu);white-space:nowrap">\ud83d\udcc5 Meetings</td>';
     days.forEach(d3=>{
       const dStr=d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-'+String(d3.getDate()).padStart(2,'0');
       const dayMtgs=MEETINGS.filter(m=>m.status!=='cancelled'&&m.date===dStr);
       const isToday=d3.toDateString()===today.toDateString();
-      h+='<td style="border-top:1px solid var(--bd2);border-left:1px solid var(--bd);padding:4px 5px;text-align:center;background:'+(isToday?'rgba(82,133,224,.06)':'rgba(82,133,224,.03)')+'">';
+      h+='<td style="border-top:1px solid var(--bd2);border-left:1px solid var(--bd2);padding:3px;text-align:center;background:'+(isToday?'rgba(82,133,224,.06)':'transparent')+'">';
       if(dayMtgs.length>0){
-        h+='<div style="display:flex;flex-direction:column;gap:2px">';
-        dayMtgs.slice(0,2).forEach(m=>{
-          const col=mtgTypeColor(m.type);
-          h+='<div title="'+m.title+( m.time?' · '+m.time:'')+'" style="font-family:var(--fm);font-size:7px;font-weight:700;color:'+col
-            +';background:'+col+'18;border-radius:2px;padding:1px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px;cursor:pointer" onclick="goMeetingsOpen(\''+m.id+'\''+')">'
-            +(m.time?m.time.slice(0,5)+' ':'')+'·'
-          +'</div>';
-        });
-        if(dayMtgs.length>2) h+='<div style="font-family:var(--fm);font-size:7px;color:var(--txd)">+'+(dayMtgs.length-2)+'</div>';
+        h+='<div style="display:flex;flex-direction:column;gap:1px">';
+        dayMtgs.slice(0,2).forEach(m=>{const col=mtgTypeColor(m.type);h+='<div title="'+m.title+'" style="font-family:var(--fm);font-size:6px;font-weight:700;color:'+col+';background:'+col+'22;border-radius:2px;padding:1px 2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48px" onclick="goMeetingsOpen(\''+m.id+'\''+')">'+(m.time?m.time.slice(0,5):'\u25cf')+'</div>';});
+        if(dayMtgs.length>2)h+='<div style="font-family:var(--fm);font-size:6px;color:var(--txd)">+'+(dayMtgs.length-2)+'</div>';
         h+='</div>';
-      } else {
-        h+='<span style="font-family:var(--fm);font-size:9px;color:var(--bd2)">—</span>';
-      }
+      }else{h+='<span style="font-size:8px;color:var(--bd2)">\u2014</span>';}
       h+='</td>';
     });
     h+='</tr>';
 
-    // Total row at bottom
-    h+='<tr style="background:var(--sf2)">'
-      +'<td style="padding:5px 12px;border-top:2px solid var(--bd2);border-right:2px solid var(--bd2);position:sticky;left:0;background:var(--sf2);font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em">Total hrs</td>';
-    dayTotals.forEach((hrs,di)=>{
-      const hrsR=Math.round(hrs*10)/10;
-      const overloaded=hrs>8*inhouse.length*0.8;
-      h+='<td style="border-top:2px solid var(--bd2);border-left:1px solid var(--bd);text-align:center;padding:4px 5px">'
-        +'<span style="font-family:var(--fm);font-size:10px;font-weight:600;color:'+(overloaded?'var(--red)':hrs>0?'var(--tx)':'var(--txd)')+'">'+( hrsR>0?hrsR+'h':'—')+'</span>'
-      +'</td>';
-    });
+    // Total row
+    h+='<tr style="background:var(--sf2)"><td style="padding:4px 10px;border-top:2px solid var(--bd2);border-right:2px solid var(--bd2);position:sticky;left:0;background:var(--sf2);font-family:var(--fm);font-size:8px;color:var(--txd);text-transform:uppercase;letter-spacing:.05em">Total</td>';
+    dayTotals.forEach((hrs,di)=>{const hrsR=Math.round(hrs*10)/10;const over=hrs>8*inhouse.length*0.8;h+='<td style="border-top:2px solid var(--bd2);border-left:1px solid var(--bd);text-align:center;padding:3px;background:var(--sf2)"><span style="font-family:var(--fm);font-size:9px;font-weight:600;color:'+(over?'var(--red)':hrs>0?'var(--tx)':'var(--txd)')+'">'+( hrsR>0?hrsR+'h':'\u2014')+'</span></td>';});
     h+='</tr></tbody></table>';
-
     laEl.innerHTML=h;
 
-    // Update total hours label
     const totalWeekHrs=Math.round(dayTotals.slice(0,5).reduce((a,b)=>a+b,0)*10)/10;
     const laTotal=e('dash-lookahead-total');
-    if(laTotal) laTotal.textContent=totalWeekHrs+'h scheduled this week';
+    if(laTotal)laTotal.textContent=totalWeekHrs+'h scheduled this week';
   }
 }
+
 
 
 
@@ -11774,7 +11639,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v72',
+    appVersion: 'S62-v74',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -16213,6 +16078,34 @@ function closeMobileSidebar(){
 document.addEventListener('click', e=>{
   if(e.target.closest('.ni') && window.innerWidth <= 768) closeMobileSidebar();
 });
+
+/* ── SWIPE GESTURES (mobile sidebar) ───────────────────────
+   Swipe left anywhere on open sidebar → close
+   Swipe right from left edge (≤20px) → open                */
+(function(){
+  let _tx=0, _ty=0, _tracking=false;
+  document.addEventListener('touchstart', e=>{
+    _tx = e.touches[0].clientX;
+    _ty = e.touches[0].clientY;
+    _tracking = true;
+  }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    if(!_tracking) return;
+    _tracking = false;
+    const dx = e.changedTouches[0].clientX - _tx;
+    const dy = e.changedTouches[0].clientY - _ty;
+    if(Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)) return; // not a horizontal swipe
+    const sb = document.querySelector('.sidebar');
+    const isOpen = sb && sb.classList.contains('mobile-open');
+    if(dx < -60 && isOpen){
+      // Swipe left → close
+      closeMobileSidebar();
+    } else if(dx > 60 && !isOpen && _tx < 20 && window.innerWidth <= 768){
+      // Swipe right from left edge → open
+      toggleMobileSidebar();
+    }
+  }, {passive:true});
+})();
 
 /* ── AUDIT LOG ─────────────────────────────────────────── */
 const AUDIT_ICONS = {
