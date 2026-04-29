@@ -3502,9 +3502,14 @@ const S62_FB_LOCKS    = 's62locks';     // drawing edit locks
 // Studio 62 Firebase — hardcoded defaults (API key is not a secret in client-side Firebase apps;
 // security is enforced by Realtime Database Rules, not by keeping the key private)
 const S62_FB_DEFAULT = {
-  dbUrl:   'https://studio62-ca1b7-default-rtdb.asia-southeast1.firebasedatabase.app',
-  apiKey:  'AIzaSyDPY3SKAakVqOxTuNPQ-Xkxof7Sfw-leY4',
-  enabled: true
+  dbUrl:             'https://studio62-ca1b7-default-rtdb.asia-southeast1.firebasedatabase.app',
+  apiKey:            'AIzaSyDPY3SKAakVqOxTuNPQ-Xkxof7Sfw-leY4',
+  authDomain:        'studio62-ca1b7.firebaseapp.com',
+  projectId:         'studio62-ca1b7',
+  storageBucket:     'studio62-ca1b7.firebasestorage.app',
+  messagingSenderId: '834658261387',
+  appId:             '1:834658261387:web:d5b88eeae4c0e24840778e',
+  enabled:           true
 };
 
 // Config — pre-filled with Studio 62 credentials; localStorage can override if user changes project
@@ -3548,6 +3553,10 @@ function loadCloudCfg(){
       const p=JSON.parse(raw);
       // Only use stored config if it has a valid (possibly custom) URL
       if(p.dbUrl && p.dbUrl.trim()) _fbCfg = p;
+      // Backfill missing auth fields (for users who saved config before authDomain existed)
+      ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{
+        if(!_fbCfg[k] && S62_FB_DEFAULT[k]) _fbCfg[k] = S62_FB_DEFAULT[k];
+      });
       // Always ensure the hardcoded credentials are present as fallback
       if(!_fbCfg.dbUrl) _fbCfg = Object.assign({}, S62_FB_DEFAULT);
     }
@@ -3591,7 +3600,15 @@ async function fbInit(){
     if(!_fbApp){
       _fbApp = firebase.apps.length
         ? firebase.app()
-        : firebase.initializeApp({ databaseURL: _fbCfg.dbUrl, apiKey: _fbCfg.apiKey||'none' });
+        : firebase.initializeApp({
+            apiKey:            _fbCfg.apiKey || S62_FB_DEFAULT.apiKey,
+            authDomain:        _fbCfg.authDomain || S62_FB_DEFAULT.authDomain,
+            databaseURL:       _fbCfg.dbUrl || S62_FB_DEFAULT.dbUrl,
+            projectId:         _fbCfg.projectId || S62_FB_DEFAULT.projectId,
+            storageBucket:     _fbCfg.storageBucket || S62_FB_DEFAULT.storageBucket,
+            messagingSenderId: _fbCfg.messagingSenderId || S62_FB_DEFAULT.messagingSenderId,
+            appId:             _fbCfg.appId || S62_FB_DEFAULT.appId,
+          });
     }
     _fbDb  = firebase.database(_fbApp);
     _fbRef = _fbDb.ref(S62_FB_PATH);
@@ -12156,7 +12173,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v84',
+    appVersion: 'S62-v85',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
