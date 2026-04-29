@@ -1304,6 +1304,48 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 .gp-section.collapsed .gp-chev{transform:rotate(-90deg)}
 .gp-section-body{}
 .gp-empty-msg{padding:24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)}
+
+/* ── VENDORS MODULE ─────────────────────────────────────── */
+.vd-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--bd);background:var(--sf);position:sticky;top:0;z-index:5}
+.vd-search{flex:1;min-width:160px}
+.vd-cat-strip{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px;border-bottom:1px solid var(--bd);background:var(--sf2)}
+.vd-cat-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:14px;background:var(--sf3);border:1px solid var(--bd);font-family:var(--fm);font-size:9px;color:var(--txm);cursor:pointer;transition:all .12s;white-space:nowrap}
+.vd-cat-chip:hover{background:var(--sf);color:var(--tx)}
+.vd-cat-chip.on{background:var(--gold);color:#0a0a0f;border-color:var(--gold);font-weight:700}
+.vd-cat-chip .vd-cat-cnt{font-size:8px;opacity:.7;margin-left:2px}
+.vd-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding:14px}
+.vd-card{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px;cursor:pointer;transition:border-color .12s,transform .12s}
+.vd-card:hover{border-color:var(--gold);transform:translateY(-1px)}
+.vd-card.blacklisted{opacity:.55;border-color:rgba(224,82,82,.3)}
+.vd-card-hd{display:flex;align-items:start;gap:10px;margin-bottom:8px}
+.vd-card-icon{width:34px;height:34px;border-radius:7px;background:var(--sf3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.vd-card-name{font-size:12px;font-weight:600;color:var(--tx);line-height:1.3;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.vd-card-trade{font-family:var(--fm);font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.04em}
+.vd-card-meta{display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:6px;flex-wrap:wrap}
+.vd-card-meta .vd-meta-pip{padding:2px 6px;border-radius:4px;background:var(--sf3)}
+.vd-stars{display:inline-flex;gap:1px;font-size:11px;line-height:1}
+.vd-stars .star{color:var(--gold)}
+.vd-stars .star.empty{color:var(--bd2)}
+.vd-status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.vd-status-dot.active{background:var(--grn)}
+.vd-status-dot.onhold{background:var(--gold)}
+.vd-status-dot.blacklisted{background:var(--red)}
+.vd-detail{display:grid;grid-template-columns:1fr;gap:14px;padding:18px}
+.vd-section{background:var(--sf);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+.vd-section-hd{padding:10px 14px;background:var(--sf2);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em}
+.vd-section-bd{padding:14px}
+.vd-rate-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;align-items:center;padding:6px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:6px;margin-bottom:6px}
+.vd-review-row{padding:10px;background:var(--sf2);border:1px solid var(--bd);border-radius:6px;margin-bottom:6px}
+.vd-review-scores{display:flex;gap:14px;font-family:var(--fm);font-size:9px;margin-top:4px}
+.vd-review-scores .vd-score{color:var(--txd)}
+.vd-review-scores .vd-score b{color:var(--gold);font-weight:700;margin-left:3px}
+.vd-tab-row{display:flex;gap:0;border-bottom:1px solid var(--bd);margin:0 0 12px}
+.vd-tab{padding:8px 14px;font-family:var(--fm);font-size:10px;color:var(--txm);cursor:pointer;border-bottom:2px solid transparent;font-weight:500;transition:all .12s}
+.vd-tab:hover{color:var(--tx)}
+.vd-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.vd-back-link{display:inline-flex;align-items:center;gap:6px;font-family:var(--fm);font-size:10px;color:var(--txm);cursor:pointer;padding:4px 0;margin-bottom:8px}
+.vd-back-link:hover{color:var(--tx)}
+.vd-empty{padding:48px 24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)}
 </style>
 </head>
 <body>
@@ -1779,7 +1821,12 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
         Instructions
         <span class="ca-nbdg" id="ca-bdg-ai" style="display:none">0</span>
       </div>
-      <div style="margin-top:auto;padding:10px 14px;border-top:1px solid var(--bd2)">
+      <div class="ca-nav-item" onclick="switchCAModule('vendor',this)" id="ca-nav-vendor">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+        Vendors
+        <span class="ca-nbdg" id="ca-bdg-vendor" style="display:none">0</span>
+      </div>
+      <div id="ca-proj-filter-wrap" style="margin-top:auto;padding:10px 14px;border-top:1px solid var(--bd2)">
         <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:6px">Project</div>
         <select class="fsel" id="ca-proj-filter" onchange="renderCA()" style="width:100%;font-size:10px;padding:4px 8px">
           <option value="ALL">All projects</option>
@@ -5500,6 +5547,13 @@ function renderPipeline(){
       h+='<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px;cursor:pointer" onclick="openEditPipelineModal(\''+pl.id+'\')">';
       h+='<div style="font-size:11px;font-weight:600;margin-bottom:4px">'+pl.name+'</div>';
       h+='<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:6px">'+pl.client+'</div>';
+      // Conversion badge for Won leads
+      if(pl.stage==='won' && pl.convertedToProjId){
+        const lp = PROJS.find(x=>x.id===pl.convertedToProjId);
+        h+='<div style="display:flex;align-items:center;gap:5px;padding:4px 7px;background:rgba(82,201,122,.1);border:1px solid rgba(82,201,122,.25);border-radius:5px;margin-bottom:6px;font-family:var(--fm);font-size:9px;color:var(--grn)" onclick="event.stopPropagation();selectProj(\''+pl.convertedToProjId+'\');go(\'drawings\',null)">'
+          +'✓ Project: '+(lp?lp.name.slice(0,22)+(lp.name.length>22?'…':''):pl.convertedToProjId)
+          +'<span style="margin-left:auto;color:var(--txd)">↗</span></div>';
+      }
       h+='<div style="display:flex;align-items:center;gap:6px">';
       if(canSeeFin()) h+='<span style="font-family:var(--fm);font-size:10px;color:var(--gold);font-weight:600">'+pl.estFee+'</span>';
       h+='<span style="font-family:var(--fm);font-size:9px;background:rgba(82,201,122,.12);color:var(--grn);padding:1px 5px;border-radius:4px">'+pl.probability+'%</span>';
@@ -5520,6 +5574,16 @@ function renderPipeline(){
         if(stg.id==='shortlisted'||stg.id==='won')
           h+='<button class="btn bp bsm" style="font-size:9px;padding:2px 5px" onclick="event.stopPropagation();convertPipelineToProject(\''+pl.id+'\')">&#x2192; Project</button>';
         h+='</div>';
+      } else if(stg.id==='won'){
+        // Won cards: convert button if not yet converted, open button if converted
+        h+='<div style="display:flex;gap:4px;margin-top:7px">';
+        if(pl.convertedToProjId){
+          h+='<button class="btn bp bsm" style="font-size:9px;padding:2px 8px;flex:1;justify-content:center" onclick="event.stopPropagation();selectProj(\''+pl.convertedToProjId+'\');go(\'drawings\',null)">Open Project &#x2192;</button>';
+        } else {
+          h+='<button class="btn bp bsm" style="font-size:9px;padding:2px 8px;flex:1;justify-content:center" onclick="event.stopPropagation();convertPipelineToProject(\''+pl.id+'\')">&#x2192; Convert to Project</button>';
+        }
+        h+='<button class="btn bg bsm" style="font-size:9px;padding:2px 5px" onclick="event.stopPropagation();movePipelineLead(\''+pl.id+'\',\'shortlisted\')" title="Move back to Shortlisted">&#x2190;</button>';
+        h+='</div>';
       }
       h+='</div>';
     });
@@ -5531,24 +5595,96 @@ function renderPipeline(){
 
 function movePipelineLead(id,newStage){
   const pl=PIPELINE.find(x=>x.id===id);if(!pl)return;
+  const oldStage = pl.stage;
   pl.stage=newStage;
-  if(newStage==='won') showNotif('🎉 Won!',pl.name+' moved to Won — convert to project when ready');
-  else if(newStage==='lost') showNotif('Lead lost',pl.name+' moved to Lost');
-  else showNotif('Stage updated',pl.name+' → '+PIPELINE_STAGES.find(s=>s.id===newStage)?.label);
+  if(newStage==='won'){
+    // Already converted? Just update the date.
+    if(pl.convertedToProjId){
+      pl.wonDate = pl.wonDate || (new Date()).toISOString().slice(0,10);
+      showNotif('🎉 Lead won', pl.name + ' — already linked to project '+pl.convertedToProjId);
+      renderPipeline(); scheduleSave();
+      return;
+    }
+    pl.wonDate = (new Date()).toISOString().slice(0,10);
+    renderPipeline(); scheduleSave();
+    // Auto-prompt: offer to convert to a real project right now
+    setTimeout(()=>{
+      const ok = confirm(
+        '🎉 ' + pl.name + ' moved to Won.\n\n' +
+        'Convert this lead into a project in the Drawing Register now?\n\n' +
+        '• Lead details (client, fee, contact, notes) will pre-fill the new project\n' +
+        '• A linked drawing register will be created\n' +
+        '• The pipeline card will be marked converted\n\n' +
+        'Click OK to convert now, or Cancel to convert later from the pipeline.'
+      );
+      if(ok) convertPipelineToProject(id);
+    }, 100);
+    return;
+  }
+  if(newStage==='lost') showNotif('Lead lost',pl.name+' moved to Lost');
+  else showNotif('Stage updated',pl.name+' → '+(PIPELINE_STAGES.find(s=>s.id===newStage)?.label||newStage));
   renderPipeline();scheduleSave();
 }
 
 function convertPipelineToProject(plId){
   const pl=PIPELINE.find(x=>x.id===plId);if(!pl)return;
-  // Pre-fill the add project modal
-  document.getElementById('ap-name').value=pl.name||'';
-  document.getElementById('ap-client').value=pl.client||'';
-  document.getElementById('ap-fee').value=pl.estFee||'';
-  document.getElementById('ap-phase').value='2'; // DD default
-  pl.stage='won';
+  if(pl.convertedToProjId){
+    const exists = PROJS.find(p=>p.id===pl.convertedToProjId);
+    if(exists){
+      if(confirm(pl.name+' is already converted to project '+pl.convertedToProjId+' ('+exists.name+').\n\nOpen that project?')){
+        selectProj(pl.convertedToProjId);
+        go('drawings', null);
+      }
+      return;
+    }
+  }
+
+  // Open the standard add-project modal first (so user can review/edit before save)
   openAddProjectModal();
-  showNotif('Prefilled from pipeline',pl.name+' details loaded — complete project setup');
-  renderPipeline();
+
+  // Pre-fill all the fields we have from the pipeline lead
+  setTimeout(()=>{
+    const setVal = (id,val)=>{ const el=document.getElementById(id); if(el && val) el.value = val; };
+    setVal('ap-name',   pl.name);
+    setVal('ap-client', pl.client);
+    setVal('ap-fee',    parseFeeINR(pl.estFee||'0') || '');
+    setVal('ap-phase',  '1'); // Briefing — most projects start there fresh from sales
+
+    // Default start date = today; end = expectedClose if we have one, else +12 months
+    const today = (new Date()).toISOString().slice(0,10);
+    setVal('ap-start', today);
+    if(pl.expectedClose) setVal('ap-end', pl.expectedClose);
+    else {
+      const oneYear = new Date(); oneYear.setFullYear(oneYear.getFullYear()+1);
+      setVal('ap-end', oneYear.toISOString().slice(0,10));
+    }
+
+    // If the project type field exists and the pipeline has a type, select it
+    if(pl.type){
+      const typeSel = document.getElementById('ap-type');
+      if(typeSel){
+        for(const opt of typeSel.options){
+          if(opt.value === pl.type){ typeSel.value = pl.type; break; }
+        }
+        if(typeof onProjTypeChange === 'function') onProjTypeChange();
+      }
+    }
+
+    // Stash the lead ID on the modal so the save handler can wire the link back
+    const editIdEl = document.getElementById('ap-edit-id');
+    if(editIdEl) editIdEl.dataset.fromPipelineId = plId;
+
+    // Add a banner at the top of the modal showing the lead context
+    const titleEl = document.getElementById('ap-title');
+    if(titleEl){
+      titleEl.innerHTML = 'Convert Won Lead → Project'
+        +'<div style="font-family:var(--fm);font-size:9px;color:var(--gold);font-weight:500;margin-top:4px">'
+        +'From: '+pl.name+' · '+pl.client+(pl.contact?' · Contact: '+pl.contact:'')
+        +'</div>';
+    }
+  }, 50);
+
+  showNotif('Pre-filled from pipeline', pl.name + ' — review the details and click Create');
 }
 
 function openAddPipelineModal(defaultStage){
@@ -5686,9 +5822,48 @@ let CA_AIS = []; // Architect's Instructions
 // { id, projId, num, title, description, issuedTo, issuedBy, issuedDate,
 //   costImpact, drawingRefs:[], svrId, acknowledged, acknowledgedDate }
 
+/* ════════════════════════════════════════════════════════════
+   VENDORS & CONTRACTORS (Template B — standard practice)
+   ════════════════════════════════════════════════════════════ */
+let VENDORS = [];
+// { id, companyName, contactPerson, designation, phone, email, whatsapp, address, city,
+//   primaryCategory, subTrades:[], serviceAreas:[],
+//   gstin, pan, msmeUdyam,
+//   rates:[{id, item, rate, unit, lastUpdated}],
+//   teamSize, concurrentJobs, typicalProjectSize,
+//   reviews:[{id, projId, qualityScore(1-5), timelinessScore, pricingScore, notes, reviewedBy, reviewedDate}],
+//   sampleWorkUrl, quotePdfUrl, references,
+//   linkedProjectIds:[],   // auto-derived from RFI/Sub/SVR/AI cross-references
+//   status:'active|onhold|blacklisted', lastEngaged, nextFollowup,
+//   createdBy, createdAt, notes }
+
+/* 16 pre-loaded vendor categories with researched Indian market base rates (2025) */
+const VENDOR_CATEGORIES = [
+  {id:'civil',     icon:'🏗', name:'Civil & structural',   subTrades:['General contractor','RCC contractor','Mason','Steel fabricator','Excavation','RMC supplier'],                         baseRate:'₹1,200–2,200/sq ft (full civil) · Mason ₹600–900/day'},
+  {id:'electrical',icon:'⚡', name:'Electrical',           subTrades:['Electrical contractor','Electrician','Lighting installer','LV cabling','DG set installer','Lift / elevator'],          baseRate:'₹150–250/sq ft · Electrician ₹850/day'},
+  {id:'plumbing',  icon:'🚿', name:'Plumbing & sanitary',  subTrades:['Plumbing contractor','Sanitary fittings','Water tank installer','STP / WTP installer'],                                baseRate:'₹120–200/sq ft · Plumber ₹700/day'},
+  {id:'hvac',      icon:'❄', name:'HVAC & mechanical',    subTrades:['HVAC contractor','Ducting','VRF / VRV installer','Chiller','Exhaust / fresh air'],                                     baseRate:'₹350–650/sq ft (full HVAC)'},
+  {id:'carpentry', icon:'🪵', name:'Carpentry & joinery',  subTrades:['Carpenter','Modular furniture','Wardrobes','Doors & windows','Veneer / laminate'],                                     baseRate:'Modular ₹1,800–4,500/sq ft · Carpenter ₹900/day'},
+  {id:'finishes',  icon:'🎨', name:'Finishes',             subTrades:['Painter (interior)','Painter (exterior)','POP / gypsum','False ceiling','Wallpaper','Texture finish'],                  baseRate:'Painter ₹900/day · POP ₹65–95/sq ft'},
+  {id:'flooring',  icon:'🟫', name:'Flooring & tiling',    subTrades:['Tile layer','Marble / stone','Wooden flooring','Vinyl / SPC','Epoxy floor'],                                            baseRate:'Tile labour ₹20–35/sq ft · Marble ₹150+/sq ft'},
+  {id:'facade',    icon:'🪟', name:'Façade & glazing',     subTrades:['Aluminium fabricator','UPVC windows','Structural glazing','Skylights','Roofing'],                                       baseRate:'Glazing ₹450–1,200/sq ft'},
+  {id:'fitout',    icon:'🪞', name:'Interior fit-out',     subTrades:['Turnkey fit-out','Loose furniture','Soft furnishings','Drapery / blinds','Art installation'],                            baseRate:'Office ₹800–3,000/sq ft · Residential ₹1,200–4,000/sq ft'},
+  {id:'landscape', icon:'🏡', name:'Landscape & exterior', subTrades:['Landscape contractor','Hardscape','Irrigation','Pool builder','Boundary wall','Gates'],                                  baseRate:'Soft landscape ₹150–500/sq ft'},
+  {id:'consultant',icon:'👷', name:'Specialist consultants',subTrades:['Structural','MEP','HVAC','Acoustics','Lighting design','Façade','Vastu','LEED / IGBC','PMC'],                            baseRate:'2–5% of project cost (per discipline)'},
+  {id:'statutory', icon:'🛡', name:'Statutory & legal',    subTrades:['Liaison architect','Building approval','Fire NOC','CMDA / CRZ','Surveyor'],                                              baseRate:'₹50,000–3 lakh per approval stage'},
+  {id:'sanitary',  icon:'🛁', name:'Sanitaryware & bath',  subTrades:['Sanitary brand showroom','CP fittings','Bathroom waterproofing','Geyser installer'],                                    baseRate:'Bathroom set ₹40k–3 lakh'},
+  {id:'kitchen',   icon:'🍳', name:'Kitchen & appliances', subTrades:['Modular kitchen brand','Appliance supplier','Stone counter','Chimney installer'],                                       baseRate:'Kitchen ₹2,500–6,500/sq ft'},
+  {id:'lighting',  icon:'💡', name:'Lighting & AV',        subTrades:['Lighting designer','Decorative lighting','Home automation (Crestron/Lutron)','AV / cinema','Smart home'],                baseRate:'Automation ₹150–500/sq ft'},
+  {id:'security',  icon:'🔐', name:'Security & safety',    subTrades:['CCTV','Access control','Fire alarm','Sprinkler','Intrusion alarm','Boom barrier'],                                      baseRate:'CCTV ₹15k–40k per camera installed'},
+];
+
+const VENDOR_RATE_UNITS = ['per day','per sq ft','per sq m','per running ft','per piece','lump sum','per visit','per kg','per ton','% of project'];
+
 let _caModule = 'svr'; // current active module
 let _caCollapsedProjs = {};   // {projId: true} — collapsed project sections (RFI)
 let _txCollapsedProjs = {};   // {projId: true} — collapsed project sections (Transmittals)
+let _vendorFilter = {category:'ALL', city:'', search:'', status:'active'};
+let _vendorActiveTab = 'details';   // details | rates | reviews | linked
 
 /* ── URGENCY CLASSIFICATION ──────────────────────────────
    Returns null (not urgent), or {label, cssClass, days} */
@@ -7736,6 +7911,65 @@ function executeRemoveStaff(id){
   SCHED_TASKS.forEach(t=>{
     if(t.sid===id||t.staffId===id){t.sid=reassignTo||null;t.staffId=reassignTo||null;}
   });
+
+  // ── CA module cleanup (RFIs, Submittals, AIs, SVRs) ────────────────
+  // RFIs — assignedTo, reviewer, raisedBy, answeredBy
+  let caTouched = 0;
+  CA_RFIS.forEach(r=>{
+    if(r.assignedTo===id){ r.assignedTo = reassignTo || ''; caTouched++; }
+    if(r.reviewer===id){   r.reviewer   = reassignTo || ''; caTouched++; }
+    if(r.raisedBy===id)    r.raisedBy   = reassignTo || r.raisedBy; // keep history if no reassignee
+    if(r.answeredBy===id)  r.answeredBy = reassignTo || r.answeredBy;
+  });
+  // Submittals — assignedTo, reviewer, submittedBy
+  CA_SUBMITTALS.forEach(r=>{
+    if(r.assignedTo===id){ r.assignedTo = reassignTo || ''; caTouched++; }
+    if(r.reviewer===id){   r.reviewer   = reassignTo || ''; caTouched++; }
+    if(r.submittedBy===id) r.submittedBy = reassignTo || r.submittedBy;
+  });
+  // Architect's Instructions — issuedBy
+  CA_AIS.forEach(r=>{
+    if(r.issuedBy===id) r.issuedBy = reassignTo || r.issuedBy;
+  });
+  // Site Visit Reports — visitedBy + attendees + nextVisitAttendees
+  CA_SVR.forEach(r=>{
+    if(r.visitedBy===id) r.visitedBy = reassignTo || (r.attendees?.find(a=>a!==id)) || r.visitedBy;
+    if(Array.isArray(r.attendees)){
+      r.attendees = r.attendees.map(aid => aid===id ? (reassignTo||null) : aid).filter(Boolean);
+    }
+    if(Array.isArray(r.nextVisitAttendees)){
+      r.nextVisitAttendees = r.nextVisitAttendees.map(aid => aid===id ? (reassignTo||null) : aid).filter(Boolean);
+    }
+  });
+  // Snags — reportedBy
+  CA_SNAGS.forEach(r=>{
+    if(r.reportedBy===id) r.reportedBy = reassignTo || r.reportedBy;
+  });
+  // Meetings — attendees + createdBy
+  MEETINGS.forEach(m=>{
+    if(Array.isArray(m.attendees)){
+      m.attendees = m.attendees.map(aid => aid===id ? (reassignTo||null) : aid).filter(Boolean);
+    }
+    if(Array.isArray(m.attendeeStatuses)){
+      m.attendeeStatuses = m.attendeeStatuses.map(a => a.id===id ? (reassignTo?{...a,id:reassignTo}:null) : a).filter(Boolean);
+    }
+    if(m.createdBy===id) m.createdBy = reassignTo || m.createdBy;
+  });
+  // Vendor reviews — reviewedBy
+  if(typeof VENDORS !== 'undefined'){
+    VENDORS.forEach(v=>{
+      (v.reviews||[]).forEach(rv=>{
+        if(rv.reviewedBy===id) rv.reviewedBy = reassignTo || rv.reviewedBy;
+      });
+    });
+  }
+
+  if(caTouched>0){
+    const rStaff = reassignTo ? STAFF.find(x=>x.id===reassignTo) : null;
+    showNotif('CA assignments cleaned',
+      caTouched+' RFI/Submittal assignments '+(rStaff?'reassigned to '+rStaff.first:'unassigned'));
+  }
+
   // Remove staff
   STAFF=STAFF.filter(x=>x.id!==id);
   delete PERF_SCORES[id];
@@ -7748,6 +7982,8 @@ function executeRemoveStaff(id){
   closeModal('remove-staff-ov');
   showNotif('Staff removed',s.first+' '+s.last+' removed from roster');
   renderStaff();renderDrawings();renderDashboard();updateNavBadges();
+  // Re-render CA if it's the active panel so cleared assignments show up
+  if(document.getElementById('panel-ca')?.classList.contains('active')) renderCA();
   scheduleSave();
 }
 
@@ -9346,6 +9582,31 @@ function submitProject(){
     const pid='P'+Date.now().toString().slice(-5);
     PROJS.push({id:pid,name,client,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages});
     addAudit('project','Project created',name+' ('+pid+') · '+client);
+
+    // Pipeline → Project back-link: if this project was created from a Won pipeline lead,
+    // record both directions of the link so the pipeline card shows "✓ Project created"
+    // and the project shows where it came from.
+    const editIdEl = document.getElementById('ap-edit-id');
+    const fromPipelineId = editIdEl?.dataset?.fromPipelineId;
+    if(fromPipelineId){
+      const lead = PIPELINE.find(x => x.id === fromPipelineId);
+      if(lead){
+        lead.convertedToProjId = pid;
+        lead.convertedAt = new Date().toISOString();
+        // Stash lead context on the project too, for traceability
+        const newProj = PROJS.find(p => p.id === pid);
+        if(newProj){
+          newProj.fromPipelineId = lead.id;
+          newProj.pipelineNotes  = lead.notes || '';
+          newProj.contactName    = lead.contact || '';
+          newProj.contactEmail   = lead.email || '';
+        }
+        addAudit('pipeline', 'Lead converted to project', lead.name+' ('+lead.id+') → '+pid);
+      }
+      // Clear the marker so subsequent Add Project modals don't re-link
+      delete editIdEl.dataset.fromPipelineId;
+    }
+
     if(pt){
       DISC.forEach(disc=>{
         if(!selectedDiscs[disc.id])return;
@@ -12086,7 +12347,7 @@ function manualSyncHours(){
    Rule: always add optional fields with defaults, never delete.
    ═══════════════════════════════════════════════════════════════ */
 
-const S62_SCHEMA_VERSION = 6;
+const S62_SCHEMA_VERSION = 7;
 const S62_LS_KEY = 's62_data_v1';
 const S62_SAVE_DEBOUNCE_MS = 2000;
 
@@ -12189,6 +12450,20 @@ const S62_MIGRATIONS = {
     if(!Array.isArray(data.caSnags))      data.caSnags      = [];
     if(!Array.isArray(data.caAis))        data.caAis        = [];
     return data;
+  },
+  /* v6 → v7: Vendors & Contractors module (Template B) */
+  7: function(data) {
+    if(!Array.isArray(data.vendors)) data.vendors = [];
+    // Backfill any missing fields on existing vendor records (defensive)
+    data.vendors.forEach(v=>{
+      if(!Array.isArray(v.subTrades))        v.subTrades = [];
+      if(!Array.isArray(v.serviceAreas))     v.serviceAreas = [];
+      if(!Array.isArray(v.rates))            v.rates = [];
+      if(!Array.isArray(v.reviews))          v.reviews = [];
+      if(!Array.isArray(v.linkedProjectIds)) v.linkedProjectIds = [];
+      if(!v.status) v.status = 'active';
+    });
+    return data;
   }
 };
 
@@ -12197,7 +12472,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v87',
+    appVersion: 'S62-v90',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -12225,6 +12500,7 @@ function packData() {
     caSubmittals:  CA_SUBMITTALS||[],
     caSnags:       CA_SNAGS||[],
     caAis:         CA_AIS||[],
+    vendors:       VENDORS||[],
     // currentUserId: REMOVED from sync — each browser/staff member has their own
     // identity from Google sign-in. Including it here caused all users to take on
     // whoever was the last person to sync.
@@ -12287,6 +12563,7 @@ function unpackData(data) {
   if(Array.isArray(data.caSubmittals)) CA_SUBMITTALS = data.caSubmittals;
   if(Array.isArray(data.caSnags))      CA_SNAGS      = data.caSnags;
   if(Array.isArray(data.caAis))        CA_AIS        = data.caAis;
+  if(Array.isArray(data.vendors))      VENDORS       = data.vendors;
 }
 
 /* ── MIGRATE: upgrade old schema data to current version ─────
@@ -17056,6 +17333,703 @@ function caProjColor(id){ return (PROJS.find(p=>p.id===id)||{color:'var(--txd)'}
 function caProjName(id){ return (PROJS.find(p=>p.id===id)||{name:id}).name; }
 function caStaffName(id){ const s=STAFF.find(x=>x.id===id); return s?s.first+' '+s.last:'—'; }
 
+/* ════════════════════════════════════════════════════════════
+   VENDORS MODULE — Template B
+   ════════════════════════════════════════════════════════════ */
+
+let _activeVendorId = null; // null = list view, otherwise = detail view
+
+function vdGetCategory(catId){
+  return VENDOR_CATEGORIES.find(c=>c.id===catId) || VENDOR_CATEGORIES[0];
+}
+
+function vdAvgRating(vendor){
+  const reviews = vendor.reviews||[];
+  if(!reviews.length) return null;
+  const sum = reviews.reduce((s,r)=>s+((r.qualityScore||0)+(r.timelinessScore||0)+(r.pricingScore||0))/3, 0);
+  return Math.round((sum/reviews.length)*10)/10;
+}
+
+function vdRenderStars(rating){
+  if(rating === null || rating === undefined){
+    return '<span class="vd-stars" title="No reviews yet"><span class="star empty">★★★★★</span></span>';
+  }
+  const full = Math.round(rating);
+  let h = '<span class="vd-stars" title="Avg '+rating.toFixed(1)+' / 5">';
+  for(let i=1;i<=5;i++){
+    h += '<span class="star'+(i>full?' empty':'')+'">★</span>';
+  }
+  h += '</span>';
+  return h;
+}
+
+function vdComputeLinkedProjects(vendor){
+  // Auto-link: scan RFI/Submittals/SVR/AI text for vendor name or contact (best-effort)
+  // For Template B, we keep this simple — combine any explicitly-stored linkedProjectIds
+  // with anything where vendor.companyName appears in CA records.
+  const explicit = new Set(vendor.linkedProjectIds||[]);
+  const name = (vendor.companyName||'').toLowerCase();
+  if(name && name.length > 2){
+    // Site Reports — contractorName
+    CA_SVR.forEach(r=>{ if((r.contractorName||'').toLowerCase().includes(name)) explicit.add(r.projId); });
+    // RFIs — directedTo
+    CA_RFIS.forEach(r=>{ if((r.directedTo||'').toLowerCase().includes(name)) explicit.add(r.projId); });
+    // Submittals — submittedBy as text? skip (it's staffId). Use notes
+    CA_SUBMITTALS.forEach(r=>{ if((r.notes||'').toLowerCase().includes(name)) explicit.add(r.projId); });
+    // Snags — contractor
+    CA_SNAGS.forEach(r=>{ if((r.contractor||'').toLowerCase().includes(name)) explicit.add(r.projId); });
+    // AIs — issuedTo
+    CA_AIS.forEach(r=>{ if((r.issuedTo||'').toLowerCase().includes(name)) explicit.add(r.projId); });
+  }
+  return Array.from(explicit).filter(pid=>PROJS.find(p=>p.id===pid));
+}
+
+/* ── MAIN RENDER ENTRY ─────────────────────────────────────── */
+function renderCAVendors(){
+  if(_activeVendorId){
+    const v = VENDORS.find(x=>x.id===_activeVendorId);
+    if(v) return renderVendorDetail(v);
+    _activeVendorId = null;
+  }
+  renderVendorList();
+}
+
+/* ── LIST VIEW ─────────────────────────────────────────────── */
+function renderVendorList(){
+  const hdr=document.getElementById('ca-module-header');
+  const body=document.getElementById('ca-module-body');
+  if(!hdr||!body) return;
+
+  hdr.innerHTML='<div style="font-family:var(--fd);font-size:15px">Vendors &amp; Contractors</div>'
+    +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-left:6px">'+(VENDORS.length||0)+' total</div>'
+    +'<div style="margin-left:auto;display:flex;gap:6px">'
+      +(canSchedule()?'<button class="btn bp bsm" onclick="openVendorEdit()">+ New Vendor</button>':'')
+    +'</div>';
+
+  // Filter / search toolbar
+  const cityList = [...new Set(VENDORS.flatMap(v=>v.serviceAreas||[]).filter(Boolean))].sort();
+  const sortVal = _vendorFilter.sort || 'name';
+
+  let html = '<div class="vd-toolbar">'
+    +'<input class="finp vd-search" placeholder="Search company, contact, phone, GSTIN…" value="'+(_vendorFilter.search||'')+'" oninput="_vendorFilter.search=this.value;renderVendorList()">'
+    +'<select class="fsel" onchange="_vendorFilter.city=this.value;renderVendorList()" style="font-size:10px;padding:4px 8px;width:auto">'
+      +'<option value="">All cities</option>'
+      +cityList.map(c=>'<option value="'+c+'" '+(_vendorFilter.city===c?'selected':'')+'>'+c+'</option>').join('')
+    +'</select>'
+    +'<select class="fsel" onchange="_vendorFilter.status=this.value;renderVendorList()" style="font-size:10px;padding:4px 8px;width:auto">'
+      +'<option value="">All statuses</option>'
+      +'<option value="active" '+(_vendorFilter.status==='active'?'selected':'')+'>Active</option>'
+      +'<option value="onhold" '+(_vendorFilter.status==='onhold'?'selected':'')+'>On hold</option>'
+      +'<option value="blacklisted" '+(_vendorFilter.status==='blacklisted'?'selected':'')+'>Blacklisted</option>'
+    +'</select>'
+    +'<select class="fsel" onchange="_vendorFilter.sort=this.value;renderVendorList()" style="font-size:10px;padding:4px 8px;width:auto">'
+      +'<option value="name" '+(sortVal==='name'?'selected':'')+'>Sort: A–Z</option>'
+      +'<option value="rating" '+(sortVal==='rating'?'selected':'')+'>Sort: Top rated</option>'
+      +'<option value="lastEngaged" '+(sortVal==='lastEngaged'?'selected':'')+'>Sort: Recently engaged</option>'
+    +'</select>'
+  +'</div>';
+
+  // Category strip
+  const allCount = VENDORS.length;
+  html += '<div class="vd-cat-strip">';
+  html += '<div class="vd-cat-chip'+(_vendorFilter.category==='ALL'?' on':'')+'" onclick="_vendorFilter.category=\'ALL\';renderVendorList()">All <span class="vd-cat-cnt">'+allCount+'</span></div>';
+  VENDOR_CATEGORIES.forEach(c=>{
+    const cnt = VENDORS.filter(v=>v.primaryCategory===c.id).length;
+    html += '<div class="vd-cat-chip'+(_vendorFilter.category===c.id?' on':'')+'" onclick="_vendorFilter.category=\''+c.id+'\';renderVendorList()" title="'+c.baseRate.replace(/"/g,'&quot;')+'">'
+      + c.icon+' '+c.name
+      + (cnt?'<span class="vd-cat-cnt">'+cnt+'</span>':'')
+      +'</div>';
+  });
+  html += '</div>';
+
+  // Filter vendor list
+  let list = VENDORS.slice();
+  if(_vendorFilter.category && _vendorFilter.category!=='ALL'){
+    list = list.filter(v=>v.primaryCategory===_vendorFilter.category);
+  }
+  if(_vendorFilter.city) list = list.filter(v=>(v.serviceAreas||[]).includes(_vendorFilter.city));
+  if(_vendorFilter.status) list = list.filter(v=>v.status===_vendorFilter.status);
+  if(_vendorFilter.search){
+    const q = _vendorFilter.search.toLowerCase();
+    list = list.filter(v=>{
+      return ((v.companyName||'').toLowerCase().includes(q)
+           || (v.contactPerson||'').toLowerCase().includes(q)
+           || (v.phone||'').includes(q)
+           || (v.email||'').toLowerCase().includes(q)
+           || (v.gstin||'').toLowerCase().includes(q)
+           || (v.subTrades||[]).join(' ').toLowerCase().includes(q));
+    });
+  }
+
+  // Sort
+  if(sortVal==='name'){
+    list.sort((a,b)=>(a.companyName||'').localeCompare(b.companyName||''));
+  } else if(sortVal==='rating'){
+    list.sort((a,b)=>(vdAvgRating(b)||0)-(vdAvgRating(a)||0));
+  } else if(sortVal==='lastEngaged'){
+    list.sort((a,b)=>(b.lastEngaged||'').localeCompare(a.lastEngaged||''));
+  }
+
+  if(!list.length){
+    if(VENDORS.length){
+      html += '<div class="vd-empty">No vendors match the current filters.<br><br><button class="btn bg bsm" onclick="_vendorFilter={category:\'ALL\',city:\'\',search:\'\',status:\'active\'};renderVendorList()">Clear filters</button></div>';
+    } else {
+      html += '<div class="vd-empty">No vendors added yet.<br><br>Build your firm\'s vendor directory by adding contractors, consultants, and suppliers you regularly work with.<br><br>'
+        + (canSchedule()?'<button class="btn bp bsm" onclick="openVendorEdit()">+ Add your first vendor</button>':'')
+        + '</div>';
+    }
+    body.innerHTML = html;
+    return;
+  }
+
+  // Cards
+  html += '<div class="vd-list">';
+  list.forEach(v=>{
+    const cat = vdGetCategory(v.primaryCategory);
+    const rating = vdAvgRating(v);
+    const linked = vdComputeLinkedProjects(v);
+    html += '<div class="vd-card'+(v.status==='blacklisted'?' blacklisted':'')+'" onclick="openVendorDetail(\''+v.id+'\')">'
+      +'<div class="vd-card-hd">'
+        +'<div class="vd-card-icon">'+cat.icon+'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div class="vd-card-name">'+(v.companyName||'(Unnamed)')+'</div>'
+          +'<div class="vd-card-trade">'+cat.name+'</div>'
+        +'</div>'
+        +'<span class="vd-status-dot '+v.status+'" title="'+v.status+'"></span>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+        +vdRenderStars(rating)
+        +'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+(v.reviews?.length||0)+' review'+((v.reviews?.length||0)===1?'':'s')+'</span>'
+      +'</div>'
+      +(v.contactPerson?'<div style="font-family:var(--fm);font-size:10px;color:var(--txm);margin-bottom:3px">👤 '+v.contactPerson+(v.designation?' · '+v.designation:'')+'</div>':'')
+      +(v.phone?'<div style="font-family:var(--fm);font-size:10px;color:var(--txm);margin-bottom:3px">📞 '+v.phone+'</div>':'')
+      +'<div class="vd-card-meta">'
+        +(v.serviceAreas?.length?'<span class="vd-meta-pip">📍 '+v.serviceAreas.slice(0,2).join(', ')+(v.serviceAreas.length>2?'+'+(v.serviceAreas.length-2):'')+'</span>':'')
+        +(v.rates?.length?'<span class="vd-meta-pip">'+v.rates.length+' rate'+(v.rates.length>1?'s':'')+'</span>':'')
+        +(linked.length?'<span class="vd-meta-pip">🏗 '+linked.length+' proj</span>':'')
+        +(v.gstin?'<span class="vd-meta-pip">GST</span>':'')
+      +'</div>'
+    +'</div>';
+  });
+  html += '</div>';
+
+  body.innerHTML = html;
+}
+
+/* ── DETAIL VIEW ───────────────────────────────────────────── */
+function openVendorDetail(id){
+  _activeVendorId = id;
+  _vendorActiveTab = 'details';
+  renderCAVendors();
+}
+function closeVendorDetail(){
+  _activeVendorId = null;
+  renderCAVendors();
+}
+
+function renderVendorDetail(v){
+  const hdr=document.getElementById('ca-module-header');
+  const body=document.getElementById('ca-module-body');
+  if(!hdr||!body) return;
+
+  const cat = vdGetCategory(v.primaryCategory);
+  const rating = vdAvgRating(v);
+  const linked = vdComputeLinkedProjects(v);
+
+  hdr.innerHTML='<div onclick="closeVendorDetail()" style="cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:10px;color:var(--txm)">← Back to vendors</div>'
+    +'<div style="font-family:var(--fd);font-size:15px;margin-left:14px">'+cat.icon+' '+(v.companyName||'(Unnamed)')+'</div>'
+    +'<div style="margin-left:auto;display:flex;gap:6px">'
+      +(canSchedule()?'<button class="btn bg bsm" onclick="openVendorEdit(\''+v.id+'\')">✏ Edit</button>':'')
+      +(canSchedule()?'<button class="btn bp bsm" onclick="openVendorReviewModal(\''+v.id+'\')">+ Add Review</button>':'')
+    +'</div>';
+
+  let html = '<div class="vd-detail">';
+
+  // Tabs
+  html += '<div class="vd-tab-row">'
+    +'<div class="vd-tab '+(_vendorActiveTab==='details'?'on':'')+'" onclick="_vendorActiveTab=\'details\';renderCAVendors()">Details</div>'
+    +'<div class="vd-tab '+(_vendorActiveTab==='rates'?'on':'')+'" onclick="_vendorActiveTab=\'rates\';renderCAVendors()">Rates ('+(v.rates?.length||0)+')</div>'
+    +'<div class="vd-tab '+(_vendorActiveTab==='reviews'?'on':'')+'" onclick="_vendorActiveTab=\'reviews\';renderCAVendors()">Reviews ('+(v.reviews?.length||0)+')</div>'
+    +'<div class="vd-tab '+(_vendorActiveTab==='linked'?'on':'')+'" onclick="_vendorActiveTab=\'linked\';renderCAVendors()">Linked Projects ('+linked.length+')</div>'
+  +'</div>';
+
+  if(_vendorActiveTab==='details'){
+    // Identity & contact
+    html += '<div class="vd-section">'
+      +'<div class="vd-section-hd">📇 Identity &amp; Contact</div>'
+      +'<div class="vd-section-bd" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
+        +vdField('Company',         v.companyName)
+        +vdField('Contact person',  v.contactPerson)
+        +vdField('Designation',     v.designation)
+        +vdField('Phone',           v.phone)
+        +vdField('Email',           v.email)
+        +vdField('WhatsApp',        v.whatsapp)
+        +vdField('Address',         v.address, true)
+        +vdField('City',            v.city)
+      +'</div>'
+    +'</div>';
+
+    // Categories
+    html += '<div class="vd-section">'
+      +'<div class="vd-section-hd">🏗 Categories &amp; Service</div>'
+      +'<div class="vd-section-bd" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
+        +vdField('Primary trade',  cat.name+' '+cat.icon)
+        +vdField('Sub-trades',     (v.subTrades||[]).join(', ')||'—')
+        +vdField('Service areas',  (v.serviceAreas||[]).join(', ')||'—', true)
+        +vdField('Base rate (market)', cat.baseRate, true)
+      +'</div>'
+    +'</div>';
+
+    // Compliance
+    html += '<div class="vd-section">'
+      +'<div class="vd-section-hd">📋 Compliance</div>'
+      +'<div class="vd-section-bd" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">'
+        +vdField('GSTIN',       v.gstin)
+        +vdField('PAN',         v.pan)
+        +vdField('MSME / Udyam', v.msmeUdyam)
+      +'</div>'
+    +'</div>';
+
+    // Capacity
+    html += '<div class="vd-section">'
+      +'<div class="vd-section-hd">⚙ Capacity</div>'
+      +'<div class="vd-section-bd" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">'
+        +vdField('Team size', v.teamSize?v.teamSize+' people':'—')
+        +vdField('Concurrent jobs', v.concurrentJobs?v.concurrentJobs+' max':'—')
+        +vdField('Typical project size', v.typicalProjectSize)
+      +'</div>'
+    +'</div>';
+
+    // Documents & References
+    html += '<div class="vd-section">'
+      +'<div class="vd-section-hd">📎 Documents &amp; References</div>'
+      +'<div class="vd-section-bd" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
+        +vdField('Sample work',  v.sampleWorkUrl?'<a href="'+v.sampleWorkUrl+'" target="_blank" style="color:var(--gold)">'+v.sampleWorkUrl+'</a>':'—', true)
+        +vdField('Quote PDF',    v.quotePdfUrl?'<a href="'+v.quotePdfUrl+'" target="_blank" style="color:var(--gold)">'+v.quotePdfUrl+'</a>':'—', true)
+        +vdField('References',   v.references, true)
+        +vdField('Notes',        v.notes, true)
+      +'</div>'
+    +'</div>';
+
+    // Status
+    html += '<div class="vd-section">'
+      +'<div class="vd-section-hd">📅 Status</div>'
+      +'<div class="vd-section-bd" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">'
+        +vdField('Status',        '<span class="vd-status-dot '+v.status+'" style="display:inline-block;margin-right:5px"></span>'+v.status)
+        +vdField('Last engaged',  v.lastEngaged?caFmtDate(v.lastEngaged):'—')
+        +vdField('Next followup', v.nextFollowup?caFmtDate(v.nextFollowup):'—')
+      +'</div>'
+    +'</div>';
+  }
+
+  if(_vendorActiveTab==='rates'){
+    html += '<div class="vd-section">'
+      +'<div class="vd-section-hd">💰 Rate sheet'
+        +(canSchedule()?'<button class="btn bp bsm" style="margin-left:auto;font-size:9px" onclick="addVendorRate(\''+v.id+'\')">+ Add Rate</button>':'')
+      +'</div>'
+      +'<div class="vd-section-bd">';
+    if(!(v.rates||[]).length){
+      html += '<div style="text-align:center;color:var(--txd);font-family:var(--fm);font-size:10px;padding:20px">No rates recorded yet. Add specific items and rates this vendor charges.<br><br><span style="color:var(--txm)">Indian market base rate for this category: <b style="color:var(--gold)">'+cat.baseRate+'</b></span></div>';
+    } else {
+      html += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;padding:0 10px;margin-bottom:6px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em"><div>Item</div><div>Rate (₹)</div><div>Unit</div><div>Updated</div><div></div></div>';
+      v.rates.forEach((r,i)=>{
+        html += '<div class="vd-rate-row">'
+          +'<div style="font-size:11px">'+r.item+'</div>'
+          +'<div style="font-family:var(--fm);font-size:11px;color:var(--gold);font-weight:600">₹'+(r.rate?Number(r.rate).toLocaleString('en-IN'):'—')+'</div>'
+          +'<div style="font-family:var(--fm);font-size:10px;color:var(--txm)">'+r.unit+'</div>'
+          +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+(r.lastUpdated?caFmtDate(r.lastUpdated):'—')+'</div>'
+          +(canSchedule()?'<button onclick="event.stopPropagation();deleteVendorRate(\''+v.id+'\',\''+r.id+'\')" title="Remove" style="background:transparent;border:none;color:var(--txd);cursor:pointer;font-size:14px">×</button>':'<div></div>')
+        +'</div>';
+      });
+      html += '<div style="margin-top:10px;padding:8px 10px;background:rgba(82,133,224,.06);border-radius:6px;font-family:var(--fm);font-size:9px;color:var(--blu)">Market reference: <b>'+cat.baseRate+'</b></div>';
+    }
+    html += '</div></div>';
+  }
+
+  if(_vendorActiveTab==='reviews'){
+    html += '<div class="vd-section">'
+      +'<div class="vd-section-hd">⭐ Reviews ('+(v.reviews?.length||0)+')'
+        +(canSchedule()?'<button class="btn bp bsm" style="margin-left:auto;font-size:9px" onclick="openVendorReviewModal(\''+v.id+'\')">+ Add Review</button>':'')
+      +'</div>'
+      +'<div class="vd-section-bd">';
+    if(!(v.reviews||[]).length){
+      html += '<div style="text-align:center;color:var(--txd);font-family:var(--fm);font-size:10px;padding:20px">No reviews yet. After working with this vendor on a project, add a review with quality, timeliness, and pricing scores.</div>';
+    } else {
+      // Aggregate
+      const aggQ = v.reviews.reduce((s,r)=>s+(r.qualityScore||0),0)/v.reviews.length;
+      const aggT = v.reviews.reduce((s,r)=>s+(r.timelinessScore||0),0)/v.reviews.length;
+      const aggP = v.reviews.reduce((s,r)=>s+(r.pricingScore||0),0)/v.reviews.length;
+      html += '<div style="display:flex;gap:14px;padding:10px 12px;background:var(--sf2);border-radius:6px;margin-bottom:10px">'
+        +'<div><div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase">Quality</div><div style="font-size:18px;font-weight:600;color:var(--gold)">'+aggQ.toFixed(1)+'</div></div>'
+        +'<div><div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase">Timeliness</div><div style="font-size:18px;font-weight:600;color:var(--gold)">'+aggT.toFixed(1)+'</div></div>'
+        +'<div><div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase">Pricing</div><div style="font-size:18px;font-weight:600;color:var(--gold)">'+aggP.toFixed(1)+'</div></div>'
+        +'<div style="margin-left:auto"><div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase">Overall</div><div style="font-size:18px;font-weight:600;color:var(--grn)">'+vdAvgRating(v).toFixed(1)+' / 5</div></div>'
+      +'</div>';
+      v.reviews.slice().sort((a,b)=>(b.reviewedDate||'').localeCompare(a.reviewedDate||'')).forEach(r=>{
+        const proj = PROJS.find(p=>p.id===r.projId);
+        html += '<div class="vd-review-row">'
+          +'<div style="display:flex;justify-content:space-between;align-items:start;gap:8px">'
+            +'<div>'
+              +'<div style="font-size:11px;font-weight:600;color:'+(proj?proj.color:'var(--txd)')+'">'+(proj?proj.name:'(Project removed)')+'</div>'
+              +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+caFmtDate(r.reviewedDate)+' · by '+caStaffName(r.reviewedBy)+'</div>'
+            +'</div>'
+            +(canSchedule()?'<button onclick="deleteVendorReview(\''+v.id+'\',\''+r.id+'\')" style="background:transparent;border:none;color:var(--txd);cursor:pointer;font-size:14px">×</button>':'')
+          +'</div>'
+          +'<div class="vd-review-scores"><span class="vd-score">Quality<b>'+(r.qualityScore||0)+'</b></span><span class="vd-score">Timeliness<b>'+(r.timelinessScore||0)+'</b></span><span class="vd-score">Pricing<b>'+(r.pricingScore||0)+'</b></span></div>'
+          +(r.notes?'<div style="font-size:10px;color:var(--txm);margin-top:6px;padding-top:6px;border-top:1px solid var(--bd);line-height:1.5">'+r.notes+'</div>':'')
+        +'</div>';
+      });
+    }
+    html += '</div></div>';
+  }
+
+  if(_vendorActiveTab==='linked'){
+    html += '<div class="vd-section">'
+      +'<div class="vd-section-hd">🏗 Linked Projects ('+linked.length+')</div>'
+      +'<div class="vd-section-bd">';
+    if(!linked.length){
+      html += '<div style="text-align:center;color:var(--txd);font-family:var(--fm);font-size:10px;padding:20px">No projects linked yet.<br><br>Projects auto-link when this vendor\'s name appears in:<br>• Site visit contractor name<br>• RFI directed-to<br>• Snag contractor<br>• Architect\'s instructions issued-to</div>';
+    } else {
+      linked.forEach(pid=>{
+        const p = PROJS.find(x=>x.id===pid);
+        if(!p) return;
+        const rfiCount = CA_RFIS.filter(r=>r.projId===pid && (r.directedTo||'').toLowerCase().includes((v.companyName||'').toLowerCase())).length;
+        const svrCount = CA_SVR.filter(r=>r.projId===pid && (r.contractorName||'').toLowerCase().includes((v.companyName||'').toLowerCase())).length;
+        const snagCount = CA_SNAGS.filter(r=>r.projId===pid && (r.contractor||'').toLowerCase().includes((v.companyName||'').toLowerCase())).length;
+        html += '<div style="padding:10px 12px;background:var(--sf2);border:1px solid var(--bd);border-radius:6px;margin-bottom:6px;cursor:pointer" onclick="selectProj(\''+pid+'\');go(\'drawings\',null)">'
+          +'<div style="display:flex;align-items:center;gap:8px">'
+            +'<div style="width:8px;height:8px;border-radius:50%;background:'+(p.color||'var(--gold)')+';flex-shrink:0"></div>'
+            +'<div style="flex:1"><div style="font-size:12px;font-weight:600">'+p.name+'</div>'
+            +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+p.client+'</div></div>'
+            +'<div style="font-family:var(--fm);font-size:9px;color:var(--txm);display:flex;gap:8px">'
+              +(svrCount?'<span>'+svrCount+' SVR</span>':'')
+              +(rfiCount?'<span>'+rfiCount+' RFI</span>':'')
+              +(snagCount?'<span>'+snagCount+' Snag</span>':'')
+            +'</div>'
+            +'<span style="color:var(--txd)">→</span>'
+          +'</div>'
+        +'</div>';
+      });
+    }
+    html += '</div></div>';
+  }
+
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+/* ── HELPER: render a labeled field ──────────────────────── */
+function vdField(label, value, fullWidth){
+  const v = value || '<span style="color:var(--txd)">—</span>';
+  return '<div'+(fullWidth?' style="grid-column:1/-1"':'')+'>'
+    +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">'+label+'</div>'
+    +'<div style="font-size:12px;color:var(--tx);line-height:1.5">'+v+'</div>'
+  +'</div>';
+}
+
+/* ── ADD/EDIT VENDOR MODAL ─────────────────────────────── */
+function openVendorEdit(id){
+  const ex=document.getElementById('vendor-edit-ov');if(ex)ex.remove();
+  const v = id ? VENDORS.find(x=>x.id===id) : null;
+  const isEdit = !!v;
+  const div=document.createElement('div');div.id='vendor-edit-ov';div.className='ov show';
+  const catOpts = VENDOR_CATEGORIES.map(c=>'<option value="'+c.id+'" '+((v?.primaryCategory||'civil')===c.id?'selected':'')+'>'+c.icon+' '+c.name+'</option>').join('');
+  const cat = vdGetCategory(v?.primaryCategory);
+
+  div.innerHTML='<div class="modal" style="max-width:680px">'
+    +'<button class="mclose" onclick="closeModal(\'vendor-edit-ov\')">✕</button>'
+    +'<div class="mtitle">'+(isEdit?'Edit Vendor':'New Vendor')+'</div>'
+
+    // Identity
+    +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px">📇 Identity &amp; Contact</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Company Name *</label><input class="finp" id="vd-companyName" value="'+(v?.companyName||'')+'" placeholder="ABC Constructions Pvt Ltd"></div>'
+      +'<div class="frow"><label class="flbl">Contact Person</label><input class="finp" id="vd-contactPerson" value="'+(v?.contactPerson||'')+'" placeholder="Mr. Rajesh Kumar"></div>'
+      +'<div class="frow"><label class="flbl">Designation</label><input class="finp" id="vd-designation" value="'+(v?.designation||'')+'" placeholder="Proprietor / Site Engineer"></div>'
+      +'<div class="frow"><label class="flbl">Phone</label><input class="finp" id="vd-phone" value="'+(v?.phone||'')+'" placeholder="+91 98765 43210"></div>'
+      +'<div class="frow"><label class="flbl">Email</label><input class="finp" id="vd-email" value="'+(v?.email||'')+'" placeholder="contact@company.com"></div>'
+      +'<div class="frow"><label class="flbl">WhatsApp</label><input class="finp" id="vd-whatsapp" value="'+(v?.whatsapp||'')+'" placeholder="+91 98765 43210"></div>'
+    +'</div>'
+    +'<div class="frow"><label class="flbl">Address</label><textarea class="ftarea" id="vd-address" rows="2" placeholder="Street address, locality">'+(v?.address||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl">City</label><input class="finp" id="vd-city" value="'+(v?.city||'')+'" placeholder="Chennai"></div>'
+
+    // Categories
+    +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px">🏗 Trade &amp; Service Area</div>'
+    +'<div class="frow"><label class="flbl">Primary Category *</label><select class="fsel" id="vd-primaryCategory" onchange="vdRefreshSubTrades()">'+catOpts+'</select>'
+      +'<div style="font-family:var(--fm);font-size:9px;color:var(--blu);margin-top:3px" id="vd-baseRate">Market base: <b>'+cat.baseRate+'</b></div>'
+    +'</div>'
+    +'<div class="frow"><label class="flbl">Sub-trades (multi-select)</label>'
+      +'<div id="vd-subTradesBox" style="display:flex;flex-wrap:wrap;gap:5px;padding:8px;background:var(--sf3);border:1px solid var(--bd);border-radius:6px;min-height:38px">'
+      +cat.subTrades.map(st=>{
+        const checked=(v?.subTrades||[]).includes(st);
+        return '<label style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:4px 8px;border-radius:4px;background:var(--sf2);border:1px solid '+(checked?'var(--gold)':'var(--bd)')+'">'
+          +'<input type="checkbox" value="'+st+'" '+(checked?'checked':'')+' class="vd-subTrade-cb">'+st+'</label>';
+      }).join('')
+      +'</div>'
+    +'</div>'
+    +'<div class="frow"><label class="flbl">Service Areas (cities, comma-separated)</label><input class="finp" id="vd-serviceAreas" value="'+((v?.serviceAreas||[]).join(', '))+'" placeholder="Chennai, Bangalore, Hyderabad"></div>'
+
+    // Compliance
+    +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px">📋 Compliance</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">GSTIN</label><input class="finp" id="vd-gstin" value="'+(v?.gstin||'')+'" placeholder="33ABCDE1234F1Z5"></div>'
+      +'<div class="frow"><label class="flbl">PAN</label><input class="finp" id="vd-pan" value="'+(v?.pan||'')+'" placeholder="ABCDE1234F"></div>'
+      +'<div class="frow"><label class="flbl">MSME / Udyam</label><input class="finp" id="vd-msmeUdyam" value="'+(v?.msmeUdyam||'')+'" placeholder="UDYAM-XX-NN-NNNNNNN"></div>'
+    +'</div>'
+
+    // Capacity
+    +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px">⚙ Capacity</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Team Size</label><input class="finp" type="number" min="0" id="vd-teamSize" value="'+(v?.teamSize||'')+'" placeholder="15"></div>'
+      +'<div class="frow"><label class="flbl">Concurrent Jobs</label><input class="finp" type="number" min="0" id="vd-concurrentJobs" value="'+(v?.concurrentJobs||'')+'" placeholder="3"></div>'
+      +'<div class="frow"><label class="flbl">Typical Project Size</label><input class="finp" id="vd-typicalProjectSize" value="'+(v?.typicalProjectSize||'')+'" placeholder="₹50L–2Cr"></div>'
+    +'</div>'
+
+    // Documents & Status
+    +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px">📎 Documents &amp; Status</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Sample Work URL</label><input class="finp" id="vd-sampleWorkUrl" value="'+(v?.sampleWorkUrl||'')+'" placeholder="https://drive.google.com/…"></div>'
+      +'<div class="frow"><label class="flbl">Quote PDF URL</label><input class="finp" id="vd-quotePdfUrl" value="'+(v?.quotePdfUrl||'')+'" placeholder="https://drive.google.com/…"></div>'
+    +'</div>'
+    +'<div class="frow"><label class="flbl">References (other architects who recommended)</label><input class="finp" id="vd-references" value="'+(v?.references||'')+'" placeholder="Recommended by Studio X, used on Project Y"></div>'
+    +'<div class="frow"><label class="flbl">Notes</label><textarea class="ftarea" id="vd-notes" rows="2" placeholder="Anything else worth remembering">'+(v?.notes||'')+'</textarea></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Status</label><select class="fsel" id="vd-status">'
+        +'<option value="active" '+((v?.status||'active')==='active'?'selected':'')+'>🟢 Active</option>'
+        +'<option value="onhold" '+(v?.status==='onhold'?'selected':'')+'>🟡 On Hold</option>'
+        +'<option value="blacklisted" '+(v?.status==='blacklisted'?'selected':'')+'>🔴 Blacklisted</option>'
+      +'</select></div>'
+      +'<div class="frow"><label class="flbl">Last Engaged</label><input class="finp" type="date" id="vd-lastEngaged" value="'+(v?.lastEngaged||'')+'"></div>'
+      +'<div class="frow"><label class="flbl">Next Followup</label><input class="finp" type="date" id="vd-nextFollowup" value="'+(v?.nextFollowup||'')+'"></div>'
+    +'</div>'
+
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+      +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="saveVendor('+(isEdit?'\''+id+'\'':"''")+')">'+(isEdit?'💾 Save Changes':'✓ Create Vendor')+'</button>'
+      +(isEdit?'<button class="btn bg" style="background:rgba(224,82,82,.15);color:var(--red);border-color:rgba(224,82,82,.3)" onclick="deleteVendor(\''+id+'\')">🗑 Delete</button>':'')
+      +'<button class="btn bg" onclick="closeModal(\'vendor-edit-ov\')">Cancel</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(div);
+}
+
+/* When the primary category changes, refresh the sub-trade options.
+   Preserves any currently-checked sub-trades that are also valid in
+   the new category — only sub-trades that don't exist in the new
+   category list are dropped. Prevents silent data loss. */
+function vdRefreshSubTrades(){
+  const catId = document.getElementById('vd-primaryCategory')?.value || 'civil';
+  const cat = vdGetCategory(catId);
+  const box = document.getElementById('vd-subTradesBox');
+  const baseRate = document.getElementById('vd-baseRate');
+  // Capture currently-checked sub-trades before we replace the markup
+  const previouslyChecked = new Set(
+    Array.from(document.querySelectorAll('.vd-subTrade-cb:checked')).map(cb=>cb.value)
+  );
+  if(box){
+    box.innerHTML = cat.subTrades.map(st=>{
+      const checked = previouslyChecked.has(st);
+      return '<label style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:4px 8px;border-radius:4px;background:var(--sf2);border:1px solid '+(checked?'var(--gold)':'var(--bd)')+'" id="vd-stl-'+st.replace(/[^a-z0-9]/gi,'_')+'">'
+        +'<input type="checkbox" value="'+st+'" '+(checked?'checked':'')+' class="vd-subTrade-cb" onchange="this.parentNode.style.borderColor=this.checked?\'var(--gold)\':\'var(--bd)\'">'+st+'</label>';
+    }).join('');
+  }
+  if(baseRate) baseRate.innerHTML = 'Market base: <b>'+cat.baseRate+'</b>';
+}
+
+function saveVendor(editId){
+  const companyName = document.getElementById('vd-companyName')?.value.trim();
+  if(!companyName){ showNotif('Company name required',''); return; }
+
+  const subTrades = Array.from(document.querySelectorAll('.vd-subTrade-cb:checked')).map(cb=>cb.value);
+  const serviceAreasRaw = (document.getElementById('vd-serviceAreas')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+
+  const existing = editId ? VENDORS.find(x=>x.id===editId) : null;
+  const entry = {
+    id: editId || ('VND-'+Date.now()),
+    companyName,
+    contactPerson: document.getElementById('vd-contactPerson')?.value || '',
+    designation:   document.getElementById('vd-designation')?.value || '',
+    phone:         document.getElementById('vd-phone')?.value || '',
+    email:         document.getElementById('vd-email')?.value || '',
+    whatsapp:      document.getElementById('vd-whatsapp')?.value || '',
+    address:       document.getElementById('vd-address')?.value || '',
+    city:          document.getElementById('vd-city')?.value || '',
+    primaryCategory: document.getElementById('vd-primaryCategory')?.value || 'civil',
+    subTrades,
+    serviceAreas:  serviceAreasRaw,
+    gstin:         document.getElementById('vd-gstin')?.value || '',
+    pan:           document.getElementById('vd-pan')?.value || '',
+    msmeUdyam:     document.getElementById('vd-msmeUdyam')?.value || '',
+    teamSize:      parseInt(document.getElementById('vd-teamSize')?.value) || 0,
+    concurrentJobs:parseInt(document.getElementById('vd-concurrentJobs')?.value) || 0,
+    typicalProjectSize: document.getElementById('vd-typicalProjectSize')?.value || '',
+    sampleWorkUrl: document.getElementById('vd-sampleWorkUrl')?.value || '',
+    quotePdfUrl:   document.getElementById('vd-quotePdfUrl')?.value || '',
+    references:    document.getElementById('vd-references')?.value || '',
+    notes:         document.getElementById('vd-notes')?.value || '',
+    status:        document.getElementById('vd-status')?.value || 'active',
+    lastEngaged:   document.getElementById('vd-lastEngaged')?.value || '',
+    nextFollowup:  document.getElementById('vd-nextFollowup')?.value || '',
+    rates:         existing?.rates    || [],
+    reviews:       existing?.reviews  || [],
+    linkedProjectIds: existing?.linkedProjectIds || [],
+    createdBy:     existing?.createdBy || CURRENT_USER_ID,
+    createdAt:     existing?.createdAt || new Date().toISOString()
+  };
+
+  if(editId){
+    const idx = VENDORS.findIndex(x=>x.id===editId);
+    if(idx>=0) VENDORS[idx] = entry; else VENDORS.push(entry);
+    addAudit('vendor','Vendor updated', companyName);
+  } else {
+    VENDORS.push(entry);
+    addAudit('vendor','Vendor created', companyName);
+  }
+  scheduleSave();
+  closeModal('vendor-edit-ov');
+  // Refresh view
+  if(_activeVendorId === editId){ renderCAVendors(); } else { renderVendorList(); }
+  showNotif('Vendor saved', companyName);
+}
+
+function deleteVendor(id){
+  const v = VENDORS.find(x=>x.id===id); if(!v) return;
+  if(!confirm('Delete vendor '+v.companyName+'? This will also remove all reviews and rates. This cannot be undone.')) return;
+  VENDORS = VENDORS.filter(x=>x.id!==id);
+  addAudit('vendor','Vendor deleted', v.companyName);
+  scheduleSave();
+  closeModal('vendor-edit-ov');
+  _activeVendorId = null;
+  renderCAVendors();
+  showNotif('Vendor deleted', v.companyName);
+}
+
+/* ── RATE SHEET ───────────────────────────────────────── */
+function addVendorRate(vendorId){
+  const v = VENDORS.find(x=>x.id===vendorId); if(!v) return;
+  const ex=document.getElementById('vendor-rate-ov');if(ex)ex.remove();
+  const div=document.createElement('div');div.id='vendor-rate-ov';div.className='ov show';
+  const unitOpts = VENDOR_RATE_UNITS.map(u=>'<option value="'+u+'">'+u+'</option>').join('');
+  div.innerHTML='<div class="modal" style="max-width:480px">'
+    +'<button class="mclose" onclick="closeModal(\'vendor-rate-ov\')">✕</button>'
+    +'<div class="mtitle">+ Add Rate for '+v.companyName+'</div>'
+    +'<div class="frow"><label class="flbl">Item / Description</label><input class="finp" id="rate-item" placeholder="e.g. RCC slab work, false ceiling installation"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Rate (₹)</label><input class="finp" type="number" id="rate-rate" min="0" step="any" placeholder="850"></div>'
+      +'<div class="frow"><label class="flbl">Unit</label><select class="fsel" id="rate-unit">'+unitOpts+'</select></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:8px">'
+      +'<button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveVendorRate(\''+vendorId+'\')">✓ Add Rate</button>'
+      +'<button class="btn bg" onclick="closeModal(\'vendor-rate-ov\')">Cancel</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(div);
+}
+function saveVendorRate(vendorId){
+  const v = VENDORS.find(x=>x.id===vendorId); if(!v) return;
+  const item = document.getElementById('rate-item')?.value.trim();
+  const rate = parseFloat(document.getElementById('rate-rate')?.value);
+  const unit = document.getElementById('rate-unit')?.value;
+  if(!item || !rate){ showNotif('Item and rate required',''); return; }
+  if(!Array.isArray(v.rates)) v.rates = [];
+  v.rates.push({id:'RT-'+Date.now(), item, rate, unit, lastUpdated: caToday()});
+  scheduleSave();
+  closeModal('vendor-rate-ov');
+  renderCAVendors();
+  showNotif('Rate added', item+' · ₹'+rate+' '+unit);
+}
+function deleteVendorRate(vendorId, rateId){
+  const v = VENDORS.find(x=>x.id===vendorId); if(!v) return;
+  if(!confirm('Remove this rate?')) return;
+  v.rates = (v.rates||[]).filter(r=>r.id!==rateId);
+  scheduleSave();
+  renderCAVendors();
+}
+
+/* ── REVIEW MODAL ─────────────────────────────────────── */
+function openVendorReviewModal(vendorId){
+  const v = VENDORS.find(x=>x.id===vendorId); if(!v) return;
+  const ex=document.getElementById('vendor-rev-ov');if(ex)ex.remove();
+  const div=document.createElement('div');div.id='vendor-rev-ov';div.className='ov show';
+  const projOpts = '<option value="">— Select project —</option>'+PROJS.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join('');
+
+  div.innerHTML='<div class="modal" style="max-width:520px">'
+    +'<button class="mclose" onclick="closeModal(\'vendor-rev-ov\')">✕</button>'
+    +'<div class="mtitle">⭐ Review '+v.companyName+'</div>'
+    +'<div class="frow"><label class="flbl">Project worked on *</label><select class="fsel" id="rv-projId">'+projOpts+'</select></div>'
+
+    +'<div style="background:var(--sf3);border-radius:8px;padding:12px 14px;margin:8px 0">'
+      +vdScoreInput('rv-quality',    'Quality',    'Workmanship, finish, attention to detail')
+      +vdScoreInput('rv-timeliness', 'Timeliness', 'Met deadlines, dependable presence on site')
+      +vdScoreInput('rv-pricing',    'Pricing',    'Value for money, fairness of quotes, no surprise extras')
+    +'</div>'
+
+    +'<div class="frow"><label class="flbl">Notes</label><textarea class="ftarea" id="rv-notes" rows="3" placeholder="Specific feedback for future reference — strengths, weaknesses, things to watch for…"></textarea></div>'
+
+    +'<div style="display:flex;gap:8px;margin-top:8px">'
+      +'<button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveVendorReview(\''+vendorId+'\')">✓ Save Review</button>'
+      +'<button class="btn bg" onclick="closeModal(\'vendor-rev-ov\')">Cancel</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(div);
+}
+function vdScoreInput(id, label, hint){
+  let h = '<div style="margin-bottom:10px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+      +'<div style="font-family:var(--fm);font-size:10px;color:var(--tx);font-weight:700">'+label+'</div>'
+      +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+hint+'</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:4px" id="'+id+'-stars">';
+  for(let i=1;i<=5;i++){
+    h += '<button onclick="vdSetScore(\''+id+'\','+i+')" data-score="'+i+'" style="background:var(--sf2);border:1px solid var(--bd);color:var(--bd2);width:36px;height:36px;border-radius:6px;font-size:16px;cursor:pointer">★</button>';
+  }
+  h += '</div><input type="hidden" id="'+id+'" value="0"></div>';
+  return h;
+}
+function vdSetScore(prefix, score){
+  document.getElementById(prefix).value = score;
+  const stars = document.getElementById(prefix+'-stars').children;
+  for(let i=0;i<stars.length;i++){
+    if(i<score){ stars[i].style.color='var(--gold)'; stars[i].style.background='rgba(201,169,110,.15)'; stars[i].style.borderColor='var(--gold)'; }
+    else { stars[i].style.color='var(--bd2)'; stars[i].style.background='var(--sf2)'; stars[i].style.borderColor='var(--bd)'; }
+  }
+}
+function saveVendorReview(vendorId){
+  const v = VENDORS.find(x=>x.id===vendorId); if(!v) return;
+  const projId = document.getElementById('rv-projId')?.value;
+  const q = parseInt(document.getElementById('rv-quality')?.value) || 0;
+  const t = parseInt(document.getElementById('rv-timeliness')?.value) || 0;
+  const p = parseInt(document.getElementById('rv-pricing')?.value) || 0;
+  if(!projId){ showNotif('Project required',''); return; }
+  if(!q || !t || !p){ showNotif('All 3 scores required','Click stars to rate Quality, Timeliness, Pricing'); return; }
+  if(!Array.isArray(v.reviews)) v.reviews = [];
+  v.reviews.push({
+    id: 'RV-'+Date.now(),
+    projId,
+    qualityScore: q,
+    timelinessScore: t,
+    pricingScore: p,
+    notes: document.getElementById('rv-notes')?.value || '',
+    reviewedBy: CURRENT_USER_ID,
+    reviewedDate: caToday()
+  });
+  // Auto-link the project
+  if(!Array.isArray(v.linkedProjectIds)) v.linkedProjectIds = [];
+  if(!v.linkedProjectIds.includes(projId)) v.linkedProjectIds.push(projId);
+  v.lastEngaged = v.lastEngaged || caToday();
+  addAudit('vendor','Review added', v.companyName+' on '+(PROJS.find(x=>x.id===projId)?.name||projId));
+  scheduleSave();
+  closeModal('vendor-rev-ov');
+  renderCAVendors();
+  showNotif('Review saved', v.companyName);
+}
+function deleteVendorReview(vendorId, reviewId){
+  const v = VENDORS.find(x=>x.id===vendorId); if(!v) return;
+  if(!confirm('Delete this review?')) return;
+  v.reviews = (v.reviews||[]).filter(r=>r.id!==reviewId);
+  scheduleSave();
+  renderCAVendors();
+}
+
 /* ── POPULATE PROJECT FILTER ─────────────────────────────── */
 function populateCAProjectFilter(){
   const sel=document.getElementById('ca-proj-filter'); if(!sel) return;
@@ -17072,6 +18046,9 @@ function switchCAModule(mod, el){
   _caModule=mod;
   document.querySelectorAll('.ca-nav-item').forEach(n=>n.classList.remove('on'));
   if(el) el.classList.add('on');
+  // Hide the project filter on Vendors tab — vendors are firm-wide, not project-scoped
+  const projWrap = document.getElementById('ca-proj-filter-wrap');
+  if(projWrap) projWrap.style.display = (mod === 'vendor') ? 'none' : '';
   renderCA();
 }
 
@@ -17079,11 +18056,12 @@ function switchCAModule(mod, el){
 function renderCA(){
   updateCABadges();
   switch(_caModule){
-    case 'svr':  renderCASVR(); break;
-    case 'rfi':  renderCARFI(); break;
-    case 'sub':  renderCASUB(); break;
-    case 'snag': renderCASnag(); break;
-    case 'ai':   renderCAAI(); break;
+    case 'svr':    renderCASVR(); break;
+    case 'rfi':    renderCARFI(); break;
+    case 'sub':    renderCASUB(); break;
+    case 'snag':   renderCASnag(); break;
+    case 'ai':     renderCAAI(); break;
+    case 'vendor': renderCAVendors(); break;
   }
 }
 
@@ -17107,6 +18085,10 @@ function updateCABadges(){
   setBdg('ca-bdg-sub', subArr.length, true);
   setBdg('ca-bdg-snag', snagArr.filter(r=>r.priority==='critical').length, false);
   setBdg('ca-bdg-ai', aiArr.length, true);
+  // Vendor badge: shows count of vendors needing followup (followup date today or past)
+  const today = caToday();
+  const followupDue = (VENDORS||[]).filter(v=>v.status==='active' && v.nextFollowup && v.nextFollowup <= today).length;
+  setBdg('ca-bdg-vendor', followupDue, true);
 
   // Top nav badge — total critical items
   const total=overdueRfis.length+snagArr.filter(r=>r.priority==='critical').length;
@@ -17775,6 +18757,25 @@ function saveCASVR(editId){
 }
 
 /* ── NEW RFI ────────────────────────────────────────────── */
+/* ── Refresh drawings dropdown when project changes ──────
+   Wired to onchange of the project dropdown in the RFI modal.
+   Without this, the drawings list stays scoped to the originally-
+   selected project, allowing broken cross-references. */
+function refreshRFIDrawings(){
+  const projSel = document.getElementById('rfi-proj');
+  const drwSel  = document.getElementById('rfi-drws');
+  if(!projSel || !drwSel) return;
+  const projId = projSel.value;
+  // Preserve any already-selected drawing IDs (in case user is editing)
+  const prevSelected = Array.from(drwSel.selectedOptions).map(o=>o.value);
+  const filtered = DRAWINGS.filter(d=>d.proj===projId);
+  drwSel.innerHTML = '<option value="">— None —</option>'
+    + filtered.map(d=>{
+        const sel = prevSelected.includes(d.id) ? ' selected' : '';
+        return '<option value="'+d.id+'"'+sel+'>'+d.id+' — '+(d.title||'').slice(0,40)+'</option>';
+      }).join('');
+}
+
 function openCARFIModal(id){
   const ex=document.getElementById('ca-rfi-ov');if(ex)ex.remove();
   const r=id?CA_RFIS.find(x=>x.id===id):null;
@@ -18512,6 +19513,7 @@ function clearDemoData(){
   PROJS=[]; DRAWINGS=[]; TS_ENTRIES=[]; SCHED_TASKS=[]; MEETINGS=[];
   PIPELINE=[]; DRW_PACKAGES=[]; SENT_EMAILS=[]; NOTIFICATIONS=[];
   TRANSMITTALS=[]; VISUALS=[]; INVOICES=[];
+  CA_SVR=[]; CA_RFIS=[]; CA_SUBMITTALS=[]; CA_SNAGS=[]; CA_AIS=[]; VENDORS=[];
   STAFF = STAFF.filter(s=>s.id===CURRENT_USER_ID);
   scheduleSave();
   renderDashboard(); renderProjList(); renderDrawings();
