@@ -1243,9 +1243,96 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 .firm-logo-preview{width:64px;height:64px;border-radius:12px;border:2px dashed var(--bd2);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;font-size:28px;background:var(--sf2);flex-shrink:0;transition:border-color .15s}
 .firm-logo-preview:hover{border-color:var(--gold)}
 .firm-logo-preview img{width:100%;height:100%;object-fit:contain}
+
+/* ── CONSTRUCTION ADMINISTRATION ───────────────────────── */
+.ca-layout{display:flex;gap:0;height:calc(100vh - var(--hh) - 32px);min-height:600px;overflow:hidden}
+.ca-sidebar{width:180px;flex-shrink:0;background:var(--sf2);border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow-y:auto}
+.ca-main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.ca-nav-item{display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:11px;font-weight:500;color:var(--txm);border-left:3px solid transparent;transition:all .12s;white-space:nowrap}
+.ca-nav-item:hover{background:var(--sf3);color:var(--tx)}
+.ca-nav-item.on{background:rgba(82,133,224,.08);border-left-color:var(--blu);color:var(--blu)}
+.ca-nav-item .ca-nbdg{margin-left:auto;font-family:var(--fm);font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;background:var(--red);color:#fff}
+.ca-nav-item .ca-nbdg.warn{background:var(--gold);color:#0a0a0f}
+.ca-toolbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--bd2);flex-wrap:wrap;flex-shrink:0;background:var(--sf)}
+.ca-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.ca-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 14px;border-bottom:1px solid var(--bd)}
+.ca-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
+.ca-row:hover{background:var(--sf2)}
+.ca-row-num{font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);min-width:64px;flex-shrink:0}
+.ca-row-title{flex:1;min-width:0}
+.ca-row-title .ca-rtitle{font-size:11px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ca-row-title .ca-rsub{font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ca-status{font-family:var(--fm);font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;flex-shrink:0;white-space:nowrap}
+.ca-st-open{background:rgba(82,133,224,.12);color:var(--blu)}
+.ca-st-pending{background:rgba(240,201,122,.15);color:var(--gold)}
+.ca-st-closed{background:rgba(82,201,122,.12);color:var(--grn)}
+.ca-st-overdue{background:rgba(224,82,82,.12);color:var(--red)}
+.ca-st-approved{background:rgba(82,201,122,.12);color:var(--grn)}
+.ca-st-rejected{background:rgba(224,82,82,.12);color:var(--red)}
+.ca-st-resubmit{background:rgba(240,201,122,.15);color:var(--gold)}
+.ca-proj-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ca-drw-badge{font-family:var(--fm);font-size:7px;font-weight:700;padding:1px 4px;border-radius:3px;background:rgba(82,133,224,.15);color:var(--blu);margin-left:3px;cursor:pointer;white-space:nowrap}
+.ca-drw-badge.red{background:rgba(224,82,82,.15);color:var(--red)}
+
+/* ── GROUPED PROJECT SECTIONS (RFI Log + Transmittals) ── */
+.gp-urgent-banner{background:rgba(224,82,82,.06);border:1px solid rgba(224,82,82,.25);border-radius:8px;padding:10px 14px;margin:0 14px 12px}
+.gp-urgent-title{font-family:var(--fm);font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.gp-urgent-row{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--sf2);border-radius:6px;margin-top:4px;cursor:pointer;transition:background .12s;border:1px solid transparent}
+.gp-urgent-row:hover{background:var(--sf3);border-color:rgba(224,82,82,.2)}
+.gp-urgent-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.gp-urgent-num{font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);min-width:62px;flex-shrink:0}
+.gp-urgent-ttl{flex:1;min-width:0;font-size:11px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gp-urgent-proj{font-family:var(--fm);font-size:9px;font-weight:700;flex-shrink:0;margin-right:6px}
+.gp-urgent-due{font-family:var(--fm);font-size:9px;font-weight:700;flex-shrink:0;padding:2px 7px;border-radius:5px}
+.gp-urgent-due.today{background:rgba(224,82,82,.18);color:var(--red)}
+.gp-urgent-due.tomorrow{background:rgba(240,201,122,.2);color:var(--gold)}
+.gp-urgent-due.soon{background:rgba(82,133,224,.15);color:var(--blu)}
+.gp-urgent-due.overdue{background:rgba(224,82,82,.25);color:#fff}
+
+.gp-section{margin:0 14px 8px;background:var(--sf);border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.gp-section-hd{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--sf2);cursor:pointer;border-bottom:1px solid var(--bd);user-select:none;transition:background .12s}
+.gp-section-hd:hover{background:var(--sf3)}
+.gp-section.collapsed .gp-section-hd{border-bottom:none}
+.gp-section.collapsed .gp-section-body{display:none}
+.gp-section-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.gp-section-name{flex:1;min-width:0;font-family:var(--fd);font-size:13px;color:var(--tx);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gp-section-counts{font-family:var(--fm);font-size:9px;color:var(--txd);flex-shrink:0;display:flex;align-items:center;gap:6px}
+.gp-section-counts .urgent-pill{background:rgba(224,82,82,.12);color:var(--red);padding:2px 7px;border-radius:5px;font-weight:700}
+.gp-section-counts .open-pill{background:rgba(82,133,224,.12);color:var(--blu);padding:2px 7px;border-radius:5px;font-weight:700}
+.gp-section-counts .closed-pill{color:var(--txm)}
+.gp-chev{transition:transform .15s;color:var(--txd);flex-shrink:0;font-size:10px}
+.gp-section.collapsed .gp-chev{transform:rotate(-90deg)}
+.gp-section-body{}
+.gp-empty-msg{padding:24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)}
 </style>
 </head>
 <body>
+<!-- ══ GOOGLE SIGN-IN SCREEN ═══════════════════════════════ -->
+<div id="s62-signin" style="position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:24px;padding:24px">
+  <div class="lock-logo" style="margin-bottom:8px">
+    <div class="lock-logo-box" id="signin-logo-box">S62</div>
+    <div>
+      <div class="lock-logo-text" id="signin-firm-name">Studio 62</div>
+      <div class="lock-logo-sub" id="signin-app-name">Drawing OS</div>
+    </div>
+  </div>
+  <div class="lock-card" style="max-width:420px;width:100%">
+    <div class="lock-title">Sign in to continue</div>
+    <div class="lock-sub" style="margin-bottom:20px">Use your firm Gmail account. Your email must already be in the staff roster.</div>
+    <button id="signin-google-btn" onclick="signInWithGoogle()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:12px;background:#fff;color:#1f1f1f;border:none;border-radius:8px;padding:14px 16px;font-family:var(--fb);font-size:14px;font-weight:600;cursor:pointer;transition:transform .1s">
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      <span>Continue with Google</span>
+    </button>
+    <div id="signin-error" style="font-family:var(--fm);font-size:11px;color:var(--red);margin-top:14px;text-align:center;min-height:16px"></div>
+    <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:18px;text-align:center;line-height:1.5">
+      Studio 62 will receive your name, email, and profile picture from Google.<br>No passwords are sent to or stored by this app.
+    </div>
+  </div>
+  <div style="font-family:var(--fm);font-size:10px;color:var(--txd);text-align:center;max-width:360px;line-height:1.5">
+    Not a team member? Ask your firm Principal to add your Gmail to the staff roster first.
+  </div>
+</div>
+
 <!-- ══ LOCK SCREEN ════════════════════════════════════════ -->
 <div id="s62-lock">
   <div class="lock-logo">
@@ -1367,6 +1454,11 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
         <svg class="nico" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
         Transmittals
         <span class="nbdg" id="tx-badge" style="background:var(--grn);color:#0a0a0f;display:none">0</span>
+      </div>
+      <div class="ni" onclick="go('ca',this)" id="ni-ca">
+        <svg class="nico" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Construction Admin
+        <span class="nbdg" id="ca-nav-badge" style="background:var(--red);color:#fff;display:none">0</span>
       </div>
       <div class="ni" onclick="go('timesheets',this)">
         <svg class="nico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -1550,6 +1642,9 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     <button class="btn bsm" style="background:var(--pur);color:#fff;padding:6px 14px;font-size:10px" onclick="go('drawings',null);setTimeout(function(){setDrwView('qa',document.getElementById('sv-qa'));},200)">Open Review Queue &#x2192;</button>
   </div>
 
+  <!-- CA Alert Strip -->
+  <div id="dash-ca-strip"></div>
+
   <!-- Row 3: Workflow metrics -->
   <div id="dash-workflow-bar" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px"></div>
 
@@ -1650,6 +1745,52 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   </div>
   <div id="email-templates" style="display:none">
     <div style="display:flex;flex-direction:column;gap:10px" id="templates-list"></div>
+  </div>
+</div>
+
+<!-- ══ CONSTRUCTION ADMINISTRATION ═══════════════════════ -->
+<div class="panel" id="panel-ca">
+  <div class="ca-layout">
+    <!-- Left module nav -->
+    <div class="ca-sidebar">
+      <div style="padding:10px 14px 6px;font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.06em">Modules</div>
+      <div class="ca-nav-item on" onclick="switchCAModule('svr',this)" id="ca-nav-svr">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Site Reports
+        <span class="ca-nbdg" id="ca-bdg-svr" style="display:none">0</span>
+      </div>
+      <div class="ca-nav-item" onclick="switchCAModule('rfi',this)" id="ca-nav-rfi">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        RFI Log
+        <span class="ca-nbdg" id="ca-bdg-rfi" style="display:none">0</span>
+      </div>
+      <div class="ca-nav-item" onclick="switchCAModule('sub',this)" id="ca-nav-sub">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+        Submittals
+        <span class="ca-nbdg warn" id="ca-bdg-sub" style="display:none">0</span>
+      </div>
+      <div class="ca-nav-item" onclick="switchCAModule('snag',this)" id="ca-nav-snag">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        Snag List
+        <span class="ca-nbdg" id="ca-bdg-snag" style="display:none">0</span>
+      </div>
+      <div class="ca-nav-item" onclick="switchCAModule('ai',this)" id="ca-nav-ai">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Instructions
+        <span class="ca-nbdg" id="ca-bdg-ai" style="display:none">0</span>
+      </div>
+      <div style="margin-top:auto;padding:10px 14px;border-top:1px solid var(--bd2)">
+        <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:6px">Project</div>
+        <select class="fsel" id="ca-proj-filter" onchange="renderCA()" style="width:100%;font-size:10px;padding:4px 8px">
+          <option value="ALL">All projects</option>
+        </select>
+      </div>
+    </div>
+    <!-- Main content area -->
+    <div class="ca-main">
+      <div id="ca-module-header" class="ca-toolbar"></div>
+      <div id="ca-module-body" class="ca-body"></div>
+    </div>
   </div>
 </div>
 
@@ -2960,6 +3101,191 @@ function hasValidSession(){
   return !!sessionStorage.getItem(S62_SESSION_KEY);
 }
 
+/* ════════════════════════════════════════════════════════
+   GOOGLE SIGN-IN AUTH (Phase 1)
+   - Replaces anonymous access with Firebase Authentication
+   - Staff sign in with Gmail; email matched against STAFF roster
+   - Admin allowlist bootstraps the first sign-in for empty firms
+   ════════════════════════════════════════════════════════ */
+const S62_AUTH_KEY      = 's62_auth_user_email';   // localStorage cache of last signed-in email
+const S62_ADMIN_EMAILS  = [
+  'studio62.design@gmail.com',  // bootstrap admin — can always sign in
+];
+let _fbAuth = null;
+let _authUser = null;          // current Firebase auth.User
+let _authReady = false;
+let _authStaffMatch = null;    // matched STAFF record (or null if admin-only)
+
+function showSignIn(msg){
+  const sc = document.getElementById('s62-signin');
+  const lock = document.getElementById('s62-lock');
+  if(sc) sc.style.display = 'flex';
+  if(lock) lock.style.display = 'none';
+  if(msg){
+    const errEl = document.getElementById('signin-error');
+    if(errEl) errEl.textContent = msg;
+  }
+  // Sync brand text
+  const fn = document.getElementById('signin-firm-name');
+  const an = document.getElementById('signin-app-name');
+  const lb = document.getElementById('signin-logo-box');
+  if(fn) fn.textContent = (FIRM_CONFIG.name||'Studio 62');
+  if(an) an.textContent = (FIRM_CONFIG.appName||'Drawing OS');
+  if(lb){
+    if(FIRM_CONFIG.logoDataUrl){
+      lb.innerHTML = '<img src="'+FIRM_CONFIG.logoDataUrl+'" style="width:100%;height:100%;object-fit:contain;border-radius:4px" alt="logo">';
+    } else {
+      lb.textContent = (FIRM_CONFIG.name||'S62').slice(0,3).toUpperCase();
+    }
+  }
+}
+
+function hideSignIn(){
+  const sc = document.getElementById('s62-signin');
+  if(sc) sc.style.display = 'none';
+}
+
+async function signInWithGoogle(){
+  const errEl = document.getElementById('signin-error');
+  const btn   = document.getElementById('signin-google-btn');
+  if(errEl) errEl.textContent = '';
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.6'; }
+  try{
+    if(!isCloudConfigured()){
+      throw new Error('Cloud sync not configured. Open Cloud Sync settings first.');
+    }
+    await fbInit();
+    if(!_fbAuth) _fbAuth = firebase.auth(_fbApp);
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const result = await _fbAuth.signInWithPopup(provider);
+    // onAuthStateChanged listener (set in fbInit) handles the rest
+    return result;
+  }catch(err){
+    console.error('Sign-in failed:', err);
+    let msg = err.message || 'Sign-in failed';
+    if(err.code === 'auth/popup-blocked') msg = 'Popup was blocked. Allow popups for this site and try again.';
+    if(err.code === 'auth/popup-closed-by-user') msg = 'Sign-in cancelled.';
+    if(err.code === 'auth/operation-not-allowed') msg = 'Google sign-in is not enabled in Firebase. Ask the admin to enable it.';
+    if(err.code === 'auth/unauthorized-domain') msg = 'This domain is not authorised in Firebase. Add it under Authentication → Settings → Authorised domains.';
+    if(errEl) errEl.textContent = msg;
+  }finally{
+    if(btn){ btn.disabled = false; btn.style.opacity = ''; }
+  }
+}
+
+async function signOutUser(){
+  try{
+    if(_fbAuth) await _fbAuth.signOut();
+  }catch(e){ console.warn('Sign-out:', e); }
+  _authUser = null;
+  _authStaffMatch = null;
+  try{ localStorage.removeItem(S62_AUTH_KEY); }catch(e){}
+  try{ sessionStorage.removeItem(S62_SESSION_KEY); }catch(e){}
+  // Reload to a clean state
+  location.reload();
+}
+
+function _matchStaffByEmail(email){
+  if(!email) return null;
+  const norm = email.toLowerCase().trim();
+  return STAFF.find(s => (s.email||'').toLowerCase().trim() === norm) || null;
+}
+
+function _isAdminEmail(email){
+  if(!email) return false;
+  return S62_ADMIN_EMAILS.includes(email.toLowerCase().trim());
+}
+
+async function _onAuthStateChanged(user){
+  _authReady = true;
+  if(!user){
+    // Not signed in
+    _authUser = null; _authStaffMatch = null;
+    showSignIn();
+    return;
+  }
+  _authUser = user;
+  const email = (user.email||'').toLowerCase().trim();
+  try{ localStorage.setItem(S62_AUTH_KEY, email); }catch(e){}
+
+  // First, pull data from Firebase so STAFF roster is populated before matching
+  try{ await waitForFirebasePull(); }catch(e){ /* keep going with local data */ }
+
+  const staff = _matchStaffByEmail(email);
+  const isAdmin = _isAdminEmail(email);
+
+  if(staff){
+    _authStaffMatch = staff;
+    CURRENT_USER_ID = staff.id;
+    hideSignIn();
+    // Continue to PIN unlock as a session-lock convenience
+    showLockOrUnlock();
+    showNotif('Signed in as '+staff.first+' '+staff.last, email);
+    return;
+  }
+
+  if(isAdmin){
+    // Admin can sign in even with no matching staff record (bootstrap mode)
+    _authStaffMatch = null;
+    // Use first existing staff record or fallback to MS
+    CURRENT_USER_ID = STAFF[0]?.id || 'MS';
+    hideSignIn();
+    showLockOrUnlock();
+    showNotif('Signed in as admin', email+' · No staff record matched, using bootstrap access');
+    return;
+  }
+
+  // Not staff, not admin — refuse and force sign-out
+  await signOutUser();
+  setTimeout(()=>{
+    showSignIn('Your email '+email+' is not registered in the staff roster. Please ask the firm Principal to add you, then try again.');
+  }, 200);
+}
+
+function waitForFirebasePull(){
+  // Returns once the next data pull happens (or after 3s timeout)
+  return new Promise(resolve=>{
+    let done = false;
+    const finish = ()=>{ if(!done){ done=true; resolve(); } };
+    setTimeout(finish, 3000);
+    if(_fbRef){
+      _fbRef.once('value').then(snap=>{
+        try{
+          const v = snap.val();
+          if(v) unpackData(v);
+        }catch(e){}
+        finish();
+      }).catch(finish);
+    } else {
+      finish();
+    }
+  });
+}
+
+function showLockOrUnlock(){
+  // After successful auth, check PIN: if a hashed PIN is set go to lock; otherwise unlock directly
+  let hasPin = false;
+  try{ hasPin = !!localStorage.getItem(S62_PIN_KEY); }catch(e){}
+  const lock = document.getElementById('s62-lock');
+  if(hasPin && lock){
+    lock.style.display = '';
+    lock.classList.remove('unlocked');
+  } else {
+    if(lock){ lock.style.display='none'; lock.classList.add('unlocked'); }
+  }
+}
+
+/* Hook auth into fbInit AFTER the database init */
+async function ensureAuthListener(){
+  if(!_fbApp) return;
+  if(!_fbAuth) _fbAuth = firebase.auth(_fbApp);
+  // Single listener — idempotent
+  if(_fbAuth._s62Listening) return;
+  _fbAuth._s62Listening = true;
+  _fbAuth.onAuthStateChanged(_onAuthStateChanged);
+}
+
 function unlockApp(){
   const lock = document.getElementById('s62-lock');
   if(lock){ lock.classList.add('unlocked'); }
@@ -3101,6 +3427,21 @@ async function confirmChangePin(){
 function addLockButton(){
   const tbarActs=document.querySelector('.tbar-acts');
   if(!tbarActs||document.getElementById('lock-app-btn')) return;
+  // Sign out button (only shown when Firebase Auth is active)
+  if(_authUser && !document.getElementById('signout-app-btn')){
+    const sob=document.createElement('button');
+    sob.id='signout-app-btn';
+    sob.className='btn bg bsm';
+    sob.style.cssText='font-size:9px;';
+    sob.title='Sign out '+(_authUser.email||'');
+    sob.textContent='🚪 Sign out';
+    sob.onclick=()=>{
+      if(confirm('Sign out of '+(FIRM_CONFIG.name||'Studio OS')+'?\n\nYou will need to sign in with Google again to continue.')){
+        signOutUser();
+      }
+    };
+    tbarActs.appendChild(sob);
+  }
   const btn=document.createElement('button');
   btn.id='lock-app-btn';
   btn.className='btn bg bsm';
@@ -3222,11 +3563,12 @@ function isCloudConfigured(){
 /* ── LOAD FIREBASE SDK ─────────────────────────────────── */
 function loadFirebaseSDK(){
   return new Promise((resolve, reject)=>{
-    if(window.firebase && window.firebase.database){ return resolve(); }
-    // Load Firebase App + Database compat SDK (v9 compat)
+    if(window.firebase && window.firebase.database && window.firebase.auth){ return resolve(); }
+    // Load Firebase App + Database + Auth compat SDK (v9 compat)
     const scripts = [
       'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js',
       'https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js',
+      'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js',
     ];
     let loaded = 0;
     scripts.forEach(src=>{
@@ -3256,6 +3598,8 @@ async function fbInit(){
     _fbLocksRef    = _fbDb.ref(S62_FB_LOCKS);
     _fbPresenceRef = _fbDb.ref(S62_FB_PRESENCE);
     _fbInitDone = true;
+    // Phase 1 auth: start Google Sign-In listener
+    try{ await ensureAuthListener(); }catch(e){ console.warn('Auth listener:', e); }
     return true;
   }catch(err){
     console.error('S62 Firebase init:', err);
@@ -4157,6 +4501,85 @@ let _txCounter = 1;
 let VISUALS = [];
 
 /* ── FIRM CONFIGURATION ────────────────────────────────── */
+/* ════════════════════════════════════════════════════════
+   THEME PRESETS — 5 firm-wide colour themes
+   Each preset overrides core CSS variables. To add a new
+   theme, just add an entry here and it auto-appears in
+   Firm Settings → Appearance.
+   ════════════════════════════════════════════════════════ */
+const S62_THEMES = {
+  'studio-gold': {
+    name: 'Studio gold',
+    sub: 'Warm gold accent · onyx void · current Studio 62 identity',
+    swatch: ['#0a0a0f', '#16131c', '#c9a96e', '#f0c97a', '#f0ede8'],
+    vars: {
+      '--bg':'#0a0a0f','--sf':'#111118','--sf2':'#18181f','--sf3':'#1e1e28',
+      '--bd':'rgba(255,255,255,.06)','--bd2':'rgba(255,255,255,.12)',
+      '--tx':'#f0ede8','--txm':'#7a7888','--txd':'#4a4858',
+      '--gold':'#c9a96e','--gld2':'#f0c97a',
+      '--red':'#e05252','--grn':'#52c97a','--blu':'#5285e0','--org':'#e08a52',
+      '--pur':'#8a52e0','--tel':'#52c9c9','--pnk':'#e052a0',
+    },
+    onAccent:'#0a0a0f', isDark:true
+  },
+  'linen-paper': {
+    name: 'Linen paper',
+    sub: 'Warm cream · ink charcoal · burnt sienna accent',
+    swatch: ['#f5efe0', '#ebe3d0', '#b5552b', '#c97d52', '#3a2e1f'],
+    vars: {
+      '--bg':'#f5efe0','--sf':'#fcf8eb','--sf2':'#ebe3d0','--sf3':'#dfd5bb',
+      '--bd':'rgba(58,46,31,.10)','--bd2':'rgba(58,46,31,.18)',
+      '--tx':'#3a2e1f','--txm':'#7a6f5c','--txd':'#a09078',
+      '--gold':'#b5552b','--gld2':'#c97d52',
+      '--red':'#c44545','--grn':'#5a8c3e','--blu':'#3d6a9c','--org':'#d8742e',
+      '--pur':'#7a4f9c','--tel':'#3e8c8c','--pnk':'#b5527a',
+    },
+    onAccent:'#f5efe0', isDark:false
+  },
+  'mint-sage-light': {
+    name: 'Mint sage light',
+    sub: 'Pale sage backgrounds · forest green accent · biophilic',
+    swatch: ['#f0f4ee', '#dde5d7', '#3f7548', '#629b6b', '#1a3a1a'],
+    vars: {
+      '--bg':'#f0f4ee','--sf':'#fcfdfa','--sf2':'#dde5d7','--sf3':'#cdd9c5',
+      '--bd':'rgba(26,58,26,.10)','--bd2':'rgba(26,58,26,.18)',
+      '--tx':'#1a3a1a','--txm':'#5e6b58','--txd':'#8fa088',
+      '--gold':'#3f7548','--gld2':'#629b6b',
+      '--red':'#c0432a','--grn':'#3f7548','--blu':'#3a6e9c','--org':'#c8743a',
+      '--pur':'#7050a0','--tel':'#3a8c8c','--pnk':'#b04e7a',
+    },
+    onAccent:'#f0f4ee', isDark:false
+  },
+  'burgundy-wine': {
+    name: 'Burgundy wine',
+    sub: 'Deep oxblood base · warm cream accent · editorial',
+    swatch: ['#1f0f12', '#2e171d', '#c95266', '#f2d9b8', '#90707a'],
+    vars: {
+      '--bg':'#1f0f12','--sf':'#2a1418','--sf2':'#2e171d','--sf3':'#3d1f28',
+      '--bd':'rgba(242,217,184,.08)','--bd2':'rgba(242,217,184,.15)',
+      '--tx':'#f2d9b8','--txm':'#b09098','--txd':'#90707a',
+      '--gold':'#c95266','--gld2':'#e88896',
+      '--red':'#e07a82','--grn':'#7ac09a','--blu':'#7aa8e0','--org':'#e09a52',
+      '--pur':'#a878d0','--tel':'#52b0b0','--pnk':'#e87aa0',
+    },
+    onAccent:'#1f0f12', isDark:true
+  },
+  'concrete-rust': {
+    name: 'Concrete & rust',
+    sub: 'Cement grey base · oxidized copper accent · brutalist',
+    swatch: ['#5e5c58', '#6e6c68', '#b8753f', '#e0a878', '#eae7e2'],
+    vars: {
+      '--bg':'#5e5c58','--sf':'#666460','--sf2':'#6e6c68','--sf3':'#7e7c78',
+      '--bd':'rgba(234,231,226,.10)','--bd2':'rgba(234,231,226,.20)',
+      '--tx':'#eae7e2','--txm':'#c2c0bc','--txd':'#a8a6a0',
+      '--gold':'#b8753f','--gld2':'#e0a878',
+      '--red':'#e07050','--grn':'#7ac070','--blu':'#7aa0d0','--org':'#e0905a',
+      '--pur':'#a878c8','--tel':'#5ab0a8','--pnk':'#d8709a',
+    },
+    onAccent:'#1f1916', isDark:true
+  }
+};
+
 let FIRM_CONFIG = {
   name:          'Studio 62',
   tagline:       'Architecture & Interior Design',
@@ -4175,6 +4598,7 @@ let FIRM_CONFIG = {
   primaryColor:  '#c9a96e',
   accentColor:   '#5285e0',
   appName:       'Studio OS',
+  themeId:       'studio-gold',  // active theme preset key
   setupComplete: true,           // skip wizard on first load
 };
 
@@ -4373,6 +4797,7 @@ function go(id,el){
   if(id==='transmittals') renderTransmittals();
   if(id==='visuals') renderVisuals();
   if(id==='auditlog') renderAuditLog();
+  if(id==='ca'){ populateCAProjectFilter(); renderCA(); }
   // FIX 4 — update presence panel
   updatePresencePanel(id);
 }
@@ -5195,6 +5620,66 @@ function deletePipelineLead(id){
 /* Standard RIBA fee splits used when no manual override exists */
 const RIBA_PHASE_MAP={0:'pre-design',1:'briefing',2:'SD',3:'DD',4:'CD',5:'CA',6:'Handover',7:'use'};
 const RIBA_PHASE_LABEL={'0':'Stage 0','1':'Stage 1','2':'Concept Design','3':'Spatial Coord.','4':'Technical Design','5':'Construction','6':'Handover','7':'Use','SD':'Concept Design','DD':'Spatial Coord.','CD':'Technical Design','CA':'Construction','Handover':'Handover'};
+
+/* ════════════════════════════════════════════════════════
+   CONSTRUCTION ADMINISTRATION DATA
+   ════════════════════════════════════════════════════════ */
+let CA_SVR = []; // Site Visit Reports
+// { id, projId, num, date, time, visitedBy, stage, weather, contractorPresent,
+//   contractorName, constructionStage, progressPct, observations, issues:[{id,desc,location,severity,photo,status}],
+//   instructions, drawingsChecked:[], nextVisitDate, createdAt }
+
+let CA_RFIS = []; // RFI Log
+// { id, projId, num, subject, question, raisedBy, raisedDate, directedTo,
+//   responseDue, status, answer, answeredBy, answeredDate, drawingRefs:[], svrId }
+
+let CA_SUBMITTALS = []; // Submittal Log
+// { id, projId, num, title, specSection, submittedBy, submittedDate,
+//   reviewDue, status, reviewer, reviewedDate, notes, drawingRefs:[] }
+
+let CA_SNAGS = []; // Snag / Punch List
+// { id, projId, num, description, location, contractor, priority, status,
+//   reportedDate, resolvedDate, reportedBy, photo, drawingRef }
+
+let CA_AIS = []; // Architect's Instructions
+// { id, projId, num, title, description, issuedTo, issuedBy, issuedDate,
+//   costImpact, drawingRefs:[], svrId, acknowledged, acknowledgedDate }
+
+let _caModule = 'svr'; // current active module
+let _caCollapsedProjs = {};   // {projId: true} — collapsed project sections (RFI)
+let _txCollapsedProjs = {};   // {projId: true} — collapsed project sections (Transmittals)
+
+/* ── URGENCY CLASSIFICATION ──────────────────────────────
+   Returns null (not urgent), or {label, cssClass, days} */
+function caUrgency(dueDateStr){
+  if(!dueDateStr) return null;
+  const days = caDaysUntil(dueDateStr);
+  if(days === null) return null;
+  if(days < 0)  return {label:Math.abs(days)+'d overdue', cssClass:'overdue', days};
+  if(days === 0) return {label:'Today', cssClass:'today', days};
+  if(days === 1) return {label:'Tomorrow', cssClass:'tomorrow', days};
+  if(days <= 3)  return {label:days+'d left', cssClass:'soon', days};
+  return null; // 4+ days = not urgent
+}
+
+/* ── TOGGLE COLLAPSE ─────────────────────────────────────
+   Used by both RFI and Tx grouped views */
+function gpToggleSection(prefix, projId){
+  const store = prefix==='rfi' ? _caCollapsedProjs : _txCollapsedProjs;
+  store[projId] = !store[projId];
+  const sec = document.getElementById('gp-'+prefix+'-'+projId);
+  if(sec) sec.classList.toggle('collapsed', !!store[projId]);
+}
+function gpExpandAll(prefix){
+  const store = prefix==='rfi' ? _caCollapsedProjs : _txCollapsedProjs;
+  Object.keys(store).forEach(k=>delete store[k]);
+  if(prefix==='rfi') renderCARFI(); else renderTransmittals();
+}
+function gpCollapseAll(prefix){
+  const store = prefix==='rfi' ? _caCollapsedProjs : _txCollapsedProjs;
+  PROJS.forEach(p=>{ store[p.id] = true; });
+  if(prefix==='rfi') renderCARFI(); else renderTransmittals();
+}
 
 /* ════════════════════════════════════════════════════════
    MEETINGS — role-gated to canSchedule users
@@ -6674,6 +7159,10 @@ function renderDashboard(){
   const svOct=e('sv-overdue-ct');if(svOct)svOct.textContent=overdueDrawings.length?overdueDrawings.length+' ':'';
   const svAllCt=e('sv-all-ct');if(svAllCt)svAllCt.textContent=allD.length?'('+allD.length+')':'';
 
+  // ── CA ALERT STRIP ────────────────────────────────────────
+  const caStripEl=e('dash-ca-strip');
+  if(caStripEl) caStripEl.innerHTML=renderDashboardCAStrip();
+
   // ── WORKFLOW SUMMARY BAR ──────────────────────────────────────
   const wfEl=e('dash-workflow-bar');
   if(wfEl){
@@ -7015,6 +7504,15 @@ function renderStaff(){
     const init=`${s.first[0]}${s.last[0]}`.toUpperCase();
     const uc=scoreColor(ws);
     const typeMap={active:'🟢 Full-Time',parttime:'🟡 Part-Time',onleave:'⏸ On Leave',contractor:'🔵 Contractor'};
+    // CA assignment counts — visible on every staff card
+    const caCounts = (typeof caStaffOpenAssignments === 'function') ? caStaffOpenAssignments(s.id) : {total:0,rfis:0,subs:0,overdue:0};
+    const caStrip = caCounts.total > 0
+      ? `<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;padding:6px 8px;background:${caCounts.overdue>0?'rgba(224,82,82,.08)':'rgba(82,133,224,.06)'};border:1px solid ${caCounts.overdue>0?'rgba(224,82,82,.25)':'rgba(82,133,224,.18)'};border-radius:6px;font-family:var(--fm);font-size:9px">
+          <span style="color:${caCounts.overdue>0?'var(--red)':'var(--blu)'};font-weight:700">🏗 CA</span>
+          ${caCounts.rfis>0?`<span style="color:var(--txm)">${caCounts.rfis} RFI${caCounts.rfis>1?'s':''}</span>`:''}
+          ${caCounts.subs>0?`<span style="color:var(--txm)">${caCounts.subs} Sub${caCounts.subs>1?'s':''}</span>`:''}
+          ${caCounts.overdue>0?`<span style="color:var(--red);font-weight:700;margin-left:auto">⚠ ${caCounts.overdue} overdue</span>`:''}
+        </div>` : '';
     return `<div class="stcard" id="stcard-${s.id}" onclick="openStaffPanel('${s.id}')" style="cursor:pointer">
       <div style="padding:18px 18px 14px;position:relative">
         <div class="stcard-actions">
@@ -7029,6 +7527,7 @@ function renderStaff(){
             <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px">${typeMap[s.type]||s.type}</div>
           </div>
         </div>
+        ${caStrip}
         <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;font-size:11px">
           <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--txm)">Login ID</span><span style="font-family:var(--fm);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;display:flex;align-items:center;gap:4px">${s.email||'—'}</span></div>
           ${canSeeFin()?`<div style="display:flex;justify-content:space-between"><span style="color:var(--txm)">Rate</span><span style="font-family:var(--fm);font-size:10px">${s.rate>0?'₹'+s.rate.toLocaleString('en-IN')+'/hr':'External'}</span></div>`:''}
@@ -8441,6 +8940,7 @@ function buildDrwTable(proj, rows, disc){
       +'<div style="font-size:11px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">'+r.title+'</div>'
       +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:'+(proj?proj.color:'var(--txd)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">\u25a0 '+(proj?proj.name:r.proj)+'</div>'
       +'</div>'
+      +(function(){const badges=caGetDrwBadges(r.id);return badges?'<div style="display:flex;gap:2px;flex-wrap:wrap">'+badges+'</div>':'';}())
     +'</div></td>':'')
 
     // Target Date — click-to-pick-date for admins
@@ -11545,7 +12045,7 @@ function manualSyncHours(){
    Rule: always add optional fields with defaults, never delete.
    ═══════════════════════════════════════════════════════════════ */
 
-const S62_SCHEMA_VERSION = 5;
+const S62_SCHEMA_VERSION = 6;
 const S62_LS_KEY = 's62_data_v1';
 const S62_SAVE_DEBOUNCE_MS = 2000;
 
@@ -11635,10 +12135,18 @@ const S62_MIGRATIONS = {
   },
   /* v4 → v5: v69 — persist PERF_SCORES, DQ_ASSESSMENTS, REVIEWS */
   5: function(data) {
-    // Seed empty containers if not present — live data fills them from reviews
     if(!data.perfScores || typeof data.perfScores !== 'object') data.perfScores = {};
     if(!Array.isArray(data.dqAssessments)) data.dqAssessments = [];
     if(!data.reviews || typeof data.reviews !== 'object') data.reviews = { daily:[], weekly:[] };
+    return data;
+  },
+  /* v5 → v6: Construction Administration module */
+  6: function(data) {
+    if(!Array.isArray(data.caSvr))        data.caSvr        = [];
+    if(!Array.isArray(data.caRfis))       data.caRfis       = [];
+    if(!Array.isArray(data.caSubmittals)) data.caSubmittals = [];
+    if(!Array.isArray(data.caSnags))      data.caSnags      = [];
+    if(!Array.isArray(data.caAis))        data.caAis        = [];
     return data;
   }
 };
@@ -11648,7 +12156,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v75',
+    appVersion: 'S62-v84',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -11671,6 +12179,11 @@ function packData() {
     perfScores:    PERF_SCORES||{},
     dqAssessments: DQ_ASSESSMENTS||[],
     reviews:       REVIEWS||{daily:[],weekly:[]},
+    caSvr:         CA_SVR||[],
+    caRfis:        CA_RFIS||[],
+    caSubmittals:  CA_SUBMITTALS||[],
+    caSnags:       CA_SNAGS||[],
+    caAis:         CA_AIS||[],
     currentUserId: CURRENT_USER_ID,
     activeProjId:  activeProjId,
     tsViewMode:    tsViewMode,
@@ -11720,6 +12233,12 @@ function unpackData(data) {
     if(Array.isArray(data.reviews.daily))  REVIEWS.daily  = data.reviews.daily;
     if(Array.isArray(data.reviews.weekly)) REVIEWS.weekly = data.reviews.weekly;
   }
+  // Construction Administration data
+  if(Array.isArray(data.caSvr))        CA_SVR        = data.caSvr;
+  if(Array.isArray(data.caRfis))       CA_RFIS       = data.caRfis;
+  if(Array.isArray(data.caSubmittals)) CA_SUBMITTALS = data.caSubmittals;
+  if(Array.isArray(data.caSnags))      CA_SNAGS      = data.caSnags;
+  if(Array.isArray(data.caAis))        CA_AIS        = data.caAis;
 }
 
 /* ── MIGRATE: upgrade old schema data to current version ─────
@@ -12645,6 +13164,35 @@ loadGcalCfg();
 const _hadSavedData = loadFromLocalStorage();
 applyFirmTheme(); // apply FIRM_CONFIG colours + branding
 changeUser(CURRENT_USER_ID || 'MS');
+
+// ── PHASE 1 AUTH GATE ─────────────────────────────────
+// If cloud is configured, kick off Firebase init which starts the auth listener.
+// The listener will show sign-in screen if not authenticated.
+(async function(){
+  if(!isCloudConfigured()){
+    // No cloud configured — running offline only. Show sign-in screen with note.
+    showSignIn('Cloud sync not configured. Open Cloud Sync settings to enable Google Sign-In, or sign in via Firebase setup first.');
+    // Still allow legacy PIN-only flow as fallback for offline use:
+    setTimeout(()=>{
+      const sc = document.getElementById('s62-signin');
+      if(sc) sc.style.display = 'flex';
+      const errEl = document.getElementById('signin-error');
+      if(errEl) errEl.textContent = 'Cloud sync is disabled. Configure Firebase to use Google Sign-In.';
+    }, 100);
+  } else {
+    // Hide PIN lock until auth resolves
+    const lock = document.getElementById('s62-lock');
+    if(lock) lock.style.display = 'none';
+    showSignIn();
+    try{
+      await fbInit();
+    }catch(e){
+      console.error('Boot fbInit failed:', e);
+      const errEl = document.getElementById('signin-error');
+      if(errEl) errEl.textContent = 'Failed to connect to cloud. Check your internet connection.';
+    }
+  }
+})();
 // v54: boot notifications + financials nav
 setTimeout(()=>{
   generateOverdueNotifs();
@@ -14293,11 +14841,13 @@ async function submitMtg(mtgId){
     addNotif({type:'meeting',icon:'📅',iconBg:'rgba(82,201,201,.2)',title:'Meeting scheduled: '+nm.title.split('—').pop().trim(),detail:(nm.proj?projName(nm.proj)+' · ':'')+nm.date+(nm.time?' at '+nm.time:''),projId:nm.proj,forAll:true});
   }
   renderMeetings();scheduleSave();updateGcalBadge();
+  // Reverse sync: if this is a site-visit meeting, create/update CA SVR stub
+  syncCAFromMeeting(mtgId);
 }
 function cancelMtg(id){
   const m=MEETINGS.find(x=>x.id===id);if(!m)return;
   openSimpleConfirm('Cancel meeting','<p style="font-family:var(--fm);font-size:11px;color:var(--txm)">Cancel &ldquo;'+m.title+'&rdquo;?'+(m.gcalId?' Also removes it from Google Calendar.':'')+'</p>',
-    async function(){m.status='cancelled';if(m.gcalId&&isGcalConnected())await gcalDeleteEvent(m.gcalId);closeModal('mtg-edit-ov');closeModal('mtg-detail-ov');renderMeetings();scheduleSave();updateGcalBadge();showNotif('Meeting cancelled',m.title);});
+    async function(){m.status='cancelled';if(m.gcalId&&isGcalConnected())await gcalDeleteEvent(m.gcalId);closeModal('mtg-edit-ov');closeModal('mtg-detail-ov');renderMeetings();scheduleSave();updateGcalBadge();removeCASyncedTasks(m.id);showNotif('Meeting cancelled',m.title);});
 }
 
 /* ════ WEEK VIEW ═══════════════════════════════════════════ */
@@ -15470,7 +16020,7 @@ function renderTxRegister(){
     if(projF!=='ALL' && t.projId!==projF) return false;
     if(statF!=='ALL' && t.status!==statF) return false;
     return true;
-  }).sort((a,b)=>b.issueDate.localeCompare(a.issueDate));
+  });
 
   if(!txs.length){
     body.innerHTML = `<div class="tx-empty">No transmittals yet.<br><br>
@@ -15479,7 +16029,23 @@ function renderTxRegister(){
     return;
   }
 
-  body.innerHTML = txs.map(tx=>{
+  // ── URGENCY for transmittals ─────────────────────────────
+  // Priority: explicit responseDeadline → explicit dueDate → drafts >3 days old
+  function txUrgency(tx){
+    const deadline = tx.responseDeadline || tx.dueDate;
+    if(deadline){
+      const u = caUrgency(deadline);
+      return u; // null if not urgent
+    }
+    if(tx.status === 'draft' && tx.issueDate){
+      const ageDays = -caDaysUntil(tx.issueDate); // days since issue
+      if(ageDays >= 3) return {label:'Draft '+ageDays+'d old', cssClass:'overdue', days:-ageDays};
+    }
+    return null;
+  }
+
+  // ── BUILD CARD HTML (extracted as helper for reuse) ──────
+  function buildTxCardHtml(tx){
     const p = PROJS.find(x=>x.id===tx.projId)||{name:tx.projId,color:'var(--txd)'};
     const issuer = STAFF.find(x=>x.id===tx.issuedBy);
     const purpose = TX_PURPOSES[tx.purpose] || {label:tx.purpose,color:'var(--txm)',bg:'rgba(122,120,136,.15)'};
@@ -15487,13 +16053,13 @@ function renderTxRegister(){
     const statusLabel = {draft:'⏳ Draft',issued:'✓ Issued',superseded:'↩ Superseded'}[tx.status]||tx.status;
     const dateFmt = tx.issueDate ? fmtDate(new Date(tx.issueDate)) : '—';
     const draftWarning = tx.status==='draft' ? `<span style="font-family:var(--fm);font-size:9px;color:var(--gold);margin-left:8px">⚠ Not yet formally issued</span>` : '';
-
-    return `<div class="tx-card" id="txcard-${tx.id}">
+    const u = txUrgency(tx);
+    const rowBg = u && u.cssClass!=='soon' ? 'background:rgba(224,82,82,.04);' : (u?'background:rgba(240,201,122,.04);':'');
+    return `<div class="tx-card" id="txcard-${tx.id}" style="${rowBg}">
       <div class="tx-card-hd" onclick="toggleTxCard('${tx.id}')">
-        <div style="width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
         <span class="tx-ref">${tx.ref}</span>
         <div style="flex:1;min-width:0">
-          <div class="tx-title">${p.name} — ${purpose.label}</div>
+          <div class="tx-title">${purpose.label}</div>
           <div class="tx-meta">${dateFmt}${tx.issuedTo?' · To: '+tx.issuedTo:''}${issuer?' · By: '+issuer.first+' '+issuer.last:''} · ${tx.drawings.length} drawing${tx.drawings.length!==1?'s':''}</div>
         </div>
         <span class="tx-purpose" style="color:${purpose.color};background:${purpose.bg}">${tx.purpose}</span>
@@ -15505,7 +16071,91 @@ function renderTxRegister(){
         ${buildTxCardBody(tx)}
       </div>
     </div>`;
+  }
+
+  // ── URGENT BANNER ─────────────────────────────────────────
+  const urgentTxs = txs.filter(tx => tx.status !== 'superseded' && txUrgency(tx) !== null)
+    .sort((a,b) => {
+      const ua = txUrgency(a), ub = txUrgency(b);
+      return (ua?.days ?? 99) - (ub?.days ?? 99);
+    });
+
+  let urgentBanner = '';
+  if(urgentTxs.length){
+    urgentBanner = '<div class="gp-urgent-banner">'
+      + '<div class="gp-urgent-title">⚠ Urgent — '+urgentTxs.length+' transmittal'+(urgentTxs.length>1?'s':'')+' need'+(urgentTxs.length>1?'':'s')+' attention</div>'
+      + urgentTxs.map(tx=>{
+          const p = PROJS.find(x=>x.id===tx.projId)||{name:tx.projId,color:'var(--txd)'};
+          const purpose = TX_PURPOSES[tx.purpose] || {label:tx.purpose};
+          const u = txUrgency(tx);
+          return '<div class="gp-urgent-row" onclick="toggleTxCard(\''+tx.id+'\');document.getElementById(\'txcard-'+tx.id+'\').scrollIntoView({behavior:\'smooth\',block:\'center\'})">'
+            + '<span class="gp-urgent-dot" style="background:'+p.color+'"></span>'
+            + '<span class="gp-urgent-num">'+tx.ref+'</span>'
+            + '<span class="gp-urgent-ttl">'+purpose.label+(tx.status==='draft'?' (Draft)':'')+'</span>'
+            + '<span class="gp-urgent-proj" style="color:'+p.color+'">'+p.name+'</span>'
+            + '<span class="gp-urgent-due '+u.cssClass+'">'+u.label+'</span>'
+          + '</div>';
+        }).join('')
+      + '</div>';
+  }
+
+  // ── PROJECT-GROUPED SECTIONS ──────────────────────────────
+  const byProj = {};
+  txs.forEach(tx=>{
+    if(!byProj[tx.projId]) byProj[tx.projId] = [];
+    byProj[tx.projId].push(tx);
+  });
+
+  // Sort projects: most urgent → most drafts → alphabetical
+  const projOrder = Object.keys(byProj).map(pid=>{
+    const items = byProj[pid];
+    const urgCount = items.filter(t=>t.status!=='superseded' && txUrgency(t)!==null).length;
+    const draftCount = items.filter(t=>t.status==='draft').length;
+    const issuedCount = items.filter(t=>t.status==='issued').length;
+    const p = PROJS.find(x=>x.id===pid);
+    return {pid, urgCount, draftCount, issuedCount, name: p?p.name:pid};
+  }).sort((a,b)=>{
+    if(a.urgCount !== b.urgCount) return b.urgCount - a.urgCount;
+    if(a.draftCount !== b.draftCount) return b.draftCount - a.draftCount;
+    return a.name.localeCompare(b.name);
+  });
+
+  const sectionsHtml = projOrder.map(po=>{
+    // Sort items within project: urgent first, then by issue date desc
+    const items = byProj[po.pid].sort((a,b)=>{
+      const ua = txUrgency(a), ub = txUrgency(b);
+      const da = ua?.days ?? 99;
+      const db = ub?.days ?? 99;
+      if(da !== db) return da - db;
+      return (b.issueDate||'').localeCompare(a.issueDate||'');
+    });
+    const p = PROJS.find(x=>x.id===po.pid);
+    const collapsed = _txCollapsedProjs[po.pid];
+
+    const cardsHtml = items.map(buildTxCardHtml).join('');
+
+    return '<div class="gp-section'+(collapsed?' collapsed':'')+'" id="gp-tx-'+po.pid+'">'
+      + '<div class="gp-section-hd" onclick="gpToggleSection(\'tx\',\''+po.pid+'\')">'
+        + '<span class="gp-section-dot" style="background:'+(p?.color||'var(--txd)')+'"></span>'
+        + '<span class="gp-section-name">'+(p?p.name:po.pid)+'</span>'
+        + '<span class="gp-section-counts">'
+          + (po.urgCount>0?'<span class="urgent-pill">⚠ '+po.urgCount+' urgent</span>':'')
+          + (po.draftCount>0?'<span class="urgent-pill" style="background:rgba(240,201,122,.15);color:var(--gold)">'+po.draftCount+' draft</span>':'')
+          + (po.issuedCount>0?'<span class="open-pill" style="background:rgba(82,201,122,.12);color:var(--grn)">'+po.issuedCount+' issued</span>':'')
+        + '</span>'
+        + '<span class="gp-chev">▼</span>'
+      + '</div>'
+      + '<div class="gp-section-body">'+cardsHtml+'</div>'
+    + '</div>';
   }).join('');
+
+  // Toolbar: expand/collapse all
+  const toolbar = '<div style="display:flex;justify-content:flex-end;gap:6px;padding:0 14px 8px">'
+    + '<button class="btn bg bsm" onclick="gpExpandAll(\'tx\')" style="font-size:9px">⊞ Expand All</button>'
+    + '<button class="btn bg bsm" onclick="gpCollapseAll(\'tx\')" style="font-size:9px">⊟ Collapse All</button>'
+    + '</div>';
+
+  body.innerHTML = toolbar + urgentBanner + sectionsHtml;
 }
 
 function toggleTxCard(txId){
@@ -16003,15 +16653,50 @@ function saveFirmConfig(){
 /* ── APPLY FIRM THEME ──────────────────────────────────── */
 function applyFirmTheme(){
   const r = document.documentElement;
-  if(FIRM_CONFIG.primaryColor) r.style.setProperty('--gold', FIRM_CONFIG.primaryColor);
-  if(FIRM_CONFIG.accentColor)  r.style.setProperty('--blu',  FIRM_CONFIG.accentColor);
-  // Update PWA theme-color meta
+  // 1. Apply preset (if any) — sets all surface colors at once
+  const themeId = FIRM_CONFIG.themeId || 'studio-gold';
+  const theme = S62_THEMES[themeId] || S62_THEMES['studio-gold'];
+  if(theme && theme.vars){
+    Object.keys(theme.vars).forEach(k => {
+      r.style.setProperty(k, theme.vars[k]);
+    });
+    // Mark body for any light/dark conditional rules
+    document.body.dataset.themeId = themeId;
+    document.body.dataset.themeMode = theme.isDark ? 'dark' : 'light';
+  }
+  // 2. Allow primary/accent overrides if user has tweaked them
+  if(FIRM_CONFIG.primaryColor && FIRM_CONFIG.primaryColor !== theme.vars['--gold']){
+    r.style.setProperty('--gold', FIRM_CONFIG.primaryColor);
+  }
+  if(FIRM_CONFIG.accentColor && FIRM_CONFIG.accentColor !== theme.vars['--blu']){
+    r.style.setProperty('--blu', FIRM_CONFIG.accentColor);
+  }
+  // 3. Update PWA theme-color meta to match active background
   const tm = document.getElementById('pwa-theme-color');
-  if(tm) tm.content = FIRM_CONFIG.primaryColor||'#c9a96e';
+  if(tm) tm.content = theme.vars['--bg'] || FIRM_CONFIG.primaryColor || '#c9a96e';
+
   updateSidebarBrand();
   updateLockScreenBrand();
   updateDocumentTitle();
   injectPWAManifest();
+}
+
+/* ── SWITCH THEME (called from picker) ─────────────────── */
+function setFirmTheme(themeId){
+  if(!S62_THEMES[themeId]) return;
+  FIRM_CONFIG.themeId = themeId;
+  // Sync primaryColor and accentColor to match the theme's defaults
+  // so subsequent direct edits start from the right base
+  FIRM_CONFIG.primaryColor = S62_THEMES[themeId].vars['--gold'];
+  FIRM_CONFIG.accentColor  = S62_THEMES[themeId].vars['--blu'];
+  applyFirmTheme();
+  saveFirmConfig();
+  // Re-render any open settings modal so the picker reflects new selection
+  if(document.getElementById('firm-settings-ov')){
+    closeModal('firm-settings-ov');
+    openFirmSettings();
+  }
+  showNotif('Theme applied', S62_THEMES[themeId].name);
 }
 
 function updateSidebarBrand(){
@@ -16251,7 +16936,1488 @@ function exportAuditLog(){
   a.click();
 }
 
-/* ── CLEAR DEMO DATA ──────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   CONSTRUCTION ADMINISTRATION MODULE — v76
+   Module-first layout: SVR · RFI · Submittals · Snag · AIs
+   All records linked to PROJS and DRAWINGS
+═══════════════════════════════════════════════════════════ */
+
+/* ── HELPERS ─────────────────────────────────────────────── */
+function caNextNum(arr, prefix){
+  const nums = arr.map(r=>parseInt((r.num||'0').replace(/\D/g,''))||0);
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return prefix + '-' + String(next).padStart(3,'0');
+}
+function caFmtDate(d){ if(!d) return '—'; const [y,m,dy]=(d+'').split('-'); return dy+'/'+m+'/'+y; }
+function caToday(){ const n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
+function caAddDays(d,n){ const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function caDaysUntil(dateStr){ if(!dateStr) return null; const [y,m,d]=dateStr.split('-').map(Number); return Math.ceil((new Date(y,m-1,d)-new Date(new Date().toDateString()))/(864e5)); }
+function caFilteredProj(){ return document.getElementById('ca-proj-filter')?.value||'ALL'; }
+function caFilterArr(arr){ const pf=caFilteredProj(); return pf==='ALL'?arr:arr.filter(r=>r.projId===pf); }
+function caStatusClass(s){
+  return {open:'ca-st-open',pending:'ca-st-pending',closed:'ca-st-closed',
+    overdue:'ca-st-overdue',approved:'ca-st-approved',rejected:'ca-st-rejected',
+    resubmit:'ca-st-resubmit',draft:'ca-st-open',resolved:'ca-st-closed',
+    acknowledged:'ca-st-closed'}[s]||'ca-st-open';
+}
+function caStatusLabel(s){ return {open:'Open',pending:'Pending',closed:'Closed',overdue:'Overdue',
+  approved:'Approved',rejected:'Rejected',resubmit:'Resubmit',draft:'Draft',
+  resolved:'Resolved',acknowledged:'Acknowledged'}[s]||s; }
+function caProjColor(id){ return (PROJS.find(p=>p.id===id)||{color:'var(--txd)'}).color; }
+function caProjName(id){ return (PROJS.find(p=>p.id===id)||{name:id}).name; }
+function caStaffName(id){ const s=STAFF.find(x=>x.id===id); return s?s.first+' '+s.last:'—'; }
+
+/* ── POPULATE PROJECT FILTER ─────────────────────────────── */
+function populateCAProjectFilter(){
+  const sel=document.getElementById('ca-proj-filter'); if(!sel) return;
+  const cur=sel.value||'ALL';
+  sel.innerHTML='<option value="ALL">All projects</option>'
+    +PROJS.filter(p=>(p.status||'active')!=='archived').map(p=>
+      '<option value="'+p.id+'" '+(p.id===cur?'selected':'')+'>'+p.name+'</option>'
+    ).join('');
+  sel.value=cur;
+}
+
+/* ── MODULE SWITCHER ─────────────────────────────────────── */
+function switchCAModule(mod, el){
+  _caModule=mod;
+  document.querySelectorAll('.ca-nav-item').forEach(n=>n.classList.remove('on'));
+  if(el) el.classList.add('on');
+  renderCA();
+}
+
+/* ── MAIN RENDER ROUTER ──────────────────────────────────── */
+function renderCA(){
+  updateCABadges();
+  switch(_caModule){
+    case 'svr':  renderCASVR(); break;
+    case 'rfi':  renderCARFI(); break;
+    case 'sub':  renderCASUB(); break;
+    case 'snag': renderCASnag(); break;
+    case 'ai':   renderCAAI(); break;
+  }
+}
+
+/* ── UPDATE ALL BADGES ───────────────────────────────────── */
+function updateCABadges(){
+  const pf=caFilteredProj();
+  const svrArr=caFilterArr(CA_SVR);
+  const rfiArr=caFilterArr(CA_RFIS);
+  const openRfis=rfiArr.filter(r=>['open','overdue'].includes(r.status));
+  const overdueRfis=rfiArr.filter(r=>{const du=caDaysUntil(r.responseDue); return r.status==='open'&&du!==null&&du<0;});
+  const subArr=caFilterArr(CA_SUBMITTALS).filter(r=>r.status==='pending');
+  const snagArr=caFilterArr(CA_SNAGS).filter(r=>r.status!=='resolved');
+  const aiArr=caFilterArr(CA_AIS).filter(r=>!r.acknowledged);
+
+  const setBdg=(id,count,warn)=>{
+    const el=document.getElementById(id); if(!el) return;
+    if(count>0){el.textContent=count;el.style.display='';if(warn)el.classList.add('warn');else el.classList.remove('warn');}
+    else el.style.display='none';
+  };
+  setBdg('ca-bdg-rfi', overdueRfis.length, false);
+  setBdg('ca-bdg-sub', subArr.length, true);
+  setBdg('ca-bdg-snag', snagArr.filter(r=>r.priority==='critical').length, false);
+  setBdg('ca-bdg-ai', aiArr.length, true);
+
+  // Top nav badge — total critical items
+  const total=overdueRfis.length+snagArr.filter(r=>r.priority==='critical').length;
+  const nb=document.getElementById('ca-nav-badge');
+  if(nb){nb.textContent=total;nb.style.display=total>0?'':'none';}
+}
+
+/* ── SVR: SITE VISIT REPORTS ─────────────────────────────── */
+function renderCASVR(){
+  const hdr=document.getElementById('ca-module-header');
+  const body=document.getElementById('ca-module-body');
+  if(!hdr||!body) return;
+  const arr=caFilterArr(CA_SVR).sort((a,b)=>b.date.localeCompare(a.date));
+
+  // KPI
+  const thisMonth=arr.filter(r=>r.date&&r.date.slice(0,7)===caToday().slice(0,7)).length;
+  const openIssues=arr.reduce((s,r)=>s+(r.issues||[]).filter(i=>i.status!=='resolved').length,0);
+  const lastVisit=arr[0];
+
+  hdr.innerHTML='<div style="font-family:var(--fd);font-size:15px">Site Visit Reports</div>'
+    +'<div style="display:flex;gap:8px;margin-left:auto">'
+      +'<select class="fsel" id="ca-svr-status" onchange="renderCASVR()" style="font-size:10px;padding:4px 8px;width:auto">'+
+        '<option value="">All</option><option value="open">Open issues</option></select>'
+      +(canSchedule()?'<button class="btn bp bsm" onclick="openCASVRModal()">+ New Site Report</button>':'')
+    +'</div>';
+
+  const kpi='<div class="ca-kpi-row">'
+    +'<div class="sc" style="padding:10px 12px"><div class="slbl">Total Reports</div><div class="sval">'+arr.length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px"><div class="slbl">This Month</div><div class="sval">'+thisMonth+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(224,82,82,.3)"><div class="slbl" style="color:var(--red)">Open Issues</div><div class="sval" style="color:var(--red)">'+openIssues+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px"><div class="slbl">Last Visit</div><div class="sval" style="font-size:14px">'+(lastVisit?caFmtDate(lastVisit.date):'—')+'</div></div>'
+  +'</div>';
+
+  if(!arr.length){
+    body.innerHTML=kpi+'<div style="padding:48px;text-align:center;font-family:var(--fm);color:var(--txd)">No site visit reports yet.'+(canSchedule()?' Click <b>+ New Site Report</b> to log your first visit.':'')+'</div>';
+    return;
+  }
+
+  const statusFilter=document.getElementById('ca-svr-status')?.value||'';
+  const filtered=statusFilter==='open'?arr.filter(r=>(r.issues||[]).some(i=>i.status!=='resolved')):arr;
+
+  body.innerHTML=kpi+filtered.map(r=>{
+    const p=PROJS.find(x=>x.id===r.projId);
+    const openIss=(r.issues||[]).filter(i=>i.status!=='resolved').length;
+    const totalIss=(r.issues||[]).length;
+    const visitor=STAFF.find(x=>x.id===r.visitedBy);
+    return '<div class="ca-row" onclick="openCASVRDetail(\''+r.id+'\')">'
+      +'<div class="ca-proj-dot" style="background:'+(p?.color||'var(--txd)')+'"></div>'
+      +'<div class="ca-row-num">'+r.num+'</div>'
+      +'<div class="ca-row-title">'
+        +'<div class="ca-rtitle">'+(r.status==='scheduled'?'📅 Scheduled — ':'')
+          +r.date.split('-').reverse().join('/')+(r.time?' · '+r.time:'')+(p?' — '+p.name:'')+' · Stage '+r.stage+'</div>'
+        +'<div class="ca-rsub">'+( visitor?visitor.first+' '+visitor.last:'')
+          +(r.contractorName?' · Contractor: '+r.contractorName:'')
+          +(r.constructionStage?' · '+r.constructionStage:'')
+          +(r.progressPct!==undefined&&r.status!=='scheduled'?' · '+r.progressPct+'% complete':'')
+          +(r.status==='scheduled'?' · Auto-created from meeting — tap to complete after visit':'')+'</div>'
+      +'</div>'
+      +(totalIss>0?'<div style="font-family:var(--fm);font-size:9px;flex-shrink:0;margin-right:6px"><span style="color:'+(openIss>0?'var(--red)':'var(--grn)')+'">'+openIss+' open</span> / '+totalIss+' issues</div>':'')
+      +'<span class="ca-status '+(r.status==='scheduled'?'ca-st-pending':openIss>0?'ca-st-overdue':'ca-st-closed')+'">'
+        +(r.status==='scheduled'?'Scheduled':openIss>0?openIss+' Open Issue'+(openIss>1?'s':''):'All Clear')
+      +'</span>'
+      +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-left:8px;flex-shrink:0">'+caFmtDate(r.date)+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+/* ── RFI: REQUESTS FOR INFORMATION ──────────────────────── */
+function renderCARFI(){
+  const hdr=document.getElementById('ca-module-header');
+  const body=document.getElementById('ca-module-body');
+  if(!hdr||!body) return;
+
+  // Auto-mark overdue
+  CA_RFIS.forEach(r=>{
+    if(r.status==='open'&&r.responseDue&&caDaysUntil(r.responseDue)<0) r.status='overdue';
+  });
+  const arr=caFilterArr(CA_RFIS);
+  const statusFilter=document.getElementById('ca-rfi-status')?.value||'';
+  const filtered=statusFilter?arr.filter(r=>r.status===statusFilter):arr;
+  const openCount=arr.filter(r=>['open','overdue','in-progress','review','pending'].includes(r.status)).length;
+  const overdueCount=arr.filter(r=>r.status==='overdue'||(r.responseDue&&caDaysUntil(r.responseDue)<0&&r.status!=='closed')).length;
+
+  hdr.innerHTML='<div style="font-family:var(--fd);font-size:15px">RFI Log</div>'
+    +'<select class="fsel" id="ca-rfi-status" onchange="renderCARFI()" style="font-size:10px;padding:4px 8px;width:auto">'
+      +'<option value="" '+(!statusFilter?'selected':'')+'>All</option>'
+      +'<option value="open" '+(statusFilter==='open'?'selected':'')+'>Open</option>'
+      +'<option value="in-progress" '+(statusFilter==='in-progress'?'selected':'')+'>In Progress</option>'
+      +'<option value="review" '+(statusFilter==='review'?'selected':'')+'>For Review</option>'
+      +'<option value="overdue" '+(statusFilter==='overdue'?'selected':'')+'>Overdue</option>'
+      +'<option value="pending" '+(statusFilter==='pending'?'selected':'')+'>Pending</option>'
+      +'<option value="closed" '+(statusFilter==='closed'?'selected':'')+'>Closed</option>'
+    +'</select>'
+    +'<div style="margin-left:auto;display:flex;gap:6px">'
+      +'<button class="btn bg bsm" onclick="gpExpandAll(\'rfi\')" style="font-size:9px">⊞ Expand</button>'
+      +'<button class="btn bg bsm" onclick="gpCollapseAll(\'rfi\')" style="font-size:9px">⊟ Collapse</button>'
+      +(canSchedule()?'<button class="btn bp bsm" onclick="openCARFIModal()">+ New RFI</button>':'')
+    +'</div>';
+
+  const kpi='<div class="ca-kpi-row">'
+    +'<div class="sc" style="padding:10px 12px"><div class="slbl">Total RFIs</div><div class="sval">'+arr.length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(82,133,224,.3)"><div class="slbl" style="color:var(--blu)">Open</div><div class="sval" style="color:var(--blu)">'+openCount+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(224,82,82,.3)"><div class="slbl" style="color:var(--red)">Overdue</div><div class="sval" style="color:var(--red)">'+overdueCount+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(82,201,122,.3)"><div class="slbl" style="color:var(--grn)">Closed</div><div class="sval" style="color:var(--grn)">'+arr.filter(r=>r.status==='closed').length+'</div></div>'
+  +'</div>';
+
+  if(!arr.length){
+    body.innerHTML=kpi+'<div class="gp-empty-msg">No RFIs logged yet.'+(canSchedule()?' Click <b>+ New RFI</b> to log one.':'')+'</div>';
+    return;
+  }
+
+  // ── URGENT BANNER ──────────────────────────────────────────
+  // Open RFIs (not closed) where target/response date is within next 3 days OR overdue
+  const urgentItems=filtered.filter(r=>{
+    if(r.status==='closed') return false;
+    const dueDate=r.targetDate||r.responseDue;
+    if(!dueDate) return false;
+    const u=caUrgency(dueDate);
+    return u !== null;
+  }).sort((a,b)=>{
+    const ua=caUrgency(a.targetDate||a.responseDue);
+    const ub=caUrgency(b.targetDate||b.responseDue);
+    return (ua?.days??99)-(ub?.days??99);
+  });
+
+  let urgentBanner='';
+  if(urgentItems.length){
+    urgentBanner='<div class="gp-urgent-banner">'
+      +'<div class="gp-urgent-title">⚠ Urgent — '+urgentItems.length+' due in next 3 days</div>'
+      +urgentItems.map(r=>{
+        const p=PROJS.find(x=>x.id===r.projId);
+        const u=caUrgency(r.targetDate||r.responseDue);
+        return '<div class="gp-urgent-row" onclick="openCARFIDetail(\''+r.id+'\')">'
+          +'<span class="gp-urgent-dot" style="background:'+(p?.color||'var(--txd)')+'"></span>'
+          +'<span class="gp-urgent-num">'+r.num+'</span>'
+          +'<span class="gp-urgent-ttl">'+r.subject+'</span>'
+          +(p?'<span class="gp-urgent-proj" style="color:'+p.color+'">'+p.name+'</span>':'')
+          +'<span class="gp-urgent-due '+u.cssClass+'">'+u.label+'</span>'
+        +'</div>';
+      }).join('')
+    +'</div>';
+  }
+
+  // ── PROJECT-GROUPED SECTIONS ──────────────────────────────
+  const byProj={};
+  filtered.forEach(r=>{
+    if(!byProj[r.projId]) byProj[r.projId]=[];
+    byProj[r.projId].push(r);
+  });
+  // Sort projects: those with most overdue first, then most urgent, then alphabetical
+  const projOrder=Object.keys(byProj).map(pid=>{
+    const items=byProj[pid];
+    const ovCount=items.filter(r=>r.status==='overdue'||(r.responseDue&&caDaysUntil(r.responseDue)<0&&r.status!=='closed')).length;
+    const urgCount=items.filter(r=>{const u=caUrgency(r.targetDate||r.responseDue);return r.status!=='closed'&&u!==null;}).length;
+    const p=PROJS.find(x=>x.id===pid);
+    return {pid,ovCount,urgCount,name:p?p.name:pid};
+  }).sort((a,b)=>{
+    if(a.ovCount!==b.ovCount) return b.ovCount-a.ovCount;
+    if(a.urgCount!==b.urgCount) return b.urgCount-a.urgCount;
+    return a.name.localeCompare(b.name);
+  });
+
+  const sectionsHtml=projOrder.map(po=>{
+    const items=byProj[po.pid].sort((a,b)=>{
+      // urgent first, then by raised date desc
+      const ua=caUrgency(a.targetDate||a.responseDue);
+      const ub=caUrgency(b.targetDate||b.responseDue);
+      if((ua?.days??99)!==(ub?.days??99)) return (ua?.days??99)-(ub?.days??99);
+      return b.raisedDate.localeCompare(a.raisedDate);
+    });
+    const p=PROJS.find(x=>x.id===po.pid);
+    const collapsed=_caCollapsedProjs[po.pid];
+    const openInProj=items.filter(r=>!['closed'].includes(r.status)).length;
+    const closedInProj=items.filter(r=>r.status==='closed').length;
+
+    const rowsHtml=items.map(r=>{
+      const du=caDaysUntil(r.responseDue);
+      const duLabel=r.responseDue?(du<0?'⚠ '+Math.abs(du)+'d overdue':du===0?'Due today':du+'d left'):'';
+      const duColor=du!==null&&du<0?'var(--red)':du!==null&&du<=2?'var(--gold)':'var(--txd)';
+      const ass=r.assignedTo?STAFF.find(x=>x.id===r.assignedTo):null;
+      const assignedHtml=ass
+        ?'<div title="Assigned to '+ass.first+' '+ass.last+'" style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-right:6px"><div style="width:22px;height:22px;border-radius:50%;background:'+ass.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:8px;color:#0a0a0f;font-weight:700">'+ass.first[0]+ass.last[0]+'</div></div>'
+        :'<div title="Unassigned" style="font-family:var(--fm);font-size:8px;color:var(--txd);flex-shrink:0;margin-right:6px;padding:3px 8px;border:1px dashed var(--bd2);border-radius:5px">Unassigned</div>';
+      const targetHtml=r.targetDate?'<div style="font-family:var(--fm);font-size:8px;color:var(--txd);flex-shrink:0;margin-right:6px">→ '+caFmtDate(r.targetDate)+'</div>':'';
+      const completeBtn=(r.status!=='closed')
+        ?'<button onclick="event.stopPropagation();caMarkComplete(\'RFI\',\''+r.id+'\')" title="Mark complete" style="background:rgba(82,201,122,.12);border:1px solid rgba(82,201,122,.3);color:var(--grn);border-radius:4px;padding:3px 7px;font-family:var(--fm);font-size:8px;font-weight:700;cursor:pointer;flex-shrink:0;margin-right:6px">✓</button>'
+        :'';
+      const u=caUrgency(r.targetDate||r.responseDue);
+      const rowBg=u&&r.status!=='closed'?(u.cssClass==='overdue'||u.cssClass==='today'?'background:rgba(224,82,82,.05)':u.cssClass==='tomorrow'?'background:rgba(240,201,122,.05)':''):'';
+      return '<div class="ca-row" onclick="openCARFIDetail(\''+r.id+'\')" style="'+rowBg+'">'
+        +'<div class="ca-row-num" style="margin-left:6px">'+r.num+'</div>'
+        +'<div class="ca-row-title">'
+          +'<div class="ca-rtitle">'+r.subject+'</div>'
+          +'<div class="ca-rsub">Raised '+caFmtDate(r.raisedDate)+(r.directedTo?' · To: '+r.directedTo:'')+(r.drawingRefs&&r.drawingRefs.length?' · '+r.drawingRefs.map(d=>'<span class="ca-drw-badge" onclick="event.stopPropagation();go(\'drawings\',null);openDrwDetail(\''+d+'\')">'+d+'</span>').join(''):'')+'</div>'
+        +'</div>'
+        +assignedHtml
+        +targetHtml
+        +(r.responseDue?'<div style="font-family:var(--fm);font-size:9px;color:'+duColor+';flex-shrink:0;margin-right:8px">'+duLabel+'</div>':'')
+        +completeBtn
+        +'<span class="ca-status '+caStatusClass(r.status)+'">'+caStatusLabel(r.status)+'</span>'
+      +'</div>';
+    }).join('');
+
+    return '<div class="gp-section'+(collapsed?' collapsed':'')+'" id="gp-rfi-'+po.pid+'">'
+      +'<div class="gp-section-hd" onclick="gpToggleSection(\'rfi\',\''+po.pid+'\')">'
+        +'<span class="gp-section-dot" style="background:'+(p?.color||'var(--txd)')+'"></span>'
+        +'<span class="gp-section-name">'+(p?p.name:po.pid)+'</span>'
+        +'<span class="gp-section-counts">'
+          +(po.ovCount>0?'<span class="urgent-pill">⚠ '+po.ovCount+' overdue</span>':'')
+          +(po.urgCount>po.ovCount?'<span class="urgent-pill" style="background:rgba(240,201,122,.15);color:var(--gold)">'+(po.urgCount-po.ovCount)+' urgent</span>':'')
+          +(openInProj>0?'<span class="open-pill">'+openInProj+' open</span>':'')
+          +(closedInProj>0?'<span class="closed-pill">'+closedInProj+' closed</span>':'')
+        +'</span>'
+        +'<span class="gp-chev">▼</span>'
+      +'</div>'
+      +'<div class="gp-section-body">'+rowsHtml+'</div>'
+    +'</div>';
+  }).join('');
+
+  body.innerHTML=kpi+'<div style="height:8px"></div>'+urgentBanner+sectionsHtml;
+}
+
+/* ── SUBMITTALS ──────────────────────────────────────────── */
+function renderCASUB(){
+  const hdr=document.getElementById('ca-module-header');
+  const body=document.getElementById('ca-module-body');
+  if(!hdr||!body) return;
+  const arr=caFilterArr(CA_SUBMITTALS).sort((a,b)=>b.submittedDate.localeCompare(a.submittedDate));
+  const statusFilter=document.getElementById('ca-sub-status')?.value||'';
+  const filtered=statusFilter?arr.filter(r=>r.status===statusFilter):arr;
+
+  hdr.innerHTML='<div style="font-family:var(--fd);font-size:15px">Submittal Log</div>'
+    +'<select class="fsel" id="ca-sub-status" onchange="renderCASUB()" style="font-size:10px;padding:4px 8px;width:auto">'
+      +'<option value="">All</option><option value="pending">Pending Review</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="resubmit">Resubmit Required</option>'
+    +'</select>'
+    +'<div style="margin-left:auto">'+(canSchedule()?'<button class="btn bp bsm" onclick="openCASUBModal()">+ New Submittal</button>':'')+'</div>';
+
+  const kpi='<div class="ca-kpi-row">'
+    +'<div class="sc" style="padding:10px 12px"><div class="slbl">Total</div><div class="sval">'+arr.length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(240,201,122,.3)"><div class="slbl" style="color:var(--gold)">Pending</div><div class="sval" style="color:var(--gold)">'+arr.filter(r=>r.status==='pending').length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(82,201,122,.3)"><div class="slbl" style="color:var(--grn)">Approved</div><div class="sval" style="color:var(--grn)">'+arr.filter(r=>r.status==='approved').length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(224,82,82,.3)"><div class="slbl" style="color:var(--red)">Rejected/Resubmit</div><div class="sval" style="color:var(--red)">'+arr.filter(r=>['rejected','resubmit'].includes(r.status)).length+'</div></div>'
+  +'</div>';
+
+  if(!arr.length){ body.innerHTML=kpi+'<div style="padding:48px;text-align:center;font-family:var(--fm);color:var(--txd)">No submittals logged yet.</div>'; return; }
+
+  body.innerHTML=kpi+filtered.map(r=>{
+    const p=PROJS.find(x=>x.id===r.projId);
+    const du=caDaysUntil(r.reviewDue);
+    const duColor=du!==null&&du<0?'var(--red)':du!==null&&du<=3?'var(--gold)':'var(--txd)';
+    const ass=r.assignedTo?STAFF.find(x=>x.id===r.assignedTo):null;
+    const assignedHtml=ass
+      ?'<div title="Reviewer: '+ass.first+' '+ass.last+'" style="display:flex;align-items:center;gap:5px;flex-shrink:0;margin-right:6px"><div style="width:22px;height:22px;border-radius:50%;background:'+ass.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:8px;color:#0a0a0f;font-weight:700">'+ass.first[0]+ass.last[0]+'</div></div>'
+      :'<div title="Unassigned" style="font-family:var(--fm);font-size:8px;color:var(--txd);flex-shrink:0;margin-right:6px;padding:3px 8px;border:1px dashed var(--bd2);border-radius:5px">No reviewer</div>';
+    const targetHtml=r.targetDate?'<div style="font-family:var(--fm);font-size:8px;color:var(--txd);flex-shrink:0;margin-right:6px">→ '+caFmtDate(r.targetDate)+'</div>':'';
+    const completeBtn=(!['approved','rejected'].includes(r.status))
+      ?'<button onclick="event.stopPropagation();caMarkComplete(\'SUB\',\''+r.id+'\')" title="Approve submittal" style="background:rgba(82,201,122,.12);border:1px solid rgba(82,201,122,.3);color:var(--grn);border-radius:4px;padding:3px 7px;font-family:var(--fm);font-size:8px;font-weight:700;cursor:pointer;flex-shrink:0;margin-right:6px">✓</button>'
+      :'';
+    return '<div class="ca-row" onclick="openCASUBDetail(\''+r.id+'\')">'
+      +'<div class="ca-proj-dot" style="background:'+(p?.color||'var(--txd)')+'"></div>'
+      +'<div class="ca-row-num">'+r.num+'</div>'
+      +'<div class="ca-row-title">'
+        +'<div class="ca-rtitle">'+r.title+'</div>'
+        +'<div class="ca-rsub">'+(p?p.name+' · ':'')+(r.specSection?'Spec '+r.specSection+' · ':'')+('Submitted '+caFmtDate(r.submittedDate))+(r.submittedBy?' by '+caStaffName(r.submittedBy):'')+(r.drawingRefs&&r.drawingRefs.length?' · '+r.drawingRefs.map(d=>'<span class="ca-drw-badge" onclick="event.stopPropagation();go(\'drawings\',null);openDrwDetail(\''+d+'\')">'+d+'</span>').join(''):'')+'</div>'
+      +'</div>'
+      +assignedHtml
+      +targetHtml
+      +(r.reviewDue&&r.status==='pending'?'<div style="font-family:var(--fm);font-size:9px;color:'+duColor+';flex-shrink:0;margin-right:8px">'+(du<0?'⚠ Overdue':du+'d to review')+'</div>':'')
+      +completeBtn
+      +'<span class="ca-status '+caStatusClass(r.status)+'">'+caStatusLabel(r.status)+'</span>'
+    +'</div>';
+  }).join('');
+}
+
+/* ── SNAG LIST ───────────────────────────────────────────── */
+function renderCASnag(){
+  const hdr=document.getElementById('ca-module-header');
+  const body=document.getElementById('ca-module-body');
+  if(!hdr||!body) return;
+  const arr=caFilterArr(CA_SNAGS).sort((a,b)=>{
+    const po={critical:0,high:1,low:2};
+    return (po[a.priority]||1)-(po[b.priority]||1);
+  });
+  const statusFilter=document.getElementById('ca-snag-status')?.value||'';
+  const filtered=statusFilter?arr.filter(r=>r.status===statusFilter):arr;
+  const openCount=arr.filter(r=>r.status!=='resolved').length;
+
+  hdr.innerHTML='<div style="font-family:var(--fd);font-size:15px">Snag / Punch List</div>'
+    +'<select class="fsel" id="ca-snag-status" onchange="renderCASnag()" style="font-size:10px;padding:4px 8px;width:auto">'
+      +'<option value="">All</option><option value="open">Open</option><option value="resolved">Resolved</option>'
+    +'</select>'
+    +'<div style="margin-left:auto">'+(canSchedule()?'<button class="btn bp bsm" onclick="openCASnagModal()">+ New Snag Item</button>':'')+'</div>';
+
+  const kpi='<div class="ca-kpi-row">'
+    +'<div class="sc" style="padding:10px 12px"><div class="slbl">Total Items</div><div class="sval">'+arr.length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(224,82,82,.3)"><div class="slbl" style="color:var(--red)">Open</div><div class="sval" style="color:var(--red)">'+openCount+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(224,82,82,.3)"><div class="slbl" style="color:var(--red)">Critical</div><div class="sval" style="color:var(--red)">'+arr.filter(r=>r.priority==='critical'&&r.status!=='resolved').length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(82,201,122,.3)"><div class="slbl" style="color:var(--grn)">Resolved</div><div class="sval" style="color:var(--grn)">'+arr.filter(r=>r.status==='resolved').length+'</div></div>'
+  +'</div>';
+
+  if(!arr.length){ body.innerHTML=kpi+'<div style="padding:48px;text-align:center;font-family:var(--fm);color:var(--txd)">No snag items yet.</div>'; return; }
+
+  const priColor={critical:'var(--red)',high:'var(--gold)',low:'var(--txd)'};
+  const priLabel={critical:'● Critical',high:'● High',low:'● Low'};
+  body.innerHTML=kpi+filtered.map(r=>{
+    const p=PROJS.find(x=>x.id===r.projId);
+    const col=priColor[r.priority]||'var(--txd)';
+    return '<div class="ca-row" onclick="openCASnagDetail(\''+r.id+'\')">'
+      +'<div class="ca-proj-dot" style="background:'+(p?.color||'var(--txd)')+'"></div>'
+      +'<div class="ca-row-num">'+r.num+'</div>'
+      +'<div style="flex-shrink:0;font-family:var(--fm);font-size:9px;font-weight:700;color:'+col+';min-width:56px">'+( priLabel[r.priority]||'Low')+'</div>'
+      +'<div class="ca-row-title">'
+        +'<div class="ca-rtitle">'+r.description+'</div>'
+        +'<div class="ca-rsub">'+(p?p.name+' · ':'')+( r.location?'📍 '+r.location+' · ':'')+( r.contractor?r.contractor+' · ':'')+caFmtDate(r.reportedDate)+(r.drawingRef?'<span class="ca-drw-badge" onclick="event.stopPropagation();go(\'drawings\',null);openDrwDetail(\''+r.drawingRef+'\')">'+r.drawingRef+'</span>':'')+'</div>'
+      +'</div>'
+      +'<span class="ca-status '+caStatusClass(r.status)+'">'+caStatusLabel(r.status)+'</span>'
+    +'</div>';
+  }).join('');
+}
+
+/* ── ARCHITECT'S INSTRUCTIONS ────────────────────────────── */
+function renderCAAI(){
+  const hdr=document.getElementById('ca-module-header');
+  const body=document.getElementById('ca-module-body');
+  if(!hdr||!body) return;
+  const arr=caFilterArr(CA_AIS).sort((a,b)=>b.issuedDate.localeCompare(a.issuedDate));
+  const statusFilter=document.getElementById('ca-ai-status')?.value||'';
+  const filtered=statusFilter==='unack'?arr.filter(r=>!r.acknowledged):statusFilter?arr.filter(r=>r.status===statusFilter):arr;
+
+  hdr.innerHTML='<div style="font-family:var(--fd);font-size:15px">Architect\'s Instructions</div>'
+    +'<select class="fsel" id="ca-ai-status" onchange="renderCAAI()" style="font-size:10px;padding:4px 8px;width:auto">'
+      +'<option value="">All</option><option value="unack">Unacknowledged</option>'
+    +'</select>'
+    +'<div style="margin-left:auto">'+(canSchedule()?'<button class="btn bp bsm" onclick="openCAAIModal()">+ New Instruction</button>':'')+'</div>';
+
+  const kpi='<div class="ca-kpi-row">'
+    +'<div class="sc" style="padding:10px 12px"><div class="slbl">Total AIs</div><div class="sval">'+arr.length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(240,201,122,.3)"><div class="slbl" style="color:var(--gold)">Unacknowledged</div><div class="sval" style="color:var(--gold)">'+arr.filter(r=>!r.acknowledged).length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(224,82,82,.3)"><div class="slbl" style="color:var(--red)">Cost Impact</div><div class="sval" style="color:var(--red)">'+arr.filter(r=>r.costImpact&&r.costImpact!=='none').length+'</div></div>'
+    +'<div class="sc" style="padding:10px 12px;border-color:rgba(82,201,122,.3)"><div class="slbl" style="color:var(--grn)">Acknowledged</div><div class="sval" style="color:var(--grn)">'+arr.filter(r=>r.acknowledged).length+'</div></div>'
+  +'</div>';
+
+  if(!arr.length){ body.innerHTML=kpi+'<div style="padding:48px;text-align:center;font-family:var(--fm);color:var(--txd)">No architect\'s instructions issued yet.</div>'; return; }
+
+  body.innerHTML=kpi+filtered.map(r=>{
+    const p=PROJS.find(x=>x.id===r.projId);
+    const hasCost=r.costImpact&&r.costImpact!=='none';
+    return '<div class="ca-row" onclick="openCAAIDetail(\''+r.id+'\')">'
+      +'<div class="ca-proj-dot" style="background:'+(p?.color||'var(--txd)')+'"></div>'
+      +'<div class="ca-row-num">'+r.num+'</div>'
+      +'<div class="ca-row-title">'
+        +'<div class="ca-rtitle">'+r.title+'</div>'
+        +'<div class="ca-rsub">'+(p?p.name+' · ':'')+'Issued '+caFmtDate(r.issuedDate)+' by '+caStaffName(r.issuedBy)+(r.issuedTo?' · To: '+r.issuedTo:'')+(hasCost?' · <span style="color:var(--red)">Cost impact</span>':'')+(r.drawingRefs&&r.drawingRefs.length?' · '+r.drawingRefs.map(d=>'<span class="ca-drw-badge" onclick="event.stopPropagation();go(\'drawings\',null);openDrwDetail(\''+d+'\')">'+d+'</span>').join(''):'')+'</div>'
+      +'</div>'
+      +'<span class="ca-status '+(r.acknowledged?'ca-st-closed':'ca-st-pending')+'">'+(r.acknowledged?'Acknowledged':'Awaiting Ack')+'</span>'
+    +'</div>';
+  }).join('');
+}
+
+/* ═══ MODALS ══════════════════════════════════════════════ */
+
+/* ── NEW SITE VISIT REPORT ────────────────────────────────── */
+function openCASVRModal(id){
+  const ex=document.getElementById('ca-svr-ov');if(ex)ex.remove();
+  const r=id?CA_SVR.find(x=>x.id===id):null;
+  const isEdit=!!r;
+  const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
+  const div=document.createElement('div');div.id='ca-svr-ov';div.className='ov show';
+  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+(( r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
+  const staffOpts=STAFF.filter(s=>s.type!=='contractor').map(s=>'<option value="'+s.id+'" '+(( r?.visitedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
+  const weather=['Sunny','Partly Cloudy','Overcast','Rain','Hot & Humid','Windy'];
+  const stages=['SD','DD','CD','CA'];
+  const issHtml=(r?.issues||[]).map((iss,i)=>'<div id="iss-row-'+i+'" style="background:var(--sf3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'
+    +'<div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:start">'
+      +'<input class="finp" value="'+iss.desc+'" placeholder="Issue description" id="iss-desc-'+i+'" style="font-size:11px">'
+      +'<select class="fsel" id="iss-sev-'+i+'" style="width:auto;font-size:10px"><option value="low" '+(iss.severity==='low'?'selected':'')+'>Low</option><option value="high" '+(iss.severity==='high'?'selected':'')+'>High</option><option value="critical" '+(iss.severity==='critical'?'selected':'')+'>Critical</option></select>'
+      +'<button class="btn bg bsm" style="color:var(--red)" onclick="this.closest(\'[id^=iss-row]\').remove()">✕</button>'
+    +'</div>'
+    +'<input class="finp" value="'+(iss.location||'')+'" placeholder="Location on site" id="iss-loc-'+i+'" style="font-size:11px;margin-top:4px">'
+  +'</div>').join('');
+
+  div.innerHTML='<div class="modal" style="max-width:640px">'
+    +'<button class="mclose" onclick="closeModal(\'ca-svr-ov\')">✕</button>'
+    +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Site Visit Report</div>'
+
+    // ── SECTION 1: Visit details ──────────────────────────────
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="svr-proj">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Stage</label><select class="fsel" id="svr-stage">'+stages.map(s=>'<option value="'+s+'" '+((r?.stage||'CA')===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>'
+      +'<div class="frow"><label class="flbl">Visit Date</label><input class="finp" type="date" id="svr-date" value="'+(r?.date||caToday())+'"></div>'
+      +'<div class="frow"><label class="flbl">Visit Time</label><input class="finp" type="time" id="svr-time" value="'+(r?.time||'09:00')+'"></div>'
+      +'<div class="frow"><label class="flbl">Weather</label><select class="fsel" id="svr-weather">'+weather.map(w=>'<option value="'+w+'" '+((r?.weather||'Sunny')===w?'selected':'')+'>'+w+'</option>').join('')+'</select></div>'
+      +'<div class="frow"><label class="flbl">% Complete (Overall)</label><input class="finp" type="number" min="0" max="100" id="svr-pct" value="'+(r?.progressPct||0)+'" style="width:80px"></div>'
+      +'<div class="frow"><label class="flbl">Contractor Present</label><select class="fsel" id="svr-cpresent"><option value="yes" '+(r?.contractorPresent!==false?'selected':'')+'>Yes</option><option value="no" '+(r?.contractorPresent===false?'selected':'')+'>No</option></select></div>'
+      +'<div class="frow"><label class="flbl">Contractor / Site Supervisor</label><input class="finp" id="svr-cname" value="'+(r?.contractorName||'')+'" placeholder="Contractor name / foreman"></div>'
+    +'</div>'
+    +'<div class="frow"><label class="flbl">Construction Stage</label><input class="finp" id="svr-cstage" value="'+(r?.constructionStage||'')+'" placeholder="e.g. Roof slab shuttering in progress, blockwork ground floor complete"></div>'
+
+    // ── STAFF ATTENDING THIS VISIT ────────────────────────────
+    +'<div style="background:rgba(82,201,122,.04);border:1px solid rgba(82,201,122,.15);border-radius:8px;padding:12px 14px;margin:8px 0 4px">'
+      +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--grn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
+        +'👥 Staff attending this visit — creates meeting &amp; blocks schedule today'
+      +'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
+      +STAFF.filter(s=>s.type!=='contractor').map(s=>{
+        const curAttendees=r?.attendees||(r?.visitedBy?[r.visitedBy]:[CURRENT_USER_ID]);
+        const checked=curAttendees.includes(s.id);
+        return '<label style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--grn)':'var(--bd)')+'" id="att-lbl-'+s.id+'">'
+          +'<input type="checkbox" id="att-svr-'+s.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'att-lbl-'+s.id+'\').style.borderColor=this.checked?\'var(--grn)\':\' var(--bd)\'">'
+          +'<div style="width:16px;height:16px;border-radius:50%;background:'+s.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:6px;color:#0a0a0f;flex-shrink:0">'+s.first[0]+s.last[0]+'</div>'
+          +s.first+'</label>';
+      }).join('')
+      +'</div>'
+    +'</div>'
+
+    // ── SITE OBSERVATIONS ─────────────────────────────────────
+    +'<div class="frow"><label class="flbl">Drawings Checked on Site</label><input class="finp" id="svr-drws" value="'+(r?.drawingsChecked?.join(', ')||'')+'" placeholder="e.g. CP-A-001, CP-S-001 (comma-separated)"></div>'
+    +'<div class="frow"><label class="flbl">Observations</label><textarea class="ftarea" id="svr-obs" rows="3" placeholder="Progress observed, quality, compliance with drawings, materials on site…">'+(r?.observations||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl" style="display:flex;align-items:center;justify-content:space-between">Issues Found <button class="btn bg bsm" onclick="addCASVRIssue()" style="font-size:9px">+ Add Issue</button></label>'
+      +'<div id="svr-issues-list">'+issHtml+'</div></div>'
+    +'<div class="frow"><label class="flbl">Instructions Given on Site</label><textarea class="ftarea" id="svr-instr" rows="2" placeholder="Verbal or written instructions to contractor issued during this visit…">'+(r?.instructions||'')+'</textarea></div>'
+
+    // ── NEXT VISIT ────────────────────────────────────────────
+    +'<div style="background:rgba(82,133,224,.06);border:1px solid rgba(82,133,224,.15);border-radius:8px;padding:12px 14px;margin-top:6px">'
+      +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--blu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
+        +'📅 Next site visit — auto-schedules meeting &amp; blocks staff calendar'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">'
+        +'<div class="frow" style="margin:0"><label class="flbl">Next Visit Date</label><input class="finp" type="date" id="svr-nextdate" value="'+(r?.nextVisitDate||caAddDays(caToday(),14))+'"></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl">Planned Time</label><input class="finp" type="time" id="svr-nexttime" value="'+(r?.nextVisitTime||'09:00')+'"></div>'
+      +'</div>'
+      +'<div class="frow" style="margin:0"><label class="flbl">Staff for Next Visit</label>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'
+        +STAFF.filter(s=>s.type!=='contractor').map(s=>{
+          const nxtAttendees=r?.nextVisitAttendees||(r?.visitedBy?[r.visitedBy]:[CURRENT_USER_ID]);
+          const checked=nxtAttendees.includes(s.id);
+          return '<label style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--blu)':'var(--bd)')+'" id="nva-lbl-'+s.id+'">'
+            +'<input type="checkbox" id="nva-'+s.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'nva-lbl-'+s.id+'\').style.borderColor=this.checked?\'var(--blu)\':\' var(--bd)\'">'
+            +'<div style="width:16px;height:16px;border-radius:50%;background:'+s.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:6px;color:#0a0a0f;flex-shrink:0">'+s.first[0]+s.last[0]+'</div>'
+            +s.first+'</label>';
+        }).join('')
+        +'</div>'
+      +'</div>'
+    +'</div>'
+
+    +'<div style="display:flex;gap:8px;margin-top:12px">'
+      +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="saveCASVR('+(isEdit?'\''+id+'\'':"''")+')">'+( isEdit?'💾 Save Changes':'✓ Save &amp; Sync')+'</button>'
+      +'<button class="btn bg" onclick="closeModal(\'ca-svr-ov\')">Cancel</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(div);
+}
+
+function addCASVRIssue(){
+  const list=document.getElementById('svr-issues-list'); if(!list) return;
+  const i=list.children.length;
+  const row=document.createElement('div');
+  row.id='iss-row-'+i;
+  row.style.cssText='background:var(--sf3);border-radius:6px;padding:8px 10px;margin-bottom:6px';
+  row.innerHTML='<div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:start">'
+    +'<input class="finp" placeholder="Issue description" id="iss-desc-'+i+'" style="font-size:11px">'
+    +'<select class="fsel" id="iss-sev-'+i+'" style="width:auto;font-size:10px"><option value="low">Low</option><option value="high">High</option><option value="critical">Critical</option></select>'
+    +'<button class="btn bg bsm" style="color:var(--red)" onclick="this.closest(\'[id^=iss-row]\').remove()">✕</button>'
+    +'</div>'
+    +'<input class="finp" placeholder="Location on site" id="iss-loc-'+i+'" style="font-size:11px;margin-top:4px">';
+  list.appendChild(row);
+}
+
+function saveCASVR(editId){
+  const projId=document.getElementById('svr-proj')?.value; if(!projId){showNotif('Project required','');return;}
+  const date=document.getElementById('svr-date')?.value; if(!date){showNotif('Date required','');return;}
+  const issRows=Array.from(document.querySelectorAll('[id^=iss-row-]'));
+  const issues=issRows.map((row,i)=>({
+    id:'ISS-'+Date.now()+'-'+i,
+    desc:document.getElementById('iss-desc-'+i)?.value||'',
+    location:document.getElementById('iss-loc-'+i)?.value||'',
+    severity:document.getElementById('iss-sev-'+i)?.value||'low',
+    status:'open',photo:''
+  })).filter(iss=>iss.desc.trim());
+
+  const drwsRaw=(document.getElementById('svr-drws')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  // Current visit attendees from the new checkbox section
+  const currentAttendees=STAFF.filter(s=>document.getElementById('att-svr-'+s.id)?.checked).map(s=>s.id);
+  const visitedBy=currentAttendees[0]||CURRENT_USER_ID; // first selected or current user
+
+  const entry={
+    id:editId||('SVR-'+Date.now()),
+    projId,
+    num:editId?(CA_SVR.find(x=>x.id===editId)?.num||caNextNum(CA_SVR.filter(r=>r.projId===projId),'SVR-'+projId)):caNextNum(CA_SVR.filter(r=>r.projId===projId),'SVR-'+projId),
+    date,time:document.getElementById('svr-time')?.value||'',
+    visitedBy,
+    attendees:currentAttendees,
+    stage:document.getElementById('svr-stage')?.value||'CA',
+    weather:document.getElementById('svr-weather')?.value||'',
+    contractorPresent:document.getElementById('svr-cpresent')?.value==='yes',
+    contractorName:document.getElementById('svr-cname')?.value||'',
+    constructionStage:document.getElementById('svr-cstage')?.value||'',
+    progressPct:parseInt(document.getElementById('svr-pct')?.value)||0,
+    drawingsChecked:drwsRaw,
+    observations:document.getElementById('svr-obs')?.value||'',
+    issues,
+    instructions:document.getElementById('svr-instr')?.value||'',
+    nextVisitDate:document.getElementById('svr-nextdate')?.value||'',
+    nextVisitTime:document.getElementById('svr-nexttime')?.value||'09:00',
+    nextVisitAttendees:STAFF.filter(s=>document.getElementById('nva-'+s.id)?.checked).map(s=>s.id),
+    createdAt:new Date().toISOString()
+  };
+  if(editId){const idx=CA_SVR.findIndex(x=>x.id===editId);if(idx>=0)CA_SVR[idx]=entry;else CA_SVR.push(entry);}
+  else CA_SVR.push(entry);
+
+  // ── SYNC CURRENT VISIT → MEETINGS + STAFF SCHEDULE ───────────
+  if(currentAttendees.length>0){
+    const proj=PROJS.find(p=>p.id===projId);
+    const mtgTitle=(proj?proj.name+' — ':'')+'Site Visit';
+    const visitTime=entry.time||'09:00';
+
+    // Find existing meeting for this visit (by svrSourceId or same date+proj+type)
+    const curMtgIdx=MEETINGS.findIndex(m=>
+      m.type==='site-visit' && m.proj===projId && m.date===date &&
+      (m.svrSourceId===entry.id || (!m.svrSourceId && m.title===mtgTitle))
+    );
+
+    if(curMtgIdx>=0){
+      const m=MEETINGS[curMtgIdx];
+      m.time=visitTime;
+      m.attendees=[...new Set([...(m.attendees||[]),...currentAttendees])];
+      m.attendeeStatuses=m.attendees.map(id=>({
+        id, status:currentAttendees.includes(id)?'attended':(m.attendeeStatuses?.find(a=>a.id===id)?.status||'invited')
+      }));
+      m.svrSourceId=entry.id;
+      m.status='completed';
+    } else {
+      const nm={
+        id:nextMtgId(),gcalId:null,source:'local',type:'site-visit',
+        status:'completed',title:mtgTitle,date,time:visitTime,duration:90,
+        proj:projId,location:(proj?proj.name+' Site':'Site'),
+        attendees:currentAttendees,externalAttendees:[],
+        agenda:'Site inspection · Progress review · Quality check',
+        notes:entry.observations||'',actionItems:[],
+        attendeeStatuses:currentAttendees.map(id=>({id,status:'attended'})),
+        notionPageUrl:'',createdBy:CURRENT_USER_ID,meetLink:'',
+        svrSourceId:entry.id
+      };
+      MEETINGS.push(nm);
+    }
+
+    // Block each attending staff member in SCHED_TASKS for the visit date
+    currentAttendees.forEach(staffId=>{
+      const schedId='SVR_CUR_'+entry.id+'_'+staffId;
+      const schedEntry={
+        id:schedId,drawingId:null,projId,
+        title:'Site Visit — '+(proj?proj.name:''),
+        disc:'CA',staffId,sid:staffId,phase:'CA',status:'done',
+        start:date,due:date,estHrs:3,actHrs:3,pct:100,
+        priority:'high',rag:'green',ragOverride:'auto',
+        notes:'From site visit report '+entry.num,
+        changeLog:[],milestone:false,deps:[],svrSourceId:entry.id
+      };
+      const ex=SCHED_TASKS.findIndex(t=>t.id===schedId);
+      if(ex>=0) SCHED_TASKS[ex]=schedEntry; else SCHED_TASKS.push(schedEntry);
+    });
+  }
+
+  // ── AUTO-CREATE / UPDATE NEXT SITE VISIT IN MEETINGS ─────────
+  if(entry.nextVisitDate){
+    const proj=PROJS.find(p=>p.id===projId);
+    // Use multi-staff next visit attendees, fall back to current visitor
+    const visitStaff=(entry.nextVisitAttendees&&entry.nextVisitAttendees.length)
+      ? entry.nextVisitAttendees
+      : [entry.visitedBy].filter(Boolean);
+    const visitTime=entry.nextVisitTime||entry.time||'09:00';
+    const mtgTitle=(proj?proj.name+' — ':'')+'Site Visit';
+
+    // Check if a site-visit meeting already exists for this project on that date
+    const existingIdx=MEETINGS.findIndex(m=>
+      m.proj===projId && m.type==='site-visit' &&
+      m.date===entry.nextVisitDate &&
+      (m.svrSourceId===entry.id || m.title===mtgTitle)
+    );
+
+    if(existingIdx>=0){
+      // Update existing meeting
+      const m=MEETINGS[existingIdx];
+      m.date=entry.nextVisitDate;
+      m.time=visitTime;
+      m.duration=90;
+      m.attendees=[...new Set([...(m.attendees||[]),...visitStaff])];
+      m.attendeeStatuses=m.attendees.map(id=>({
+        id,
+        status: visitStaff.includes(id) ? 'accepted' : (m.attendeeStatuses?.find(a=>a.id===id)?.status||'invited')
+      }));
+      m.svrSourceId=entry.id;
+      showNotif('Next visit updated in Meetings',mtgTitle+' · '+entry.nextVisitDate+(visitStaff.length?' · '+visitStaff.map(id=>caStaffName(id)).join(', '):''));
+    } else {
+      // Create new meeting
+      const nm={
+        id:nextMtgId(),
+        gcalId:null,
+        source:'local',
+        type:'site-visit',
+        status:'scheduled',
+        title:mtgTitle,
+        date:entry.nextVisitDate,
+        time:visitTime,
+        duration:90,
+        proj:projId,
+        location:(proj?proj.name+' Site':'Site'),
+        attendees:visitStaff,
+        externalAttendees:[],
+        agenda:'Site inspection · Progress review · Quality check',
+        notes:'',
+        actionItems:[],
+        attendeeStatuses:visitStaff.map(id=>({id,status:'accepted'})),
+        notionPageUrl:'',
+        createdBy:CURRENT_USER_ID,
+        meetLink:'',
+        svrSourceId:entry.id
+      };
+      MEETINGS.push(nm);
+      addNotif({type:'meeting',icon:'📅',iconBg:'rgba(82,133,224,.2)',
+        title:'Site visit scheduled: '+mtgTitle,
+        detail:(proj?proj.name+' · ':'')+entry.nextVisitDate+' at '+visitTime,
+        projId,forAll:true});
+      showNotif('Next site visit added to Meetings',mtgTitle+' · '+entry.nextVisitDate);
+    }
+
+    // ── BLOCK STAFF TIME IN SCHEDULE FOR ALL ATTENDEES ────────
+    visitStaff.filter(Boolean).forEach(staffId=>{
+      const schedId='SVR_'+entry.id+'_'+staffId;
+      const schedEntry={
+        id:schedId,
+        drawingId:null,
+        projId,
+        title:'Site Visit — '+(proj?proj.name:''),
+        disc:'CA',
+        staffId,sid:staffId,
+        phase:'CA',
+        status:'pending',
+        start:entry.nextVisitDate,
+        due:entry.nextVisitDate,
+        estHrs:3,
+        actHrs:0,
+        pct:0,
+        priority:'high',
+        rag:'green',
+        ragOverride:'auto',
+        notes:'Auto-scheduled from site visit report '+entry.num,
+        changeLog:[],
+        milestone:false,
+        deps:[],
+        svrSourceId:entry.id
+      };
+      const existing=SCHED_TASKS.findIndex(t=>t.id===schedId);
+      if(existing>=0) SCHED_TASKS[existing]=schedEntry;
+      else SCHED_TASKS.push(schedEntry);
+    });
+  }
+
+  scheduleSave();
+  closeModal('ca-svr-ov');
+  renderCA();
+  updateCABadges();
+  if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
+  if(document.getElementById('panel-meetings')?.classList.contains('active')) renderMeetings();
+  showNotif('Site report saved',entry.num+' — '+caProjName(projId));
+}
+
+/* ── NEW RFI ────────────────────────────────────────────── */
+function openCARFIModal(id){
+  const ex=document.getElementById('ca-rfi-ov');if(ex)ex.remove();
+  const r=id?CA_RFIS.find(x=>x.id===id):null;
+  const isEdit=!!r;
+  const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
+  const div=document.createElement('div');div.id='ca-rfi-ov';div.className='ov show';
+  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+((r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
+  const inhouse=STAFF.filter(s=>s.type!=='contractor');
+  const staffOpts=inhouse.map(s=>'<option value="'+s.id+'" '+((r?.raisedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
+  const assignOpts='<option value="">— Unassigned —</option>'+inhouse.map(s=>'<option value="'+s.id+'" '+(r?.assignedTo===s.id?'selected':'')+'>'+s.first+' '+s.last+(s.role?' · '+s.role:'')+'</option>').join('');
+  const reviewerOpts='<option value="">— No reviewer —</option>'+inhouse.filter(s=>['Principal Architect','Associate','Lead Architect','Project Architect'].includes(s.role)).map(s=>'<option value="'+s.id+'" '+(r?.reviewer===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
+  const drwOpts='<option value="">— None —</option>'+DRAWINGS.filter(d=>d.proj===(r?.projId||projId)).map(d=>'<option value="'+d.id+'" '+(r?.drawingRefs?.includes(d.id)?'selected':'')+'>'+d.id+' — '+d.title.slice(0,40)+'</option>').join('');
+
+  div.innerHTML='<div class="modal" style="max-width:600px">'
+    +'<button class="mclose" onclick="closeModal(\'ca-rfi-ov\')">✕</button>'
+    +'<div class="mtitle">'+(isEdit?'Edit':'New')+' RFI</div>'
+
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="rfi-proj" onchange="refreshRFIDrawings()">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Date Raised</label><input class="finp" type="date" id="rfi-date" value="'+(r?.raisedDate||caToday())+'"></div>'
+      +'<div class="frow"><label class="flbl">Raised By</label><select class="fsel" id="rfi-by">'+staffOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Directed To (External)</label><input class="finp" id="rfi-to" value="'+(r?.directedTo||'')+'" placeholder="Contractor / Engineer"></div>'
+    +'</div>'
+
+    // ── ASSIGNMENT BLOCK ──────────────────────────────────────
+    +'<div style="background:rgba(82,201,122,.04);border:1px solid rgba(82,201,122,.15);border-radius:8px;padding:12px 14px;margin:8px 0 4px">'
+      +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--grn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
+        +'👤 Assignment — visible in Staff Schedule'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+        +'<div class="frow" style="margin:0"><label class="flbl">Assigned To (Staff)</label><select class="fsel" id="rfi-assigned" onchange="caUpdateClashBanner(\'rfi\',1)">'+assignOpts+'</select></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl">Action / Target Date</label><input class="finp" type="date" id="rfi-target" value="'+(r?.targetDate||r?.responseDue||caAddDays(caToday(),5))+'" onchange="caUpdateClashBanner(\'rfi\',1)"></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl">Reviewer</label><select class="fsel" id="rfi-reviewer">'+reviewerOpts+'</select></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl">Response Due (External)</label><input class="finp" type="date" id="rfi-due" value="'+(r?.responseDue||caAddDays(caToday(),7))+'"></div>'
+      +'</div>'
+      +'<div id="rfi-clash-banner" style="margin-top:8px"></div>'
+    +'</div>'
+
+    // ── STATUS WORKFLOW ───────────────────────────────────────
+    +'<div class="frow"><label class="flbl">Status</label><select class="fsel" id="rfi-status">'
+      +'<option value="open" '+((!r||r.status==='open')?'selected':'')+'>📂 Open — not yet started</option>'
+      +'<option value="in-progress" '+(r?.status==='in-progress'?'selected':'')+'>⚡ In Progress — assignee working on it</option>'
+      +'<option value="pending" '+(r?.status==='pending'?'selected':'')+'>⏳ Pending — waiting for external response</option>'
+      +'<option value="review" '+(r?.status==='review'?'selected':'')+'>🔍 Ready for Review</option>'
+      +'<option value="closed" '+(r?.status==='closed'?'selected':'')+'>✓ Closed — completed &amp; approved</option>'
+    +'</select></div>'
+
+    +'<div class="frow"><label class="flbl">Subject</label><input class="finp" id="rfi-subj" value="'+(r?.subject||'')+'" placeholder="Clear, specific question subject"></div>'
+    +'<div class="frow"><label class="flbl">Question / Issue</label><textarea class="ftarea" id="rfi-q" rows="3" placeholder="Describe the information requested…">'+(r?.question||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl">Referenced Drawings</label><select class="fsel" id="rfi-drws" multiple style="height:80px;font-size:10px">'+drwOpts+'</select>'
+      +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px">Hold Ctrl/Cmd to select multiple</div></div>'
+    +(isEdit&&r.status!=='open'?'<div class="frow"><label class="flbl">Answer / Response</label><textarea class="ftarea" id="rfi-ans" rows="2" placeholder="Response received…">'+(r?.answer||'')+'</textarea></div>':'')
+
+    +'<div style="display:flex;gap:8px;margin-top:8px">'
+      +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="saveCARFI('+(isEdit?'\''+id+'\'':"''")+')">'+(isEdit?'💾 Save Changes':'✓ Save &amp; Assign')+'</button>'
+      +(isEdit&&r.status!=='closed'?'<button class="btn bg" style="background:rgba(82,201,122,.15);color:var(--grn);border-color:rgba(82,201,122,.3);padding:11px" onclick="caMarkComplete(\'RFI\',\''+id+'\')">✓ Mark Complete</button>':'')
+      +'<button class="btn bg" onclick="closeModal(\'ca-rfi-ov\')">Cancel</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(div);
+  // Initial clash banner render
+  setTimeout(()=>caUpdateClashBanner('rfi',1), 50);
+}
+
+function saveCARFI(editId){
+  const projId=document.getElementById('rfi-proj')?.value;if(!projId){showNotif('Project required','');return;}
+  const subj=document.getElementById('rfi-subj')?.value.trim();if(!subj){showNotif('Subject required','');return;}
+  const drwSel=document.getElementById('rfi-drws');
+  const drawingRefs=drwSel?Array.from(drwSel.selectedOptions).map(o=>o.value).filter(Boolean):[];
+  const status=document.getElementById('rfi-status')?.value||'open';
+  const assignedTo=document.getElementById('rfi-assigned')?.value||'';
+  const targetDate=document.getElementById('rfi-target')?.value||'';
+
+  // Clash gate: warn if assignment causes overload
+  if(assignedTo && targetDate){
+    const clash = caCheckClash(assignedTo, targetDate, 1);
+    if(clash.clash){
+      if(!confirm(clash.message+'\n\nDo you still want to assign this RFI to them on '+targetDate+'?')) return;
+    }
+  }
+
+  const entry={
+    id:editId||('RFI-'+Date.now()),
+    projId,
+    num:editId?(CA_RFIS.find(x=>x.id===editId)?.num||caNextNum(CA_RFIS.filter(r=>r.projId===projId),'RFI-'+projId)):caNextNum(CA_RFIS.filter(r=>r.projId===projId),'RFI-'+projId),
+    subject:subj,
+    question:document.getElementById('rfi-q')?.value||'',
+    raisedBy:document.getElementById('rfi-by')?.value||CURRENT_USER_ID,
+    raisedDate:document.getElementById('rfi-date')?.value||caToday(),
+    directedTo:document.getElementById('rfi-to')?.value||'',
+    responseDue:document.getElementById('rfi-due')?.value||'',
+    assignedTo,
+    targetDate,
+    reviewer:document.getElementById('rfi-reviewer')?.value||'',
+    status,
+    answer:document.getElementById('rfi-ans')?.value||'',
+    answeredDate:status==='closed'?(CA_RFIS.find(x=>x.id===editId)?.answeredDate||caToday()):'',
+    answeredBy:status==='closed'?(CA_RFIS.find(x=>x.id===editId)?.answeredBy||CURRENT_USER_ID):'',
+    drawingRefs,createdAt:new Date().toISOString()
+  };
+  if(editId){const idx=CA_RFIS.findIndex(x=>x.id===editId);if(idx>=0)CA_RFIS[idx]=entry;else CA_RFIS.push(entry);}
+  else CA_RFIS.push(entry);
+
+  // ── SYNC ASSIGNMENT TO STAFF SCHEDULE ────────────────────
+  caAssignToSchedule({
+    kind:'RFI',id:entry.id,projId,
+    staffId:assignedTo,
+    title:'RFI: '+subj.slice(0,50),
+    startDate:entry.raisedDate,
+    dueDate:targetDate||entry.responseDue||entry.raisedDate,
+    status,hrs:1
+  });
+
+  scheduleSave();closeModal('ca-rfi-ov');renderCA();updateCABadges();
+  if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
+  if(document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
+  showNotif('RFI saved',entry.num+(assignedTo?' · Assigned to '+caStaffName(assignedTo):''));
+}
+
+/* ── NEW SUBMITTAL ──────────────────────────────────────── */
+function openCASUBModal(id){
+  const ex=document.getElementById('ca-sub-ov');if(ex)ex.remove();
+  const r=id?CA_SUBMITTALS.find(x=>x.id===id):null;
+  const isEdit=!!r;
+  const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
+  const div=document.createElement('div');div.id='ca-sub-ov';div.className='ov show';
+  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+((r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
+  const inhouse=STAFF.filter(s=>s.type!=='contractor');
+  const staffOpts=inhouse.map(s=>'<option value="'+s.id+'" '+((r?.submittedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
+  const assignOpts='<option value="">— Unassigned —</option>'+inhouse.map(s=>'<option value="'+s.id+'" '+(r?.assignedTo===s.id?'selected':'')+'>'+s.first+' '+s.last+(s.role?' · '+s.role:'')+'</option>').join('');
+  const reviewerOpts='<option value="">— No reviewer —</option>'+inhouse.filter(s=>['Principal Architect','Associate','Lead Architect','Project Architect'].includes(s.role)).map(s=>'<option value="'+s.id+'" '+(r?.reviewer===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
+
+  div.innerHTML='<div class="modal" style="max-width:600px">'
+    +'<button class="mclose" onclick="closeModal(\'ca-sub-ov\')">✕</button>'
+    +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Submittal</div>'
+
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="sub-proj">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Spec Section</label><input class="finp" id="sub-spec" value="'+(r?.specSection||'')+'" placeholder="e.g. 08 80 00 — Glazing"></div>'
+      +'<div class="frow"><label class="flbl">Date Submitted</label><input class="finp" type="date" id="sub-date" value="'+(r?.submittedDate||caToday())+'"></div>'
+      +'<div class="frow"><label class="flbl">Submitted By</label><select class="fsel" id="sub-by">'+staffOpts+'</select></div>'
+    +'</div>'
+
+    // ── ASSIGNMENT BLOCK ──────────────────────────────────────
+    +'<div style="background:rgba(82,201,122,.04);border:1px solid rgba(82,201,122,.15);border-radius:8px;padding:12px 14px;margin:8px 0 4px">'
+      +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--grn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
+        +'👤 Review Assignment — visible in Staff Schedule'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+        +'<div class="frow" style="margin:0"><label class="flbl">Assigned To (Reviewer)</label><select class="fsel" id="sub-assigned" onchange="caUpdateClashBanner(\'sub\',2)">'+assignOpts+'</select></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl">Target Review Date</label><input class="finp" type="date" id="sub-target" value="'+(r?.targetDate||r?.reviewDue||caAddDays(caToday(),10))+'" onchange="caUpdateClashBanner(\'sub\',2)"></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl">Final Approver</label><select class="fsel" id="sub-reviewer">'+reviewerOpts+'</select></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl">Review Due (External)</label><input class="finp" type="date" id="sub-due" value="'+(r?.reviewDue||caAddDays(caToday(),14))+'"></div>'
+      +'</div>'
+      +'<div id="sub-clash-banner" style="margin-top:8px"></div>'
+    +'</div>'
+
+    // ── STATUS WORKFLOW ───────────────────────────────────────
+    +'<div class="frow"><label class="flbl">Status</label><select class="fsel" id="sub-status">'
+      +'<option value="pending" '+((!r||r.status==='pending')?'selected':'')+'>📂 Pending Review</option>'
+      +'<option value="in-progress" '+(r?.status==='in-progress'?'selected':'')+'>⚡ In Progress — under review</option>'
+      +'<option value="review" '+(r?.status==='review'?'selected':'')+'>🔍 Final Approval Pending</option>'
+      +'<option value="approved" '+(r?.status==='approved'?'selected':'')+'>✓ Approved</option>'
+      +'<option value="rejected" '+(r?.status==='rejected'?'selected':'')+'>✗ Rejected</option>'
+      +'<option value="resubmit" '+(r?.status==='resubmit'?'selected':'')+'>↻ Resubmit Required</option>'
+    +'</select></div>'
+
+    +'<div class="frow"><label class="flbl">Title / Description</label><input class="finp" id="sub-title" value="'+(r?.title||'')+'" placeholder="e.g. Aluminium Window Shop Drawings — Type W1"></div>'
+    +'<div class="frow"><label class="flbl">Referenced Drawing IDs (comma-separated)</label><input class="finp" id="sub-drws" value="'+(r?.drawingRefs?.join(', ')||'')+'" placeholder="CP-A-003, CP-A-004"></div>'
+    +'<div class="frow"><label class="flbl">Review Notes</label><textarea class="ftarea" id="sub-notes" rows="2" placeholder="Reviewer comments…">'+(r?.notes||'')+'</textarea></div>'
+
+    +'<div style="display:flex;gap:8px;margin-top:8px">'
+      +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="saveCASUB('+(isEdit?'\''+id+'\'':"''")+')">'+(isEdit?'💾 Save Changes':'✓ Save &amp; Assign')+'</button>'
+      +(isEdit&&!['approved','rejected'].includes(r.status)?'<button class="btn bg" style="background:rgba(82,201,122,.15);color:var(--grn);border-color:rgba(82,201,122,.3);padding:11px" onclick="caMarkComplete(\'SUB\',\''+id+'\')">✓ Mark Approved</button>':'')
+      +'<button class="btn bg" onclick="closeModal(\'ca-sub-ov\')">Cancel</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(div);
+  // Initial clash banner render
+  setTimeout(()=>caUpdateClashBanner('sub',2), 50);
+}
+
+function saveCASUB(editId){
+  const projId=document.getElementById('sub-proj')?.value;if(!projId){showNotif('Project required','');return;}
+  const title=document.getElementById('sub-title')?.value.trim();if(!title){showNotif('Title required','');return;}
+  const drwsRaw=(document.getElementById('sub-drws')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const status=document.getElementById('sub-status')?.value||'pending';
+  const assignedTo=document.getElementById('sub-assigned')?.value||'';
+  const targetDate=document.getElementById('sub-target')?.value||'';
+
+  // Clash gate: warn if reviewer is overbooked
+  if(assignedTo && targetDate){
+    const clash = caCheckClash(assignedTo, targetDate, 2);
+    if(clash.clash){
+      if(!confirm(clash.message+'\n\nDo you still want to assign this submittal to them on '+targetDate+'?')) return;
+    }
+  }
+
+  const entry={
+    id:editId||('SUB-'+Date.now()),
+    projId,
+    num:editId?(CA_SUBMITTALS.find(x=>x.id===editId)?.num||caNextNum(CA_SUBMITTALS.filter(r=>r.projId===projId),'SUB-'+projId)):caNextNum(CA_SUBMITTALS.filter(r=>r.projId===projId),'SUB-'+projId),
+    title,specSection:document.getElementById('sub-spec')?.value||'',
+    submittedBy:document.getElementById('sub-by')?.value||CURRENT_USER_ID,
+    submittedDate:document.getElementById('sub-date')?.value||caToday(),
+    reviewDue:document.getElementById('sub-due')?.value||'',
+    assignedTo,
+    targetDate,
+    reviewer:document.getElementById('sub-reviewer')?.value||'',
+    status,
+    notes:document.getElementById('sub-notes')?.value||'',
+    reviewedDate:['approved','rejected'].includes(status)?(CA_SUBMITTALS.find(x=>x.id===editId)?.reviewedDate||caToday()):'',
+    drawingRefs:drwsRaw,createdAt:new Date().toISOString()
+  };
+  if(editId){const idx=CA_SUBMITTALS.findIndex(x=>x.id===editId);if(idx>=0)CA_SUBMITTALS[idx]=entry;else CA_SUBMITTALS.push(entry);}
+  else CA_SUBMITTALS.push(entry);
+
+  // ── SYNC ASSIGNMENT TO STAFF SCHEDULE ────────────────────
+  caAssignToSchedule({
+    kind:'SUB',id:entry.id,projId,
+    staffId:assignedTo,
+    title:'Submittal: '+title.slice(0,50),
+    startDate:entry.submittedDate,
+    dueDate:targetDate||entry.reviewDue||entry.submittedDate,
+    status,hrs:2
+  });
+
+  scheduleSave();closeModal('ca-sub-ov');renderCA();updateCABadges();
+  if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
+  if(document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
+  showNotif('Submittal saved',entry.num+(assignedTo?' · Assigned to '+caStaffName(assignedTo):''));
+}
+
+/* ── NEW SNAG ITEM ──────────────────────────────────────── */
+function openCASnagModal(id){
+  const ex=document.getElementById('ca-snag-ov');if(ex)ex.remove();
+  const r=id?CA_SNAGS.find(x=>x.id===id):null;
+  const isEdit=!!r;
+  const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
+  const div=document.createElement('div');div.id='ca-snag-ov';div.className='ov show';
+  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+((r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
+  const drwOpts='<option value="">— None —</option>'+DRAWINGS.filter(d=>d.proj===(r?.projId||projId)).map(d=>'<option value="'+d.id+'" '+(r?.drawingRef===d.id?'selected':'')+'>'+d.id+' — '+d.title.slice(0,35)+'</option>').join('');
+  div.innerHTML='<div class="modal" style="max-width:480px">'
+    +'<button class="mclose" onclick="closeModal(\'ca-snag-ov\')">✕</button>'
+    +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Snag Item</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="snag-proj">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Priority</label><select class="fsel" id="snag-pri"><option value="low" '+(r?.priority==='low'?'selected':'')+'>Low</option><option value="high" '+((!r||r.priority==='high')?'selected':'')+'>High</option><option value="critical" '+(r?.priority==='critical'?'selected':'')+'>Critical</option></select></div>'
+      +'<div class="frow"><label class="flbl">Date Found</label><input class="finp" type="date" id="snag-date" value="'+(r?.reportedDate||caToday())+'"></div>'
+      +'<div class="frow"><label class="flbl">Status</label><select class="fsel" id="snag-status"><option value="open" '+((!r||r.status==='open')?'selected':'')+'>Open</option><option value="resolved" '+(r?.status==='resolved'?'selected':'')+'>Resolved</option></select></div>'
+      +'<div class="frow"><label class="flbl">Contractor Responsible</label><input class="finp" id="snag-cont" value="'+(r?.contractor||'')+'" placeholder="Contractor name"></div>'
+      +'<div class="frow"><label class="flbl">Location on Site</label><input class="finp" id="snag-loc" value="'+(r?.location||'')+'" placeholder="e.g. 1st floor, north elevation"></div>'
+    +'</div>'
+    +'<div class="frow"><label class="flbl">Description</label><textarea class="ftarea" id="snag-desc" rows="3" placeholder="Describe the defect or incomplete item…">'+(r?.description||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl">Related Drawing</label><select class="fsel" id="snag-drw">'+drwOpts+'</select></div>'
+    +'<div style="display:flex;gap:8px;margin-top:4px">'
+      +'<button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveCASnag('+(isEdit?'\''+id+'\'':"''")+')">Save Snag Item</button>'
+      +'<button class="btn bg" onclick="closeModal(\'ca-snag-ov\')">Cancel</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(div);
+}
+
+function saveCASnag(editId){
+  const projId=document.getElementById('snag-proj')?.value;if(!projId){showNotif('Project required','');return;}
+  const desc=document.getElementById('snag-desc')?.value.trim();if(!desc){showNotif('Description required','');return;}
+  const entry={
+    id:editId||('SNAG-'+Date.now()),
+    projId,
+    num:editId?(CA_SNAGS.find(x=>x.id===editId)?.num||caNextNum(CA_SNAGS.filter(r=>r.projId===projId),'SN-'+projId)):caNextNum(CA_SNAGS.filter(r=>r.projId===projId),'SN-'+projId),
+    description:desc,location:document.getElementById('snag-loc')?.value||'',
+    contractor:document.getElementById('snag-cont')?.value||'',
+    priority:document.getElementById('snag-pri')?.value||'high',
+    status:document.getElementById('snag-status')?.value||'open',
+    reportedDate:document.getElementById('snag-date')?.value||caToday(),
+    reportedBy:CURRENT_USER_ID,
+    drawingRef:document.getElementById('snag-drw')?.value||'',
+    createdAt:new Date().toISOString()
+  };
+  if(editId){const idx=CA_SNAGS.findIndex(x=>x.id===editId);if(idx>=0)CA_SNAGS[idx]=entry;else CA_SNAGS.push(entry);}
+  else CA_SNAGS.push(entry);
+  scheduleSave();closeModal('ca-snag-ov');renderCA();updateCABadges();
+  showNotif('Snag item saved',entry.num);
+}
+
+/* ── NEW ARCHITECT'S INSTRUCTION ───────────────────────── */
+function openCAAIModal(id){
+  const ex=document.getElementById('ca-ai-ov');if(ex)ex.remove();
+  const r=id?CA_AIS.find(x=>x.id===id):null;
+  const isEdit=!!r;
+  const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
+  const div=document.createElement('div');div.id='ca-ai-ov';div.className='ov show';
+  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+((r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
+  const staffOpts=STAFF.filter(s=>s.type!=='contractor').map(s=>'<option value="'+s.id+'" '+((r?.issuedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
+  div.innerHTML='<div class="modal" style="max-width:520px">'
+    +'<button class="mclose" onclick="closeModal(\'ca-ai-ov\')">✕</button>'
+    +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Architect\'s Instruction</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="ai-proj">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Date Issued</label><input class="finp" type="date" id="ai-date" value="'+(r?.issuedDate||caToday())+'"></div>'
+      +'<div class="frow"><label class="flbl">Issued By</label><select class="fsel" id="ai-by">'+staffOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Issued To (Contractor)</label><input class="finp" id="ai-to" value="'+(r?.issuedTo||'')+'" placeholder="Contractor name"></div>'
+      +'<div class="frow"><label class="flbl">Cost Impact</label><select class="fsel" id="ai-cost"><option value="none" '+((!r||r.costImpact==='none')?'selected':'')+'>None</option><option value="possible" '+(r?.costImpact==='possible'?'selected':'')+'>Possible</option><option value="confirmed" '+(r?.costImpact==='confirmed'?'selected':'')+'>Confirmed</option></select></div>'
+      +'<div class="frow"><label class="flbl">Acknowledged by Contractor</label><select class="fsel" id="ai-ack"><option value="no" '+((!r||!r.acknowledged)?'selected':'')+'>Not Yet</option><option value="yes" '+(r?.acknowledged?'selected':'')+'>Yes — Acknowledged</option></select></div>'
+    +'</div>'
+    +'<div class="frow"><label class="flbl">Instruction Title / Subject</label><input class="finp" id="ai-title" value="'+(r?.title||'')+'" placeholder="e.g. Revise window lintel to RCC as per S-03"></div>'
+    +'<div class="frow"><label class="flbl">Full Description</label><textarea class="ftarea" id="ai-desc" rows="3" placeholder="Detailed instruction to contractor…">'+(r?.description||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl">Referenced Drawing IDs (comma-separated)</label><input class="finp" id="ai-drws" value="'+(r?.drawingRefs?.join(', ')||'')+'" placeholder="CP-S-002, CP-A-003"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:4px">'
+      +'<button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveCAAI('+(isEdit?'\''+id+'\'':"''")+')">Issue Instruction</button>'
+      +'<button class="btn bg" onclick="closeModal(\'ca-ai-ov\')">Cancel</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(div);
+}
+
+function saveCAAI(editId){
+  const projId=document.getElementById('ai-proj')?.value;if(!projId){showNotif('Project required','');return;}
+  const title=document.getElementById('ai-title')?.value.trim();if(!title){showNotif('Title required','');return;}
+  const drwsRaw=(document.getElementById('ai-drws')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const entry={
+    id:editId||('AI-'+Date.now()),
+    projId,
+    num:editId?(CA_AIS.find(x=>x.id===editId)?.num||caNextNum(CA_AIS.filter(r=>r.projId===projId),'AI-'+projId)):caNextNum(CA_AIS.filter(r=>r.projId===projId),'AI-'+projId),
+    title,description:document.getElementById('ai-desc')?.value||'',
+    issuedBy:document.getElementById('ai-by')?.value||CURRENT_USER_ID,
+    issuedDate:document.getElementById('ai-date')?.value||caToday(),
+    issuedTo:document.getElementById('ai-to')?.value||'',
+    costImpact:document.getElementById('ai-cost')?.value||'none',
+    acknowledged:document.getElementById('ai-ack')?.value==='yes',
+    acknowledgedDate:document.getElementById('ai-ack')?.value==='yes'?caToday():'',
+    drawingRefs:drwsRaw,createdAt:new Date().toISOString()
+  };
+  if(editId){const idx=CA_AIS.findIndex(x=>x.id===editId);if(idx>=0)CA_AIS[idx]=entry;else CA_AIS.push(entry);}
+  else CA_AIS.push(entry);
+  scheduleSave();closeModal('ca-ai-ov');renderCA();updateCABadges();
+  showNotif('Instruction issued',entry.num+' — '+title.slice(0,40));
+}
+
+/* ── DETAIL MODALS (view/edit) ──────────────────────────── */
+function openCASVRDetail(id){ openCASVRModal(id); }
+function openCARFIDetail(id){ openCARFIModal(id); }
+function openCASUBDetail(id){ openCASUBModal(id); }
+function openCASnagDetail(id){ openCASnagModal(id); }
+function openCAAIDetail(id){ openCAAIModal(id); }
+
+/* ── DRAWING REGISTER CA BADGES ─────────────────────────── */
+function caGetDrwBadges(drawingId){
+  const openRfis=CA_RFIS.filter(r=>r.drawingRefs&&r.drawingRefs.includes(drawingId)&&['open','overdue'].includes(r.status)).length;
+  const openSnags=CA_SNAGS.filter(r=>r.drawingRef===drawingId&&r.status!=='resolved').length;
+  const pendingSubs=CA_SUBMITTALS.filter(r=>r.drawingRefs&&r.drawingRefs.includes(drawingId)&&r.status==='pending').length;
+  let html='';
+  if(openRfis>0) html+='<span class="ca-drw-badge'+(openRfis>0?' red':'')+'" onclick="event.stopPropagation();go(\'ca\',document.getElementById(\'ni-ca\'));_caModule=\'rfi\';renderCA()" title="Open RFIs">'+openRfis+' RFI'+(openRfis>1?'s':'')+'</span>';
+  if(openSnags>0) html+='<span class="ca-drw-badge red" onclick="event.stopPropagation();go(\'ca\',document.getElementById(\'ni-ca\'));_caModule=\'snag\';renderCA()" title="Open snag items">'+openSnags+' Snag'+(openSnags>1?'s':'')+'</span>';
+  if(pendingSubs>0) html+='<span class="ca-drw-badge" onclick="event.stopPropagation();go(\'ca\',document.getElementById(\'ni-ca\'));_caModule=\'sub\';renderCA()" title="Pending submittals">'+pendingSubs+' Sub</span>';
+  return html;
+}
+
+/* ── DASHBOARD CA STRIP ──────────────────────────────────── */
+function renderDashboardCAStrip(){
+  const overdueRfis=CA_RFIS.filter(r=>r.status==='overdue'||( r.status==='open'&&r.responseDue&&caDaysUntil(r.responseDue)<0));
+  const critSnags=CA_SNAGS.filter(r=>r.priority==='critical'&&r.status!=='resolved');
+  const pendingSubs=CA_SUBMITTALS.filter(r=>r.status==='pending');
+  if(!overdueRfis.length&&!critSnags.length&&!pendingSubs.length) return '';
+  return '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(224,82,82,.06);border:1px solid rgba(224,82,82,.2);border-radius:8px;margin-bottom:12px;flex-wrap:wrap">'
+    +'<span style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--red)">🏗 CA Alerts</span>'
+    +(overdueRfis.length?'<button class="btn bg bsm" style="background:rgba(224,82,82,.1);border-color:rgba(224,82,82,.3);color:var(--red);font-size:9px" onclick="go(\'ca\',document.getElementById(\'ni-ca\'));_caModule=\'rfi\';renderCA()">⚠ '+overdueRfis.length+' Overdue RFI'+(overdueRfis.length>1?'s':'')+'</button>':'')
+    +(critSnags.length?'<button class="btn bg bsm" style="background:rgba(224,82,82,.1);border-color:rgba(224,82,82,.3);color:var(--red);font-size:9px" onclick="go(\'ca\',document.getElementById(\'ni-ca\'));_caModule=\'snag\';renderCA()">🔧 '+critSnags.length+' Critical Snag'+(critSnags.length>1?'s':'')+'</button>':'')
+    +(pendingSubs.length?'<button class="btn bg bsm" style="border-color:rgba(240,201,122,.3);color:var(--gold);font-size:9px" onclick="go(\'ca\',document.getElementById(\'ni-ca\'));_caModule=\'sub\';renderCA()">📦 '+pendingSubs.length+' Submittal'+(pendingSubs.length>1?'s':'')+' pending</button>':'')
+  +'</div>';
+}
+
+
+/* ── STAFF WORKLOAD AGGREGATOR ───────────────────────────
+   Returns a complete workload picture for a staff member
+   on a specific date, combining all sources of work:
+   - Drawing tasks (from SCHED_TASKS)
+   - CA RFIs and Submittals (from SCHED_TASKS via caAssignToSchedule)
+   - Meetings (from MEETINGS attendees)
+   - Site visits (from CA_SVR via SCHED_TASKS)
+   ──────────────────────────────────────────────────────── */
+function caStaffWorkloadOnDate(staffId, dateStr){
+  if(!staffId || !dateStr) return {hours:0,items:[],hasClash:false};
+  const items = [];
+  let totalHrs = 0;
+
+  // 1. Schedule tasks assigned to this staff that span this date
+  SCHED_TASKS.forEach(t => {
+    if(t.staffId !== staffId || t.status === 'done') return;
+    const start = t.start || t.due;
+    const due   = t.due   || t.start;
+    if(!start || !due) return;
+    if(dateStr < start || dateStr > due) return;
+    // Working-day distribution: estHrs spread across weekdays in span
+    let wd = 0; const c = new Date(start);
+    const dueD = new Date(due);
+    while(c <= dueD){
+      if(c.getDay() !== 0 && c.getDay() !== 6) wd++;
+      c.setDate(c.getDate()+1);
+    }
+    const dailyHrs = wd > 0 ? Math.round(t.estHrs/wd*10)/10 : t.estHrs;
+    totalHrs += dailyHrs;
+    // Identify source type for clash messaging
+    let src = 'Drawing';
+    if(t.id?.startsWith('CA_RFI_')) src = 'RFI';
+    else if(t.id?.startsWith('CA_SUB_')) src = 'Submittal';
+    else if(t.id?.startsWith('SVR_')||t.id?.startsWith('MTG_')) src = 'Site Visit';
+    items.push({type:src, title:t.title, hrs:dailyHrs, taskId:t.id, projId:t.projId});
+  });
+
+  // 2. Meetings the staff is attending on that date (count meeting time too)
+  MEETINGS.forEach(m => {
+    if(m.status === 'cancelled') return;
+    if(m.date !== dateStr) return;
+    if(!(m.attendees||[]).includes(staffId)) return;
+    // Skip if already counted via SCHED_TASKS auto-link
+    const linkedSchedExists = SCHED_TASKS.some(t =>
+      t.staffId === staffId && (t.svrLinkedMtgId === m.id || t.id === 'MTG_'+m.id+'_'+staffId)
+    );
+    if(linkedSchedExists) return;
+    const mhrs = (m.duration||60)/60;
+    totalHrs += mhrs;
+    items.push({type:'Meeting', title:m.title, hrs:Math.round(mhrs*10)/10, mtgId:m.id, projId:m.proj});
+  });
+
+  // 3. Drawing tgt-date based fallback (drawings owned by this staff, due today, no SCHED_TASK)
+  DRAWINGS.forEach(d => {
+    if(d.sid !== staffId || d.status === 'done') return;
+    const due = parseDue(d.tgt);
+    if(!due) return;
+    const dueStr = due.getFullYear()+'-'+String(due.getMonth()+1).padStart(2,'0')+'-'+String(due.getDate()).padStart(2,'0');
+    if(dueStr !== dateStr) return;
+    // Only count if no SCHED_TASK already exists for this drawing
+    const hasSched = SCHED_TASKS.some(t => t.drawingId === d.id && t.staffId === staffId);
+    if(hasSched) return;
+    const drwHrs = Math.round(estimateHours(d.title)/3*10)/10; // assume 3-day spread
+    totalHrs += drwHrs;
+    items.push({type:'Drawing', title:d.title, hrs:drwHrs, drawingId:d.id, projId:d.proj});
+  });
+
+  totalHrs = Math.round(totalHrs*10)/10;
+  // Capacity threshold: 9h+ is overload, 6h-9h is heavy
+  const hasClash = totalHrs > 9;
+  const isHeavy = totalHrs > 6;
+  return {hours:totalHrs, items, hasClash, isHeavy};
+}
+
+/* ── CHECK CLASH FOR PROPOSED CA ASSIGNMENT ──────────────
+   Returns {clash:bool, message:string, severity:'red'|'gold'|'green'}
+   ──────────────────────────────────────────────────────── */
+function caCheckClash(staffId, targetDate, addHrs){
+  if(!staffId || !targetDate) return {clash:false, message:'', severity:'green'};
+  const wl = caStaffWorkloadOnDate(staffId, targetDate);
+  const projected = Math.round((wl.hours + (addHrs||1))*10)/10;
+  const staff = STAFF.find(s => s.id === staffId);
+  const staffName = staff ? staff.first : 'Staff';
+
+  if(projected > 9){
+    const items = wl.items.slice(0,3).map(i => i.type+': '+i.title.slice(0,30)).join('; ');
+    return {
+      clash: true,
+      message: '⚠ '+staffName+' will be overloaded on '+targetDate+' — '+projected+'h scheduled (cap 9h). Existing: '+items,
+      severity: 'red',
+      hours: projected
+    };
+  }
+  if(projected > 6){
+    return {
+      clash: false,
+      message: '⚠ Heavy day for '+staffName+' on '+targetDate+' — '+projected+'h scheduled',
+      severity: 'gold',
+      hours: projected
+    };
+  }
+  return {
+    clash: false,
+    message: '✓ '+staffName+' has '+projected+'h scheduled on '+targetDate+' (capacity OK)',
+    severity: 'green',
+    hours: projected
+  };
+}
+
+/* ── COUNT STAFF'S OPEN CA ASSIGNMENTS ──────────────────── */
+function caStaffOpenAssignments(staffId){
+  if(!staffId) return {total:0, rfis:0, subs:0, overdue:0};
+  const today = caToday();
+  const rfis = CA_RFIS.filter(r => r.assignedTo === staffId && !['closed'].includes(r.status));
+  const subs = CA_SUBMITTALS.filter(r => r.assignedTo === staffId && !['approved','rejected'].includes(r.status));
+  const overdueR = rfis.filter(r => r.targetDate && r.targetDate < today);
+  const overdueS = subs.filter(r => r.targetDate && r.targetDate < today);
+  return {
+    total: rfis.length + subs.length,
+    rfis: rfis.length,
+    subs: subs.length,
+    overdue: overdueR.length + overdueS.length
+  };
+}
+
+/* ── LIVE CLASH BANNER UPDATE ────────────────────────────
+   Reads current modal field values and renders an inline
+   warning showing projected workload + existing items.
+   ──────────────────────────────────────────────────────── */
+function caUpdateClashBanner(prefix, addHrs){
+  const banner = document.getElementById(prefix+'-clash-banner');
+  if(!banner) return;
+  const staffId = document.getElementById(prefix+'-assigned')?.value || '';
+  const targetDate = document.getElementById(prefix+'-target')?.value || '';
+  if(!staffId || !targetDate){
+    banner.innerHTML = '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);padding:6px 10px;background:var(--sf3);border-radius:5px">Pick a staff member and target date to see workload</div>';
+    return;
+  }
+  const result = caCheckClash(staffId, targetDate, addHrs||1);
+  const wl = caStaffWorkloadOnDate(staffId, targetDate);
+  const colors = {
+    red:    {bg:'rgba(224,82,82,.1)', bd:'rgba(224,82,82,.3)',  fg:'var(--red)'},
+    gold:   {bg:'rgba(240,201,122,.1)', bd:'rgba(240,201,122,.3)', fg:'var(--gold)'},
+    green:  {bg:'rgba(82,201,122,.08)', bd:'rgba(82,201,122,.25)', fg:'var(--grn)'}
+  };
+  const c = colors[result.severity];
+  let existingItemsHtml = '';
+  if(wl.items.length > 0){
+    existingItemsHtml = '<div style="margin-top:6px;padding-top:6px;border-top:1px solid '+c.bd+';font-family:var(--fm);font-size:9px;color:var(--txm)">'
+      + '<div style="margin-bottom:3px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;font-size:8px">Already on '+targetDate+':</div>'
+      + wl.items.slice(0,4).map(it => '<div style="display:flex;align-items:center;gap:5px;padding:1px 0">'
+          + '<span style="font-family:var(--fm);font-size:8px;padding:1px 4px;border-radius:3px;background:'+(it.type==='Meeting'?'rgba(82,133,224,.15)':it.type==='RFI'?'rgba(240,201,122,.15)':it.type==='Submittal'?'rgba(138,82,224,.15)':it.type==='Site Visit'?'rgba(82,201,122,.15)':'rgba(255,255,255,.05)')+';color:var(--txm)">'+it.type+'</span>'
+          + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.title+'</span>'
+          + '<span style="color:var(--txd);font-weight:700">'+it.hrs+'h</span>'
+        +'</div>').join('')
+      + (wl.items.length > 4 ? '<div style="color:var(--txd);font-style:italic;margin-top:2px">+ '+(wl.items.length-4)+' more…</div>' : '')
+      +'</div>';
+  }
+  banner.innerHTML = '<div style="background:'+c.bg+';border:1px solid '+c.bd+';border-radius:6px;padding:8px 10px;font-family:var(--fm)">'
+    + '<div style="font-size:10px;font-weight:700;color:'+c.fg+'">'+result.message+'</div>'
+    + existingItemsHtml
+    + '</div>';
+}
+
+/* ── ASSIGN CA ITEM TO STAFF SCHEDULE ────────────────────
+   Used by RFIs and Submittals to block staff time on the
+   2-week heatmap. Single-staff per item, single-day duration.
+   ──────────────────────────────────────────────────────── */
+function caAssignToSchedule(opts){
+  // opts: {kind:'RFI'|'SUB', id, projId, staffId, title, startDate, dueDate, status, hrs}
+  if(!opts.staffId){
+    // Remove any prior schedule entry for this CA item if unassigned
+    const prefix='CA_'+opts.kind+'_'+opts.id+'_';
+    SCHED_TASKS=SCHED_TASKS.filter(t=>!t.id.startsWith(prefix));
+    return;
+  }
+  const proj=PROJS.find(p=>p.id===opts.projId);
+  const schedId='CA_'+opts.kind+'_'+opts.id+'_'+opts.staffId;
+
+  // Map CA status to schedule status
+  const isDone=['closed','approved','resolved','completed'].includes(opts.status);
+  const schedStatus=isDone?'done':(opts.status==='in-progress'?'inprogress':'pending');
+  const pctDone=isDone?100:(opts.status==='in-progress'?50:(opts.status==='review'?75:0));
+
+  // Remove any old entries for this CA item that point to a different staff
+  // (so reassignments don't leave orphaned blocks)
+  const prefix='CA_'+opts.kind+'_'+opts.id+'_';
+  SCHED_TASKS=SCHED_TASKS.filter(t=>!t.id.startsWith(prefix)||t.id===schedId);
+
+  const entry={
+    id:schedId,
+    drawingId:null,
+    projId:opts.projId,
+    title:opts.title,
+    disc:'CA',
+    staffId:opts.staffId,
+    sid:opts.staffId,
+    phase:'CA',
+    status:schedStatus,
+    start:opts.startDate||opts.dueDate,
+    due:opts.dueDate||opts.startDate,
+    estHrs:opts.hrs||2,
+    actHrs:isDone?(opts.hrs||2):0,
+    pct:pctDone,
+    priority:'med',
+    rag:isDone?'green':'amber',
+    ragOverride:'auto',
+    notes:opts.kind+' '+opts.id,
+    changeLog:[],milestone:false,deps:[],
+    caSourceKind:opts.kind,
+    caSourceId:opts.id
+  };
+  const ex=SCHED_TASKS.findIndex(t=>t.id===schedId);
+  if(ex>=0) SCHED_TASKS[ex]=entry;
+  else SCHED_TASKS.push(entry);
+}
+
+/* ── MARK CA ITEM COMPLETE ───────────────────────────────
+   Called from inline "Mark Complete" buttons in CA lists.
+   ──────────────────────────────────────────────────────── */
+function caMarkComplete(kind,id){
+  const arr=kind==='RFI'?CA_RFIS:CA_SUBMITTALS;
+  const r=arr.find(x=>x.id===id); if(!r) return;
+  if(!confirm('Mark '+(r.num||id)+' as completed? This will close the item and mark the schedule task as done.')) return;
+
+  if(kind==='RFI'){
+    r.status='closed';
+    r.answeredDate=caToday();
+    r.answeredBy=CURRENT_USER_ID;
+    if(r.assignedTo){
+      caAssignToSchedule({
+        kind:'RFI',id:r.id,projId:r.projId,staffId:r.assignedTo,
+        title:'RFI: '+(r.subject||r.num),
+        startDate:r.raisedDate,dueDate:r.responseDue||caToday(),
+        status:'closed',hrs:1
+      });
+    }
+  } else {
+    r.status='approved';
+    r.reviewedDate=caToday();
+    r.reviewer=r.reviewer||CURRENT_USER_ID;
+    if(r.assignedTo){
+      caAssignToSchedule({
+        kind:'SUB',id:r.id,projId:r.projId,staffId:r.assignedTo,
+        title:'Submittal: '+(r.title||r.num),
+        startDate:r.submittedDate,dueDate:r.reviewDue||caToday(),
+        status:'approved',hrs:2
+      });
+    }
+  }
+  scheduleSave();renderCA();updateCABadges();
+  if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
+  if(document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
+  showNotif('Marked complete',r.num);
+}
+
+/* ── SYNC MEETING → CA (reverse direction) ───────────────
+   Called any time a meeting is saved. If the meeting is
+   type='site-visit', it:
+   1. Creates a CA SVR *scheduled* stub if none linked yet
+   2. Updates attendees on any existing linked SVR
+   3. Blocks staff time in SCHED_TASKS for all attendees
+   ──────────────────────────────────────────────────────── */
+function syncCAFromMeeting(mtgId){
+  // Work with the just-saved meeting (or updated one)
+  const m = MEETINGS.find(x => x.id === (mtgId || ''));
+  if (!m || m.type !== 'site-visit' || m.status === 'cancelled') return;
+
+  const proj = PROJS.find(p => p.id === m.proj);
+  const attendees = (m.attendees || []).filter(Boolean);
+
+  // ── 1. Create a CA SVR stub if none linked to this meeting ──
+  const linkedSVR = CA_SVR.find(r =>
+    r.svrLinkedMtgId === m.id ||
+    (r.projId === m.proj && r.date === m.date)
+  );
+
+  if (!linkedSVR) {
+    // Create a scheduled/draft SVR so the CA register shows upcoming visits
+    const stub = {
+      id: 'SVR-MTG-' + m.id,
+      projId: m.proj,
+      num: caNextNum(CA_SVR.filter(r => r.projId === m.proj), 'SVR-' + (proj?.id || m.proj)),
+      date: m.date,
+      time: m.time || '09:00',
+      visitedBy: attendees[0] || CURRENT_USER_ID,
+      stage: proj?.phase || 'CA',
+      weather: '',
+      contractorPresent: true,
+      contractorName: '',
+      constructionStage: '',
+      progressPct: 0,
+      drawingsChecked: [],
+      observations: '',
+      issues: [],
+      instructions: '',
+      nextVisitDate: '',
+      nextVisitTime: '',
+      nextVisitAttendees: attendees,
+      svrLinkedMtgId: m.id,
+      status: 'scheduled',          // scheduled = future visit, not yet done
+      createdAt: new Date().toISOString()
+    };
+    CA_SVR.push(stub);
+    // Show in CA panel if open
+    if (document.getElementById('panel-ca')?.classList.contains('active') && _caModule === 'svr') {
+      renderCASVR();
+    }
+    updateCABadges();
+  } else {
+    // Update attendees on existing linked SVR
+    linkedSVR.nextVisitAttendees = [...new Set([...(linkedSVR.nextVisitAttendees || []), ...attendees])];
+    linkedSVR.date = m.date;
+    linkedSVR.time = m.time || linkedSVR.time;
+    if (linkedSVR.svrLinkedMtgId !== m.id) linkedSVR.svrLinkedMtgId = m.id;
+  }
+
+  // ── 2. Block each attendee in SCHED_TASKS ────────────────────
+  attendees.forEach(staffId => {
+    const schedId = 'MTG_' + m.id + '_' + staffId;
+    const schedEntry = {
+      id: schedId,
+      drawingId: null,
+      projId: m.proj,
+      title: 'Site Visit — ' + (proj ? proj.name : ''),
+      disc: 'CA',
+      staffId, sid: staffId,
+      phase: 'CA',
+      status: 'pending',
+      start: m.date,
+      due: m.date,
+      estHrs: Math.round((m.duration || 90) / 60 * 10) / 10,
+      actHrs: 0,
+      pct: 0,
+      priority: 'high',
+      rag: 'green',
+      ragOverride: 'auto',
+      notes: 'From meeting: ' + m.title,
+      changeLog: [], milestone: false, deps: [],
+      svrLinkedMtgId: m.id
+    };
+    const existing = SCHED_TASKS.findIndex(t => t.id === schedId);
+    if (existing >= 0) SCHED_TASKS[existing] = schedEntry;
+    else SCHED_TASKS.push(schedEntry);
+  });
+
+  // Refresh schedule panels if open
+  if (document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
+  if (document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
+}
+
+/* ── ALSO CLEAN UP SCHED_TASKS when a site-visit meeting is cancelled ── */
+function removeCASyncedTasks(mtgId){
+  const before = SCHED_TASKS.length;
+  SCHED_TASKS = SCHED_TASKS.filter(t => t.svrLinkedMtgId !== mtgId);
+  if (SCHED_TASKS.length !== before) scheduleSave();
+}
+
+
 function clearDemoData(){
   if(!confirm('This will clear all demo projects, drawings, staff, and timesheets. Your firm settings will be kept. Continue?')) return;
   PROJS=[]; DRAWINGS=[]; TS_ENTRIES=[]; SCHED_TASKS=[]; MEETINGS=[];
@@ -16304,11 +18470,33 @@ function openFirmSettings(){
     </div>
     <div class="frow"><label class="flbl">CIN</label><input class="finp" id="fs-cin" value="${FIRM_CONFIG.cin||''}"></div>
 
-    <div class="frow"><label class="flbl">Brand Colour</label>
+    <div style="margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--bd2)">
+      <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Appearance</div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:10px">Pick a theme — applies instantly to the whole app for everyone in the firm. Changes are saved to your firm settings.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${Object.keys(S62_THEMES).map(tid=>{
+          const t = S62_THEMES[tid];
+          const active = (FIRM_CONFIG.themeId||'studio-gold')===tid;
+          return `<div onclick="setFirmTheme('${tid}')" style="cursor:pointer;background:${t.vars['--sf2']};border:2px solid ${active?t.vars['--gold']:'transparent'};border-radius:8px;padding:10px 12px;transition:border-color .15s">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div style="font-size:11px;font-weight:600;color:${t.vars['--tx']}">${t.name}</div>
+              ${active?`<div style="font-family:var(--fm);font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px;background:${t.vars['--gold']};color:${t.onAccent||'#0a0a0f'}">ACTIVE</div>`:''}
+            </div>
+            <div style="display:flex;gap:3px;margin-bottom:5px">
+              ${t.swatch.map(c=>`<div style="flex:1;height:14px;border-radius:3px;background:${c};border:0.5px solid ${t.vars['--bd2']}"></div>`).join('')}
+            </div>
+            <div style="font-family:var(--fm);font-size:8.5px;color:${t.vars['--txm']};line-height:1.35">${t.sub}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="frow" style="margin-top:14px"><label class="flbl">Custom Brand Colour (optional override)</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="color" id="fs-color-picker" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" style="width:44px;height:36px;border:none;background:none;cursor:pointer;padding:0" oninput="FIRM_CONFIG.primaryColor=this.value;applyFirmTheme()">
         <input class="finp" id="fs-color-hex" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" style="flex:1" oninput="FIRM_CONFIG.primaryColor=this.value;applyFirmTheme()">
       </div>
+      <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px">Overrides the theme's accent. Leave at theme default unless you want to match a specific brand colour.</div>
     </div>
 
     <div style="display:flex;gap:8px;margin-top:8px">
@@ -16494,6 +18682,7 @@ const _origScheduleSave = scheduleSave;
 
 /* ── PTITLES + go() update ─────────────────────────────── */
 PTITLES['auditlog'] = 'Audit Log';
+PTITLES['ca']       = 'Construction Administration';
 
 
 /* ════════════════════════════════════════════════════════
