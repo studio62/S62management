@@ -3217,22 +3217,33 @@ async function _onAuthStateChanged(user){
 
   if(staff){
     _authStaffMatch = staff;
-    CURRENT_USER_ID = staff.id;
+    // Switch the active user — this updates avatar, name, role badge, financial visibility,
+    // and re-renders the active panel as the correct person.
+    if(typeof changeUser === 'function'){
+      changeUser(staff.id);
+    } else {
+      CURRENT_USER_ID = staff.id;
+    }
     hideSignIn();
     // Continue to PIN unlock as a session-lock convenience
     showLockOrUnlock();
-    showNotif('Signed in as '+staff.first+' '+staff.last, email);
     return;
   }
 
   if(isAdmin){
-    // Admin can sign in even with no matching staff record (bootstrap mode)
+    // Admin can sign in even with no matching staff record (bootstrap mode).
+    // Pick the first Principal Architect if any, otherwise first staff member, otherwise MS.
     _authStaffMatch = null;
-    // Use first existing staff record or fallback to MS
-    CURRENT_USER_ID = STAFF[0]?.id || 'MS';
+    const principal = STAFF.find(s => s.role === 'Principal Architect');
+    const fallbackId = principal?.id || STAFF[0]?.id || 'MS';
+    if(typeof changeUser === 'function'){
+      changeUser(fallbackId);
+    } else {
+      CURRENT_USER_ID = fallbackId;
+    }
     hideSignIn();
     showLockOrUnlock();
-    showNotif('Signed in as admin', email+' · No staff record matched, using bootstrap access');
+    showNotif('Signed in as admin', email + ' · No staff record matched. Add yourself to the staff roster with this email to get your own login.');
     return;
   }
 
@@ -4766,7 +4777,11 @@ function changeUser(id){
   document.getElementById('me-name').textContent=`${s.first} ${s.last}`;
   document.getElementById('me-role-badge').textContent=s.role.toUpperCase();
   updateSessionBar(s);
-  showNotif(`Welcome, ${s.first} 👋`,s.role+' · '+(s.email||''));
+  // Only show greeting if this is a real user-initiated change (not boot-time placeholder)
+  // Boot calls this once before auth; auth handler triggers it again with the real user.
+  if(window._s62BootDone){
+    showNotif(`Welcome, ${s.first} 👋`,s.role+' · '+(s.email||''));
+  }
   // Show/hide Financials nav based on role
   updateFinNavVisibility();
   // Re-render the active panel after user switch
@@ -12173,7 +12188,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v85',
+    appVersion: 'S62-v86',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -12201,7 +12216,9 @@ function packData() {
     caSubmittals:  CA_SUBMITTALS||[],
     caSnags:       CA_SNAGS||[],
     caAis:         CA_AIS||[],
-    currentUserId: CURRENT_USER_ID,
+    // currentUserId: REMOVED from sync — each browser/staff member has their own
+    // identity from Google sign-in. Including it here caused all users to take on
+    // whoever was the last person to sync.
     activeProjId:  activeProjId,
     tsViewMode:    tsViewMode,
     tsWeekOffset:  tsCurrentWeekOffset,
@@ -12227,7 +12244,12 @@ function unpackData(data) {
   if(data.firmConfig&&data.firmConfig.name){ Object.assign(FIRM_CONFIG,data.firmConfig); applyFirmTheme(); }
   if(data.auditLog!==undefined){ AUDIT_LOG=data.auditLog; }
   if(data.drwCols      !== undefined) { Object.assign(drwCols, data.drwCols); }
-  if(data.currentUserId!== undefined) { CURRENT_USER_ID = data.currentUserId; }
+  // Don't overwrite CURRENT_USER_ID from Firebase — each browser/staff member
+  // has their own identity from Google sign-in or local session.
+  // Only restore from sync if no auth has resolved yet AND no local user is set.
+  if(data.currentUserId!== undefined && !_authUser && !CURRENT_USER_ID){
+    CURRENT_USER_ID = data.currentUserId;
+  }
   if(data.activeProjId !== undefined) { activeProjId  = data.activeProjId; }
   if(data.PIPELINE&&Array.isArray(data.PIPELINE))PIPELINE=data.PIPELINE;
   if(data.CONSULTANT_LOGS&&Array.isArray(data.CONSULTANT_LOGS)){window.CONSULTANT_LOGS=data.CONSULTANT_LOGS;}
@@ -13180,7 +13202,14 @@ initDrwCounter();
 loadGcalCfg();
 const _hadSavedData = loadFromLocalStorage();
 applyFirmTheme(); // apply FIRM_CONFIG colours + branding
-changeUser(CURRENT_USER_ID || 'MS');
+
+// Boot identity: only initialise UI placeholders, don't claim to be Principal
+// yet — _onAuthStateChanged will set the real user once Google sign-in resolves.
+// We still call changeUser so the topbar avatar/name don't show "undefined" during
+// the brief window between page load and auth completion. The auth handler will
+// override this to the real signed-in person.
+changeUser(CURRENT_USER_ID || STAFF[0]?.id || 'MS');
+window._s62BootDone = true; // subsequent changeUser calls now show "Welcome" greeting
 
 // ── PHASE 1 AUTH GATE ─────────────────────────────────
 // If cloud is configured, kick off Firebase init which starts the auth listener.
