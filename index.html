@@ -292,6 +292,47 @@ body{font-family:var(--fb);background:var(--bg);color:var(--tx);display:flex;hei
 .dtbl tr:hover td{background:rgba(255,255,255,.02)}
 .dtbl tr:hover td.col-id{background:var(--sf2)!important}
 /* Target date cell */
+/* ── DRAWING REGISTER SCROLL AFFORDANCES (v95 — Option A) ──
+   Force a visible horizontal scrollbar on the drawing table area
+   and add a soft fade-out gradient on the right edge so users see
+   at a glance that more columns exist offscreen. macOS hides the
+   default scrollbar — we override that here.                          */
+#drw-container{
+  scrollbar-width: thin;                              /* Firefox */
+  scrollbar-color: var(--bd2) transparent;
+  position: relative;                                 /* anchor for fade overlay */
+}
+#drw-container::-webkit-scrollbar{
+  height: 10px; width: 10px;
+  background: var(--sf2);
+}
+#drw-container::-webkit-scrollbar-thumb{
+  background: var(--bd2);
+  border-radius: 5px;
+  border: 2px solid var(--sf2);
+}
+#drw-container::-webkit-scrollbar-thumb:hover{
+  background: var(--gold);
+}
+#drw-container::-webkit-scrollbar-corner{ background: var(--sf2); }
+/* Right-edge fade — visible only when there's more content to the right.
+   Toggled via JS by setting/removing the .has-overflow-right class. */
+.drw-fade-edge-right{
+  position: absolute; top: 0; right: 0; bottom: 10px; width: 32px;
+  background: linear-gradient(to right, transparent, var(--sf) 80%);
+  pointer-events: none; opacity: 0; transition: opacity .15s;
+  z-index: 3;
+}
+.drw-fade-edge-right.show{ opacity: 1; }
+/* Left-edge fade — for when scrolled away from start */
+.drw-fade-edge-left{
+  position: absolute; top: 0; left: 0; bottom: 10px; width: 24px;
+  background: linear-gradient(to left, transparent, var(--sf) 80%);
+  pointer-events: none; opacity: 0; transition: opacity .15s;
+  z-index: 3;
+}
+.drw-fade-edge-left.show{ opacity: 1; }
+
 .tgt-cell{display:flex;align-items:center;gap:5px}
 .tgt-input{background:transparent;border:none;border-bottom:1px dashed var(--bd2);color:var(--tx);font-family:var(--fm);font-size:10px;outline:none;width:78px;padding:1px 2px;cursor:pointer}
 .tgt-input:focus{border-bottom-color:var(--gold);background:rgba(201,169,110,.06);border-radius:3px 3px 0 0}
@@ -2046,6 +2087,12 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     <button class="drw-sv"    id="sv-returned"    onclick="setDrwView('returned',this)" style="display:none;border-color:var(--red);color:var(--red)">↺ Returned <span id="sv-returned-ct" style="font-family:var(--fm);font-size:9px;background:var(--red);color:#fff;padding:1px 5px;border-radius:8px;margin-left:2px"></span></button>
     <button class="drw-sv"    id="sv-unassigned"  onclick="setDrwView('unassigned',this)">○ Unassigned</button>
     <div style="flex:1"></div>
+    <!-- v95 (Option C) — Density mode buttons -->
+    <div style="display:inline-flex;align-items:center;gap:1px;padding:2px;background:var(--sf3);border:1px solid var(--bd);border-radius:6px;margin-right:4px" title="Density: how many columns to show">
+      <button class="btn bsm" id="drw-vm-compact"  onclick="setDrwViewMode('compact')"  style="font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--bd);background:var(--sf3);color:var(--txm);font-weight:500">Compact</button>
+      <button class="btn bsm" id="drw-vm-standard" onclick="setDrwViewMode('standard')" style="font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--gold);background:var(--gold);color:#0a0a0f;font-weight:600">Standard</button>
+      <button class="btn bsm" id="drw-vm-full"     onclick="setDrwViewMode('full')"     style="font-size:10px;padding:3px 9px;border-radius:4px;border:1px solid var(--bd);background:var(--sf3);color:var(--txm);font-weight:500">Full</button>
+    </div>
     <button class="btn bg bsm" onclick="collapseAllDiscs()" title="Collapse all disciplines" style="font-size:11px">⊟ Collapse</button><button class="btn bg bsm" onclick="expandAllDiscs()" title="Expand all disciplines" style="font-size:11px">⊞ Expand</button><button class="btn bg bsm" onclick="toggleColConfig()" title="Configure columns" style="font-size:11px">⚙ Columns</button>
     <button class="btn bg bsm" id="drw-sidebar-toggle" onclick="toggleDrwSidebar()" title="Toggle project list (Ctrl+B)" style="font-size:11px">◧ Projects</button>
   </div>
@@ -2158,8 +2205,12 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       <!-- Stats strip -->
       <div id="drw-stats-bar" style="display:flex;gap:14px;flex-wrap:wrap;padding:7px 12px;background:var(--sf);border-bottom:1px solid var(--bd);font-family:var(--fm);font-size:10px;color:var(--txm)"></div>
 
-      <!-- Drawing table container -->
-      <div id="drw-container" style="flex:1;overflow:auto"></div>
+      <!-- Drawing table container — wrapped for v95 scroll-affordance overlays -->
+      <div style="flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:0">
+        <div id="drw-container" style="flex:1;overflow:auto"></div>
+        <div class="drw-fade-edge-left" id="drw-fade-left"></div>
+        <div class="drw-fade-edge-right" id="drw-fade-right"></div>
+      </div>
 
       <!-- Empty state when no project selected -->
       <div id="drw-no-proj" style="flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:60px 20px;text-align:center">
@@ -4230,7 +4281,8 @@ async function cloudSave(){
   if(!ok) return;
   if(_fbApplying) return; // don't save while applying remote update
 
-  updateSaveIndicator('unsaved');
+  updateSaveIndicator('cloud-saving');  // v96 — explicit state during transaction
+  _saveState = 'cloud-saving';
   try{
     const me = currentUser();
     const saveKey = Date.now()+'-'+Math.random().toString(36).slice(2,6);
@@ -4283,14 +4335,17 @@ async function cloudSave(){
       if(_fbOwnSaveKeys.size > 20) _fbOwnSaveKeys = new Set([..._fbOwnSaveKeys].slice(-10));
       // Also persist to localStorage as offline fallback
       try{ localStorage.setItem(S62_LS_KEY, JSON.stringify(packData())); }catch(e){}
+      _saveState = 'cloud-saved';   // v96
       updateSaveIndicator('cloud-saved');
       updateSyncStatusBar();
     } else {
       console.warn('S62: save failed after 3 attempts');
+      _saveState = 'error';   // v96
       updateSaveIndicator('cloud-error');
     }
 
   }catch(err){
+    _saveState = 'error';   // v96
     updateSaveIndicator('cloud-error');
     console.error('S62 Firebase save:', err);
     showNotif('Sync failed', err.message+' — saved locally only');
@@ -4346,14 +4401,24 @@ function updateSyncStatusBar(){
 
   const configured = isCloudConfigured();
 
+  // v96 Option B — only manage the connection status (cloud-sync-btn).
+  // The save-indicator is now driven exclusively by _saveState via
+  // updateSaveIndicator(), so we don't overwrite it here. Otherwise an
+  // in-flight "○ Pending" gets clobbered by "● Live" the moment a remote
+  // listener tick arrives, lying to the user about save durability.
   if(configured && _fbConnected){
     if(btn){ btn.style.color='var(--grn)'; btn.textContent='● Live'; btn.title='Live sync active — all changes sync instantly'; }
-    if(ind){ ind.textContent='● Live'; ind.style.color='var(--grn)'; ind.title='Firebase live sync active'; }
+    // If _saveState is idle/cloud-saved, refresh indicator to clear any stale state
+    if(_saveState === 'idle' || _saveState === 'cloud-saved'){
+      if(ind){ ind.textContent='● Synced'; ind.style.color='var(--grn)'; ind.title='Latest change is in Firebase. Safe to close.'; }
+    }
     if(banner) banner.style.display='none';
     updateVersionIndicator();
   } else if(configured && _fbInitDone){
     if(btn){ btn.style.color='var(--gold)'; btn.textContent='↻ Connecting…'; }
-    if(ind){ ind.textContent='↻ Connecting'; ind.style.color='var(--gold)'; }
+    if(ind && (_saveState === 'idle' || _saveState === 'cloud-saved')){
+      ind.textContent='↻ Connecting'; ind.style.color='var(--gold)'; ind.title='Connecting to Firebase…';
+    }
   } else if(configured){
     if(btn){ btn.style.color='var(--gold)'; btn.textContent='↻ Firebase'; btn.title='Firebase configured — connecting'; }
     if(banner) banner.style.display='none';
@@ -8642,6 +8707,67 @@ const drwGroupMode={};
 /* Column visibility config */
 let drwCols={id:true,title:true,disc:true,tgt:true,rev:true,pct:true,status:true,health:false,assignee:true,setby:true,checkedBy:true,hours:true,revSource:false,latestNote:false,pkg:false,drwType:false,stage:false,actions:true};
 
+/* ── v95 (Option C) — Density modes for the drawing register ──
+   Compact:  hides 5 less-essential columns, fits on a 1366×768 laptop without
+             horizontal scrolling
+   Standard: current default — covers most everyday needs
+   Full:     shows everything including normally-hidden columns (Rev Source,
+             Latest Note, Package, Drawing Type, Stage)
+   The user's choice is saved to localStorage so it persists across sessions. */
+const DRW_VIEW_PRESETS = {
+  compact: {
+    // Lean view — hides admin-y columns
+    id:true, title:true, disc:true, status:true, pct:true, tgt:true,
+    assignee:true, actions:true,
+    // Hidden in compact:
+    rev:false, hours:false, setby:false, checkedBy:false, health:false,
+    revSource:false, latestNote:false, pkg:false, drwType:false, stage:false
+  },
+  standard: {
+    // Current default — middle ground
+    id:true, title:true, disc:true, tgt:true, rev:true, pct:true, status:true,
+    assignee:true, setby:true, checkedBy:true, hours:true, actions:true,
+    health:false, revSource:false, latestNote:false, pkg:false, drwType:false, stage:false
+  },
+  full: {
+    // Everything visible
+    id:true, title:true, disc:true, tgt:true, rev:true, pct:true, status:true,
+    assignee:true, setby:true, checkedBy:true, hours:true, actions:true,
+    health:true, revSource:true, latestNote:true, pkg:true, drwType:true, stage:true
+  }
+};
+let _drwViewMode = 'standard';
+try {
+  const saved = localStorage.getItem('s62_drw_view_mode');
+  if(saved && DRW_VIEW_PRESETS[saved]){
+    _drwViewMode = saved;
+    Object.assign(drwCols, DRW_VIEW_PRESETS[saved]);
+  }
+} catch(e){}
+
+function setDrwViewMode(mode){
+  if(!DRW_VIEW_PRESETS[mode]) return;
+  _drwViewMode = mode;
+  Object.assign(drwCols, DRW_VIEW_PRESETS[mode]);
+  try { localStorage.setItem('s62_drw_view_mode', mode); } catch(e){}
+  // Sync the column-toggle checkboxes if the configurator is open
+  document.querySelectorAll('#drw-col-config input[type="checkbox"][data-col]').forEach(cb=>{
+    if(cb.dataset.col in drwCols) cb.checked = !!drwCols[cb.dataset.col];
+  });
+  // Update the active-button styling
+  ['compact','standard','full'].forEach(m=>{
+    const btn = document.getElementById('drw-vm-'+m);
+    if(btn){
+      btn.classList.toggle('on', m===mode);
+      btn.style.background = (m===mode) ? 'var(--gold)' : 'var(--sf3)';
+      btn.style.color = (m===mode) ? '#0a0a0f' : 'var(--txm)';
+      btn.style.borderColor = (m===mode) ? 'var(--gold)' : 'var(--bd)';
+      btn.style.fontWeight = (m===mode) ? '600' : '500';
+    }
+  });
+  renderDrawings();
+}
+
 /* Bulk selection state */
 let drwSelected=new Set();
 let drwBulkMode=false;
@@ -9059,6 +9185,30 @@ function renderDrawings(){
 
   con.innerHTML=h||'<div style="padding:40px;text-align:center;font-family:var(--fm);font-size:12px;color:var(--txd)">No drawings match the current filters.</div>';
   setTimeout(initColResize, 30);
+  setTimeout(updateDrwFadeEdges, 50);  // v95 — refresh fade-edge visibility after re-render
+}
+
+/* ── v95 (Option A) — Update fade-edge visibility based on scroll position ──
+   Listens to scroll/resize on #drw-container and toggles .show on the fade
+   overlays so users get a visual hint there's more table off the right (or
+   off the left, once they've scrolled). Idempotent — safe to call multiple
+   times; the listener is only attached once via _drwFadeWired flag. */
+let _drwFadeWired = false;
+function updateDrwFadeEdges(){
+  const el = document.getElementById('drw-container');
+  const fr = document.getElementById('drw-fade-right');
+  const fl = document.getElementById('drw-fade-left');
+  if(!el || !fr || !fl) return;
+  const maxScroll = el.scrollWidth - el.clientWidth;
+  const showRight = maxScroll > 4 && el.scrollLeft < maxScroll - 4;
+  const showLeft  = maxScroll > 4 && el.scrollLeft > 4;
+  fr.classList.toggle('show', showRight);
+  fl.classList.toggle('show', showLeft);
+  if(!_drwFadeWired){
+    el.addEventListener('scroll', updateDrwFadeEdges, {passive: true});
+    window.addEventListener('resize', updateDrwFadeEdges);
+    _drwFadeWired = true;
+  }
 }
 
 /* ── SORT DRAWINGS BY URGENCY ── */
@@ -10643,7 +10793,7 @@ function submitAssignment(){
       projId,drawingId,forStaff:staffId,forRoles:['Principal Architect','Associate Principal','Lead Architect','Project Architect']});
   }
   renderSchedule();renderDrawings();renderStaff();
-  scheduleSave();
+  scheduleSave({immediate:true});
 }
 
 /* ── EDIT / ADJUST TASK ── */
@@ -10878,7 +11028,7 @@ function submitDrawingUpdate(){
     addNotif({type:'drawing',icon:'✎',iconBg:'rgba(82,133,224,.2)',title:d.id+' updated to '+(newStatus==='ip'?'In Progress':newStatus==='done'?'Issued':'Not Started'),detail:d.title+(hrsToday>0?' · '+hrsToday+'h logged':''),projId:d.proj,drawingId:id,forAll:true});
   }
   renderStaffSched();renderDrawings();renderSchedule();renderDashboard();updateNavBadges();
-  scheduleSave();
+  scheduleSave({immediate:true});
 }
 
 /* ── TAB SWITCH ── */
@@ -12499,7 +12649,7 @@ function submitAddDrawing(){
   renderStaffSched();
   renderWorkload();
   updateNavBadges();
-  scheduleSave();
+  scheduleSave({immediate:true});
 }
 
 
@@ -12514,7 +12664,7 @@ function doRemoveDrawing(drawingId){
   closeModal('confirm-rm-drw-ov');
   showNotif('Drawing removed',id+' removed from register');
   renderDrawings();renderProjList();renderSchedule();updateNavBadges();
-  scheduleSave();
+  scheduleSave({immediate:true});
 }
 
 /* ── TS → DRAWING HOURS SYNC ─────────────────────────────
@@ -12587,6 +12737,10 @@ const S62_SAVE_DEBOUNCE_MS = 2000;
 let _saveTimer = null;
 let _lastSaveTime = null;
 let _dataLoaded = false; // true once real data has been loaded
+// v96 Option B — three-state save tracking
+let _saveState = 'idle';      // 'idle' | 'pending' | 'local-saved' | 'cloud-saving' | 'cloud-saved' | 'error' | 'offline'
+let _pendingSinceMs = 0;      // when did the last user mutation happen
+let _saveStateInterval = null; // tick to update countdown text in 'pending' state
 
 /* ── MIGRATION CHAIN ─────────────────────────────────────────
    Each function takes the previous schema's data object and
@@ -12714,7 +12868,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v94',
+    appVersion: 'S62-v96',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -12833,24 +12987,51 @@ function migrateData(data) {
 }
 
 /* ── AUTO-SAVE to localStorage (debounced 2s) ─────────────── */
-function scheduleSave() {
+function scheduleSave(opts) {
+  // v96 Option A — accept options object: { immediate: true } bypasses both
+  // local and cloud debounces for high-stakes actions like assignments,
+  // approvals, status changes. Backward compatible: scheduleSave() with no
+  // arguments behaves exactly as before (2s local + 800ms cloud debounce).
+  const immediate = !!(opts && opts.immediate);
+
   if(_saveTimer) clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(()=>{
+
+  // v96 Option B — track save lifecycle state for the three-state indicator
+  _saveState = 'pending';   // local change made, not yet on disk
+  _pendingSinceMs = Date.now();
+  updateSaveIndicator('pending');
+
+  const doLocalSave = () => {
     try {
       const payload = JSON.stringify(packData());
       localStorage.setItem(S62_LS_KEY, payload);
       _lastSaveTime = new Date();
+      _saveState = 'local-saved';
       updateSaveIndicator('saved');
-      // Cloud sync: only when principal is logged in and cloud is configured
-      // Use a separate debounced cloud save (don't block every auto-save)
-      if(isCloudConfigured()){ scheduleCloudSave(); }
+      // Cloud sync: only when cloud is configured
+      if(isCloudConfigured()){
+        if(immediate){
+          // v96 — bypass cloud debounce too, fire transaction immediately
+          _saveState = 'cloud-saving';
+          updateSaveIndicator('cloud-saving');
+          if(_fbSaveTimer){ clearTimeout(_fbSaveTimer); _fbSaveTimer = null; }
+          cloudSave().catch(e => console.warn('S62 immediate cloudSave:', e));
+        } else {
+          scheduleCloudSave();
+        }
+      }
     } catch(e) {
-      // Quota exceeded or private browsing
+      _saveState = 'error';
       updateSaveIndicator('error');
       console.warn('S62: localStorage save failed:', e.message);
     }
-  }, S62_SAVE_DEBOUNCE_MS);
-  updateSaveIndicator('unsaved');
+  };
+
+  if(immediate){
+    doLocalSave();   // run synchronously, no debounce
+  } else {
+    _saveTimer = setTimeout(doLocalSave, S62_SAVE_DEBOUNCE_MS);
+  }
 }
 
 /* ── LOAD from localStorage on startup ───────────────────────
@@ -12976,26 +13157,47 @@ function doResetToSeedData() {
 function updateSaveIndicator(state) {
   const el = document.getElementById('save-indicator');
   if(!el) return;
-  if(state==='saved') {
-    el.textContent='✓ Local';
-    el.style.color='var(--grn)';
-    el.title='Saved to browser. Last: '+(_lastSaveTime?_lastSaveTime.toLocaleTimeString():'just now');
+  // v96 Option B — explicit per-state styling. Each state is a distinct
+  // user-facing message so users always know whether their last change is
+  // (a) only in memory, (b) on disk locally, (c) actively writing to cloud,
+  // or (d) safely persisted to Firebase.
+  if(state==='pending') {
+    el.textContent = '○ Pending';
+    el.style.color = 'var(--gold)';
+    el.title = 'Local change waiting to save (within 2s). Don\'t close the tab yet.';
+  } else if(state==='saved') {
+    // Local-only save complete. If cloud not configured this is the terminal state.
+    // If cloud IS configured, we briefly show this before transitioning to cloud-saving.
+    el.textContent = isCloudConfigured() ? '↻ Saving…' : '✓ Local';
+    el.style.color = isCloudConfigured() ? 'var(--gold)' : 'var(--grn)';
+    el.title = isCloudConfigured()
+      ? 'Saved on this device. Now writing to cloud…'
+      : 'Saved on this device. Last: '+(_lastSaveTime?_lastSaveTime.toLocaleTimeString():'just now');
+  } else if(state==='cloud-saving') {
+    el.textContent = '↻ Saving…';
+    el.style.color = 'var(--gold)';
+    el.title = 'Writing to Firebase. Hold a moment.';
   } else if(state==='cloud-saved') {
-    el.textContent='☁ Synced';
-    el.style.color='var(--grn)';
-    el.title='Saved to cloud. Click ☁ to sync again.';
+    el.textContent = '● Synced';
+    el.style.color = 'var(--grn)';
+    el.title = 'Latest change is in Firebase. Safe to close.';
   } else if(state==='cloud-error') {
-    el.textContent='☁ Sync failed';
-    el.style.color='var(--red)';
-    el.title='Cloud save failed — data saved locally. Check API key and Bin ID.';
+    el.textContent = '⚠ Sync failed';
+    el.style.color = 'var(--red)';
+    el.title = 'Cloud save failed — saved locally only. Check connection.';
+  } else if(state==='offline') {
+    el.textContent = '⚠ Offline';
+    el.style.color = 'var(--red)';
+    el.title = 'No connection — saving local-only. Will sync when restored.';
   } else if(state==='unsaved') {
-    el.textContent='● Saving…';
-    el.style.color='var(--txd)';
-    el.title='Saving…';
+    // Legacy callers that still pass 'unsaved' — treat as pending
+    el.textContent = '○ Pending';
+    el.style.color = 'var(--gold)';
+    el.title = 'Change pending save…';
   } else if(state==='error') {
-    el.textContent='! Save error';
-    el.style.color='var(--red)';
-    el.title='Local save failed (storage full?)';
+    el.textContent = '! Save error';
+    el.style.color = 'var(--red)';
+    el.title = 'Local save failed (storage full?). See console.';
   }
 }
 
@@ -13297,7 +13499,7 @@ function submitForCheck(drawingId){
       read:false, urgent:true
     });
   });
-  scheduleSave();
+  scheduleSave({immediate:true});
   renderDrawings();renderProjList();renderDashboard();renderStaffSched();updateNavBadges();
 }
 function approveDrawing(drawingId,nextStatus){
@@ -13340,7 +13542,7 @@ function approveDrawing(drawingId,nextStatus){
 
   // FIX 6 — fire atomic transaction save to confirm revision (handles concurrent approvals)
   // The transaction will catch and correct any duplicate rev if two approvals race
-  scheduleSave();
+  scheduleSave({immediate:true});
   if(isCloudConfigured()){
     atomicRevIncrement(drawingId).then(confirmedRev=>{
       if(confirmedRev && confirmedRev !== localNextRev){
@@ -13348,7 +13550,7 @@ function approveDrawing(drawingId,nextStatus){
         d.rev = confirmedRev;
         if(d.revHistory.length) d.revHistory[d.revHistory.length-1].rev = confirmedRev;
         showSyncToast('Rev corrected to '+confirmedRev+' (concurrent approval detected)');
-        scheduleSave();
+        scheduleSave({immediate:true});
       }
     }).catch(()=>{}); // silent fail — local rev stands
   }
@@ -13380,7 +13582,7 @@ function rejectDrawing(drawingId){
   // S62 Notification
   const _drf_r=d.sid?STAFF.find(x=>x.id===d.sid):null;
   addNotif({type:'qa',icon:'↺',iconBg:'rgba(224,82,82,.2)',title:d.id+' returned for correction',detail:note.slice(0,80)+(_drf_r?' · notify '+_drf_r.first:''),projId:d.proj,drawingId,forAll:true,forStaff:d.sid,urgent:true});
-  scheduleSave();renderDrawings();renderProjList();renderStaffSched();renderDashboard();updateNavBadges();
+  scheduleSave({immediate:true});renderDrawings();renderProjList();renderStaffSched();renderDashboard();updateNavBadges();
 }
 function openQaModal(drawingId){
   const d=DRAWINGS.find(x=>x.id===drawingId);if(!d)return;
@@ -13568,7 +13770,7 @@ function submitAddRev(){
 
   closeModal('add-rev-ov');
   showNotif('Revision added',d.id+' Rev '+rev+' — '+purpose);
-  scheduleSave();renderDrawings();renderProjList();updateNavBadges();
+  scheduleSave({immediate:true});renderDrawings();renderProjList();updateNavBadges();
 }
 
 function renderProjectSummary(projId){
@@ -13883,6 +14085,8 @@ renderDashboard();
 renderStaff();
 renderProjList();
 renderDrawings();
+// v95 (Option C) — apply saved view-mode preset to button styling
+setTimeout(()=>{ try { setDrwViewMode(_drwViewMode); } catch(e){} }, 80);
 renderTimesheets();
 renderWorkload();
 renderSchedule();
@@ -13893,6 +14097,41 @@ updateCloudSyncBtn(); // Show/hide cloud button based on config + user
 if(isCloudConfigured()){
   setTimeout(()=>fbAutoConnect(), 600);
 }
+
+// v96 Option B — beforeunload guard against closing while a save is pending
+// or actively writing. Without this, a user who edits a drawing and immediately
+// closes the tab within the 2-second debounce window loses their change.
+window.addEventListener('beforeunload', function(e){
+  if(_saveState === 'pending' || _saveState === 'cloud-saving'){
+    // Browser shows generic "Changes you made may not be saved" dialog.
+    // The custom message is ignored by modern browsers (security reasons).
+    e.preventDefault();
+    e.returnValue = 'Your changes haven\'t finished saving yet. Close anyway?';
+    return e.returnValue;
+  }
+});
+
+// v96 Option B — when the tab regains focus, if the connection is back,
+// trigger a flush of any pending save so the user doesn't have to wait
+// the full debounce window after switching back from another tab.
+window.addEventListener('focus', function(){
+  if(_saveState === 'pending' && _saveTimer){
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+    // Manually fire what the timeout would have done
+    try {
+      const payload = JSON.stringify(packData());
+      localStorage.setItem(S62_LS_KEY, payload);
+      _lastSaveTime = new Date();
+      _saveState = 'local-saved';
+      updateSaveIndicator('saved');
+      if(isCloudConfigured()){ scheduleCloudSave(); }
+    } catch(e){
+      _saveState = 'error';
+      updateSaveIndicator('error');
+    }
+  }
+});
 
 // Prevent clicks inside staff-detail-panel from bubbling to stcard onclick
 (function(){
@@ -16098,7 +16337,7 @@ async function submitMtg(mtgId){
     openMtgDetail(nm.id);
     addNotif({type:'meeting',icon:'📅',iconBg:'rgba(82,201,201,.2)',title:'Meeting scheduled: '+nm.title.split('—').pop().trim(),detail:(nm.proj?projName(nm.proj)+' · ':'')+nm.date+(nm.time?' at '+nm.time:''),projId:nm.proj,forAll:true});
   }
-  renderMeetings();scheduleSave();updateGcalBadge();
+  renderMeetings();scheduleSave({immediate:true});updateGcalBadge();
   // Reverse sync: if this is a site-visit meeting, create/update CA SVR stub
   syncCAFromMeeting(mtgId);
   // Cleanup chip-dropdown state
@@ -16109,7 +16348,7 @@ async function submitMtg(mtgId){
 function cancelMtg(id){
   const m=MEETINGS.find(x=>x.id===id);if(!m)return;
   openSimpleConfirm('Cancel meeting','<p style="font-family:var(--fm);font-size:11px;color:var(--txm)">Cancel &ldquo;'+m.title+'&rdquo;?'+(m.gcalId?' Also removes it from Google Calendar.':'')+'</p>',
-    async function(){m.status='cancelled';if(m.gcalId&&isGcalConnected())await gcalDeleteEvent(m.gcalId);closeModal('mtg-edit-ov');closeModal('mtg-detail-ov');renderMeetings();scheduleSave();updateGcalBadge();removeCASyncedTasks(m.id);showNotif('Meeting cancelled',m.title);});
+    async function(){m.status='cancelled';if(m.gcalId&&isGcalConnected())await gcalDeleteEvent(m.gcalId);closeModal('mtg-edit-ov');closeModal('mtg-detail-ov');renderMeetings();scheduleSave({immediate:true});updateGcalBadge();removeCASyncedTasks(m.id);showNotif('Meeting cancelled',m.title);});
 }
 
 /* ════ WEEK VIEW ═══════════════════════════════════════════ */
@@ -17088,7 +17327,7 @@ function submitAddInvoice(){
   showNotif('Invoice added',id+' — '+fmtINR(amountNum));
   addAudit('financial','Invoice created',id+' · '+desc+' · '+fmtINR(amountNum),projId);
   closeModal('add-inv-ov');
-  renderFinancials(); scheduleSave();
+  renderFinancials(); scheduleSave({immediate:true});
 }
 
 
@@ -17126,7 +17365,7 @@ async function syncFromNotion(mtgId){
     // Strip any preamble Claude might add
     const notesOnly=text.replace(/^(here are|the meeting notes|notes:|meeting notes:)[:\s]*/i,'').trim();
     m.notes=notesOnly;
-    scheduleSave();
+    scheduleSave({immediate:true});
     // Refresh detail modal if open
     const detailOv=document.getElementById('mtg-detail-ov');
     if(detailOv){
@@ -17519,14 +17758,14 @@ function issueTxById(txId){
   }
   addNotif({type:'qa',icon:'📤',iconBg:'rgba(82,201,122,.2)',title:'Transmittal '+tx.ref+' issued',detail:tx.drawings.length+' drawing'+(tx.drawings.length!==1?'s':'')+' · '+tx.issuedTo,projId:tx.projId,forAll:true});
   showNotif('Transmittal issued', tx.ref + ' — ' + tx.drawings.length + ' drawing' + (tx.drawings.length!==1?'s':'') + ' formally issued to ' + tx.issuedTo);
-  updateTxBadge(); renderTransmittals(); scheduleSave();
+  updateTxBadge(); renderTransmittals(); scheduleSave({immediate:true});
 }
 
 function deleteTxById(txId){
   const idx = TRANSMITTALS.findIndex(x=>x.id===txId);
   if(idx<0) return;
   TRANSMITTALS.splice(idx, 1);
-  updateTxBadge(); renderTransmittals(); scheduleSave();
+  updateTxBadge(); renderTransmittals(); scheduleSave({immediate:true});
   showNotif('Transmittal deleted','');
 }
 
@@ -17756,7 +17995,7 @@ function issueTransmittal(){
   showNotif('Transmittal issued',tx.ref+' — '+tx.drawings.length+' drawing'+(tx.drawings.length!==1?'s':'')+' issued'+(issuedTo?' to '+issuedTo:''));
 
   updateTxBadge();
-  scheduleSave();
+  scheduleSave({immediate:true});
   // Switch back to register
   setTxView('register', document.querySelector('.tx-tab:first-child'));
   renderTransmittals();
@@ -19682,7 +19921,7 @@ function saveCASVR(editId){
     });
   }
 
-  scheduleSave();
+  scheduleSave({immediate:true});
   closeModal('ca-svr-ov');
   renderCA();
   updateCABadges();
@@ -19825,7 +20064,7 @@ function saveCARFI(editId){
     status,hrs:1
   });
 
-  scheduleSave();closeModal('ca-rfi-ov');renderCA();updateCABadges();
+  scheduleSave({immediate:true});closeModal('ca-rfi-ov');renderCA();updateCABadges();
   if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
   if(document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
   showNotif('RFI saved',entry.num+(assignedTo?' · Assigned to '+caStaffName(assignedTo):''));
@@ -19939,7 +20178,7 @@ function saveCASUB(editId){
     status,hrs:2
   });
 
-  scheduleSave();closeModal('ca-sub-ov');renderCA();updateCABadges();
+  scheduleSave({immediate:true});closeModal('ca-sub-ov');renderCA();updateCABadges();
   if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
   if(document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
   showNotif('Submittal saved',entry.num+(assignedTo?' · Assigned to '+caStaffName(assignedTo):''));
@@ -19993,7 +20232,7 @@ function saveCASnag(editId){
   };
   if(editId){const idx=CA_SNAGS.findIndex(x=>x.id===editId);if(idx>=0)CA_SNAGS[idx]=entry;else CA_SNAGS.push(entry);}
   else CA_SNAGS.push(entry);
-  scheduleSave();closeModal('ca-snag-ov');renderCA();updateCABadges();
+  scheduleSave({immediate:true});closeModal('ca-snag-ov');renderCA();updateCABadges();
   showNotif('Snag item saved',entry.num);
 }
 
@@ -20047,7 +20286,7 @@ function saveCAAI(editId){
   };
   if(editId){const idx=CA_AIS.findIndex(x=>x.id===editId);if(idx>=0)CA_AIS[idx]=entry;else CA_AIS.push(entry);}
   else CA_AIS.push(entry);
-  scheduleSave();closeModal('ca-ai-ov');renderCA();updateCABadges();
+  scheduleSave({immediate:true});closeModal('ca-ai-ov');renderCA();updateCABadges();
   showNotif('Instruction issued',entry.num+' — '+title.slice(0,40));
 }
 
