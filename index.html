@@ -1346,6 +1346,28 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 .vd-back-link{display:inline-flex;align-items:center;gap:6px;font-family:var(--fm);font-size:10px;color:var(--txm);cursor:pointer;padding:4px 0;margin-bottom:8px}
 .vd-back-link:hover{color:var(--tx)}
 .vd-empty{padding:48px 24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)}
+
+/* ── CHIP-DROPDOWN (used in meeting modal for staff/vendor select) ── */
+.cd-wrap{position:relative}
+.cd-box{display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-height:36px;padding:6px 30px 6px 8px;background:var(--sf3);border:1px solid var(--bd);border-radius:6px;cursor:text;transition:border-color .12s}
+.cd-box:hover,.cd-box.open{border-color:var(--gold)}
+.cd-box .cd-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--txd);font-size:10px;pointer-events:none}
+.cd-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 4px;border-radius:12px;font-size:10px;font-family:var(--fm);background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);max-width:180px}
+.cd-chip.staff{background:rgba(82,133,224,.12);border-color:rgba(82,133,224,.35);color:var(--blu)}
+.cd-chip.vendor{background:rgba(201,169,110,.14);border-color:rgba(201,169,110,.35);color:var(--gold)}
+.cd-chip .cd-chip-av{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;color:#0a0a0f;flex-shrink:0}
+.cd-chip .cd-chip-x{cursor:pointer;opacity:.55;font-size:11px;line-height:1;margin-left:2px}
+.cd-chip .cd-chip-x:hover{opacity:1}
+.cd-input{border:none;outline:none;background:transparent;color:var(--tx);font-size:11px;flex:1;min-width:80px;padding:3px 4px}
+.cd-menu{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--sf);border:1px solid var(--bd2);border-radius:6px;max-height:220px;overflow-y:auto;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.4);display:none}
+.cd-menu.open{display:block}
+.cd-row{display:flex;align-items:center;gap:9px;padding:7px 11px;cursor:pointer;font-size:11px;border-bottom:1px solid var(--bd)}
+.cd-row:last-child{border-bottom:none}
+.cd-row:hover,.cd-row.kbd-on{background:var(--sf2)}
+.cd-row .cd-av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#0a0a0f;flex-shrink:0}
+.cd-row .cd-row-name{font-weight:500;color:var(--tx)}
+.cd-row .cd-row-meta{font-family:var(--fm);font-size:9px;color:var(--txd);margin-left:auto}
+.cd-empty{padding:14px;text-align:center;font-family:var(--fm);font-size:10px;color:var(--txd)}
 </style>
 </head>
 <body>
@@ -12347,7 +12369,7 @@ function manualSyncHours(){
    Rule: always add optional fields with defaults, never delete.
    ═══════════════════════════════════════════════════════════════ */
 
-const S62_SCHEMA_VERSION = 7;
+const S62_SCHEMA_VERSION = 8;
 const S62_LS_KEY = 's62_data_v1';
 const S62_SAVE_DEBOUNCE_MS = 2000;
 
@@ -12464,6 +12486,15 @@ const S62_MIGRATIONS = {
       if(!v.status) v.status = 'active';
     });
     return data;
+  },
+  /* v7 → v8: meetings now include vendorIds[] for vendor invites + auto-linkage */
+  8: function(data) {
+    if(Array.isArray(data.meetings)){
+      data.meetings.forEach(m=>{
+        if(!Array.isArray(m.vendorIds)) m.vendorIds = [];
+      });
+    }
+    return data;
   }
 };
 
@@ -12472,7 +12503,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v90',
+    appVersion: 'S62-v91',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -14591,20 +14622,58 @@ async function gcalCreateEvent(mtg){
   const cal=encodeURIComponent(_gcalCfg.calendarId||'primary');
   const startDt=new Date(mtg.date+'T'+(mtg.time||'09:00'));
   const endDt=new Date(startDt.getTime()+(mtg.duration||60)*60000);
-  const attendeeEmails=[
-    ...STAFF.filter(s=>(mtg.attendees||[]).includes(s.id)&&s.email).map(s=>({email:s.email})),
-    ...(mtg.externalAttendees||[]).filter(Boolean).map(e=>({email:e}))
-  ];
+
+  // Staff attendees: marked as 'accepted' so Google does NOT prompt them with
+  // RSVP buttons — the event just appears on their calendar silently.
+  const staffAttendees = STAFF
+    .filter(s => (mtg.attendees||[]).includes(s.id) && s.email)
+    .map(s => ({email: s.email, displayName: s.first+' '+s.last, responseStatus: 'accepted'}));
+
+  // Vendor attendees: pulled from VENDORS by ID, marked as 'needsAction' which
+  // triggers Google's RSVP invite email with Yes/No/Maybe buttons.
+  const vendorAttendees = (mtg.vendorIds||[])
+    .map(vid => (VENDORS||[]).find(v => v.id === vid))
+    .filter(v => v && v.email)
+    .map(v => ({email: v.email, displayName: v.companyName || v.contactPerson || 'Vendor', responseStatus: 'needsAction'}));
+
+  // External emails (clients, consultants etc.) — also full RSVP invite.
+  const externalAttendees = (mtg.externalAttendees||[])
+    .filter(Boolean)
+    .map(email => ({email, responseStatus: 'needsAction'}));
+
+  // De-duplicate by email (in case a vendor email also appears as external)
+  const seen = new Set();
+  const allAttendees = [...staffAttendees, ...vendorAttendees, ...externalAttendees]
+    .filter(a => { const e = (a.email||'').toLowerCase(); if(seen.has(e)) return false; seen.add(e); return true; });
+
+  // Build description with vendor + project context
+  let description = (mtg.agenda || '');
+  if(vendorAttendees.length){
+    description += (description?'\n\n':'') + '— Vendors invited —\n'
+      + (mtg.vendorIds||[]).map(vid=>{
+          const v = (VENDORS||[]).find(x=>x.id===vid);
+          if(!v) return '';
+          return '• '+v.companyName + (v.contactPerson?' ('+v.contactPerson+')':'') + (v.phone?' · '+v.phone:'');
+        }).filter(Boolean).join('\n');
+  }
+  if(mtg.proj){
+    const p = PROJS.find(x=>x.id===mtg.proj);
+    if(p) description = 'Project: '+p.name+(p.client?' · '+p.client:'')+(description?'\n\n'+description:'');
+  }
+  if(mtg.notes) description += '\n\n--- Meeting Notes ---\n'+mtg.notes;
+
   const body={
-    summary:mtg.title,location:mtg.location||'',
-    description:(mtg.agenda||'')+(mtg.notes?'\n\n--- Meeting Notes ---\n'+mtg.notes:''),
+    summary:mtg.title,
+    location:mtg.location||'',
+    description,
     start:{dateTime:startDt.toISOString(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone},
     end:{dateTime:endDt.toISOString(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone},
-    attendees:attendeeEmails,
+    attendees: allAttendees,
     conferenceData:{createRequest:{requestId:'s62-'+mtg.id,conferenceSolutionKey:{type:'hangoutsMeet'}}},
     reminders:{useDefault:false,overrides:[{method:'popup',minutes:15},{method:'email',minutes:60}]}
   };
   try{
+    // sendUpdates=all → Google emails RSVP invites to anyone with responseStatus='needsAction'
     const url='https://www.googleapis.com/calendar/v3/calendars/'+cal+'/events?conferenceDataVersion=1&sendUpdates=all';
     const res=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+_gcalToken,'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(!res.ok){const e2=await res.json().catch(()=>({}));throw new Error((e2.error&&e2.error.message)||'HTTP '+res.status);}
@@ -14616,13 +14685,41 @@ async function gcalUpdateEvent(mtg){
   const cal=encodeURIComponent(_gcalCfg.calendarId||'primary');
   const startDt=new Date(mtg.date+'T'+(mtg.time||'09:00'));
   const endDt=new Date(startDt.getTime()+(mtg.duration||60)*60000);
+
+  // Same differentiation as create — staff silent, vendors+external get RSVP
+  const staffAttendees = STAFF
+    .filter(s => (mtg.attendees||[]).includes(s.id) && s.email)
+    .map(s => ({email: s.email, displayName: s.first+' '+s.last, responseStatus: 'accepted'}));
+  const vendorAttendees = (mtg.vendorIds||[])
+    .map(vid => (VENDORS||[]).find(v => v.id === vid))
+    .filter(v => v && v.email)
+    .map(v => ({email: v.email, displayName: v.companyName || 'Vendor', responseStatus: 'needsAction'}));
+  const externalAttendees = (mtg.externalAttendees||[])
+    .filter(Boolean)
+    .map(email => ({email, responseStatus: 'needsAction'}));
+  const seen = new Set();
+  const allAttendees = [...staffAttendees, ...vendorAttendees, ...externalAttendees]
+    .filter(a => { const e = (a.email||'').toLowerCase(); if(seen.has(e)) return false; seen.add(e); return true; });
+
+  let description = (mtg.agenda || '');
+  if((mtg.vendorIds||[]).length){
+    description += (description?'\n\n':'') + '— Vendors invited —\n'
+      + (mtg.vendorIds||[]).map(vid=>{
+          const v = (VENDORS||[]).find(x=>x.id===vid);
+          if(!v) return '';
+          return '• '+v.companyName + (v.contactPerson?' ('+v.contactPerson+')':'') + (v.phone?' · '+v.phone:'');
+        }).filter(Boolean).join('\n');
+  }
+  if(mtg.notes) description += '\n\n--- Notes ---\n'+mtg.notes;
+
   try{
-    const url='https://www.googleapis.com/calendar/v3/calendars/'+cal+'/events/'+encodeURIComponent(mtg.gcalId);
+    const url='https://www.googleapis.com/calendar/v3/calendars/'+cal+'/events/'+encodeURIComponent(mtg.gcalId)+'?sendUpdates=all';
     const res=await fetch(url,{method:'PATCH',
       headers:{Authorization:'Bearer '+_gcalToken,'Content-Type':'application/json'},
       body:JSON.stringify({summary:mtg.title,location:mtg.location||'',
-        description:(mtg.agenda||'')+(mtg.notes?'\n\n--- Notes ---\n'+mtg.notes:''),
-        start:{dateTime:startDt.toISOString()},end:{dateTime:endDt.toISOString()}})});
+        description,
+        start:{dateTime:startDt.toISOString()},end:{dateTime:endDt.toISOString()},
+        attendees: allAttendees})});
     return res.ok;
   }catch(e){return false;}
 }
@@ -15106,6 +15203,168 @@ async function pushToGcal(id){const m=MEETINGS.find(x=>x.id===id);if(!m)return;s
 async function syncToGcal(id){const m=MEETINGS.find(x=>x.id===id);if(!m)return;const ok=await gcalUpdateEvent(m);showNotif(ok?'📅 Google Calendar updated':'Sync failed',ok?'':'Check connection');}
 
 /* CREATE/EDIT MEETING MODAL */
+/* ════════════════════════════════════════════════════════════
+   CHIP DROPDOWN — reusable component for staff/vendor multi-select
+   Usage:
+     <div id="myCd"></div>
+     ChipDropdown.init('myCd', {
+       items: [{id, name, sub, color, initials, type:'staff'|'vendor'}],
+       selected: ['id1','id2'],
+       placeholder: '+ Add staff'
+     });
+     ChipDropdown.getSelected('myCd') -> ['id1','id2']
+   ════════════════════════════════════════════════════════════ */
+const ChipDropdown = (function(){
+  const _state = {}; // {wrapId: {items, selected:Set, placeholder, query, kbdIdx}}
+
+  function init(wrapId, opts){
+    const root = document.getElementById(wrapId);
+    if(!root) return;
+    _state[wrapId] = {
+      items: opts.items || [],
+      selected: new Set(opts.selected || []),
+      placeholder: opts.placeholder || '+ Add',
+      query: '',
+      kbdIdx: 0,
+      chipClass: opts.chipClass || ''
+    };
+    render(wrapId);
+  }
+
+  function render(wrapId){
+    const s = _state[wrapId];
+    const root = document.getElementById(wrapId);
+    if(!s||!root) return;
+    const selectedItems = s.items.filter(i => s.selected.has(i.id));
+    const filteredOpts = s.items
+      .filter(i => !s.selected.has(i.id))
+      .filter(i => !s.query || (i.name+' '+(i.sub||'')).toLowerCase().includes(s.query.toLowerCase()));
+
+    const chips = selectedItems.map(i =>
+      '<span class="cd-chip '+(s.chipClass||'')+'">'
+      + (i.color ? '<span class="cd-chip-av" style="background:'+i.color+'">'+(i.initials||'??')+'</span>' : '')
+      + (i.icon ? '<span style="font-size:13px">'+i.icon+'</span>' : '')
+      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+i.name+'</span>'
+      + '<span class="cd-chip-x" onclick="event.stopPropagation();ChipDropdown.remove(\''+wrapId+'\',\''+i.id+'\')">×</span>'
+      + '</span>'
+    ).join('');
+
+    const opts = filteredOpts.length
+      ? filteredOpts.map((i, idx) =>
+          '<div class="cd-row'+(idx===s.kbdIdx?' kbd-on':'')+'" onclick="ChipDropdown.add(\''+wrapId+'\',\''+i.id+'\')">'
+          + (i.color ? '<span class="cd-av" style="background:'+i.color+'">'+(i.initials||'??')+'</span>' : '')
+          + (i.icon ? '<span style="font-size:14px;width:24px;text-align:center">'+i.icon+'</span>' : '')
+          + '<div><div class="cd-row-name">'+i.name+'</div>'
+          + (i.sub?'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+i.sub+'</div>':'')+'</div>'
+          + (i.meta?'<div class="cd-row-meta">'+i.meta+'</div>':'')
+          + '</div>'
+        ).join('')
+      : '<div class="cd-empty">'+(s.query?'No matches for "'+s.query+'"':'All added')+'</div>';
+
+    root.innerHTML = ''
+      + '<div class="cd-wrap" id="'+wrapId+'-wrap">'
+        + '<div class="cd-box" id="'+wrapId+'-box" onclick="ChipDropdown.focus(\''+wrapId+'\')">'
+          + chips
+          + '<input type="text" class="cd-input" id="'+wrapId+'-in" placeholder="'+(selectedItems.length?'':s.placeholder)+'" '
+          +   'oninput="ChipDropdown.search(\''+wrapId+'\',this.value)" '
+          +   'onfocus="ChipDropdown.open(\''+wrapId+'\')" '
+          +   'onkeydown="ChipDropdown.kbd(\''+wrapId+'\',event)">'
+          + '<span class="cd-arrow">▾</span>'
+        + '</div>'
+        + '<div class="cd-menu" id="'+wrapId+'-menu">'+opts+'</div>'
+      + '</div>';
+  }
+
+  function focus(wrapId){
+    const inp = document.getElementById(wrapId+'-in');
+    if(inp) inp.focus();
+  }
+  function open(wrapId){
+    const m = document.getElementById(wrapId+'-menu');
+    const b = document.getElementById(wrapId+'-box');
+    if(m) m.classList.add('open');
+    if(b) b.classList.add('open');
+  }
+  function close(wrapId){
+    const m = document.getElementById(wrapId+'-menu');
+    const b = document.getElementById(wrapId+'-box');
+    if(m) m.classList.remove('open');
+    if(b) b.classList.remove('open');
+  }
+  function add(wrapId, id){
+    const s = _state[wrapId]; if(!s) return;
+    s.selected.add(id);
+    s.query = '';
+    s.kbdIdx = 0;
+    render(wrapId);
+    setTimeout(()=>focus(wrapId), 10);
+    open(wrapId);
+  }
+  function remove(wrapId, id){
+    const s = _state[wrapId]; if(!s) return;
+    s.selected.delete(id);
+    render(wrapId);
+  }
+  function search(wrapId, q){
+    const s = _state[wrapId]; if(!s) return;
+    s.query = q;
+    s.kbdIdx = 0;
+    render(wrapId);
+    open(wrapId);
+    // Refocus the input after re-render
+    setTimeout(()=>{
+      const inp = document.getElementById(wrapId+'-in');
+      if(inp){ inp.value = q; inp.focus(); inp.setSelectionRange(q.length, q.length); }
+    }, 0);
+  }
+  function kbd(wrapId, e){
+    const s = _state[wrapId]; if(!s) return;
+    const filtered = s.items.filter(i => !s.selected.has(i.id))
+      .filter(i => !s.query || (i.name+' '+(i.sub||'')).toLowerCase().includes(s.query.toLowerCase()));
+    if(e.key === 'ArrowDown'){
+      e.preventDefault();
+      s.kbdIdx = Math.min(filtered.length-1, s.kbdIdx+1);
+      render(wrapId);
+      setTimeout(()=>{const i=document.getElementById(wrapId+'-in'); if(i){i.value=s.query;i.focus();}},0);
+      open(wrapId);
+    } else if(e.key === 'ArrowUp'){
+      e.preventDefault();
+      s.kbdIdx = Math.max(0, s.kbdIdx-1);
+      render(wrapId);
+      setTimeout(()=>{const i=document.getElementById(wrapId+'-in'); if(i){i.value=s.query;i.focus();}},0);
+      open(wrapId);
+    } else if(e.key === 'Enter'){
+      e.preventDefault();
+      if(filtered[s.kbdIdx]) add(wrapId, filtered[s.kbdIdx].id);
+    } else if(e.key === 'Escape'){
+      close(wrapId);
+    } else if(e.key === 'Backspace' && !e.target.value){
+      // backspace on empty input → remove last chip
+      const last = Array.from(s.selected).pop();
+      if(last){ s.selected.delete(last); render(wrapId); }
+    }
+  }
+  function getSelected(wrapId){
+    const s = _state[wrapId];
+    return s ? Array.from(s.selected) : [];
+  }
+  function destroy(wrapId){
+    delete _state[wrapId];
+  }
+
+  // Close on outside click
+  document.addEventListener('click', function(e){
+    Object.keys(_state).forEach(wrapId=>{
+      const wrap = document.getElementById(wrapId+'-wrap');
+      if(wrap && !wrap.contains(e.target)){
+        close(wrapId);
+      }
+    });
+  });
+
+  return {init, add, remove, search, kbd, focus, open, close, getSelected, destroy};
+})();
+
 function openMtgModal(mtgId,prefillDate){
   if(!canSchedule()){showNotif('Access restricted','Only Principal, Lead, and Project Architects can create meetings.');return;}
   const m=mtgId?MEETINGS.find(x=>x.id===mtgId):null;
@@ -15118,13 +15377,7 @@ function openMtgModal(mtgId,prefillDate){
   const defTime=pts||m?.time||'10:00';
   const ex=document.getElementById('mtg-edit-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='mtg-edit-ov';div.className='ov show';
-  const staffChk=STAFF.filter(s=>s.type!=='contractor').map(s=>{
-    const ch=((m?.attendees||pfill?.attendees||[])).includes(s.id);
-    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;background:var(--sf2);border:1px solid '+(ch?'var(--gold)':'var(--bd)')+'" id="attl-'+s.id+'">'
-      +'<input type="checkbox" id="att-'+s.id+'" '+(ch?'checked ':'')+' onchange="document.getElementById(\'attl-'+s.id+'\').style.borderColor=this.checked?\'var(--gold)\':\' var(--bd)\'">'
-      +'<div class="mtg-av" style="background:'+s.color+';flex-shrink:0">'+s.first[0]+s.last[0]+'</div>'
-      +'<div><div style="font-size:11px;font-weight:500">'+s.first+' '+s.last+'</div><div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+s.role+'</div></div></label>';
-  }).join('');
+
   div.innerHTML='<div class="modal modal-xl" style="max-width:560px;max-height:88vh;overflow-y:auto">'
     +'<button class="mclose" onclick="closeModal(\'mtg-edit-ov\')">&#x2715;</button>'
     +'<div class="mtitle">'+(m?'Edit Meeting':'New Meeting')+'</div>'+(pfill?.drawingRef?'<div style="background:rgba(82,133,224,.08);border:1px solid rgba(82,133,224,.2);border-radius:7px;padding:8px 12px;font-family:var(--fm);font-size:10px;color:var(--blu);margin-bottom:10px">'+'<b>Pre-filled from Drawing '+pfill.drawingRef+'</b> — adjust as needed'+'</div>':'')
@@ -15136,14 +15389,62 @@ function openMtgModal(mtgId,prefillDate){
     +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="me-proj"><option value="">No project</option>'
     +PROJS.filter(p=>p.status!=='archived').map(p=>'<option value="'+p.id+'"'+((m?.proj||pfill?.proj)===p.id?' selected':'')+'>'+p.name+'</option>').join('')+'</select></div></div>'
     +'<div class="frow"><label class="flbl">Location</label><input class="finp" id="me-loc" placeholder="Studio / Google Meet / Site" value="'+(m?.location||'')+'"></div>'
-    +'<div class="frow"><label class="flbl">Attendees</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'+staffChk+'</div></div>'
-    +'<div class="frow"><label class="flbl">External emails <span style="font-weight:400;color:var(--txd)">(comma-separated)</span></label><input class="finp" id="me-ext" placeholder="client@email.com" value="'+((m?.externalAttendees||[]).join(', '))+'"></div>'
+
+    // ── Staff chip-dropdown ─────────────────────────────────
+    +'<div class="frow"><label class="flbl">Staff Attendees <span style="color:var(--txd);font-weight:400">— calendar updates silently, no RSVP needed</span></label>'
+      +'<div id="me-staff-cd"></div>'
+    +'</div>'
+
+    // ── Vendor chip-dropdown ────────────────────────────────
+    +'<div class="frow"><label class="flbl">Vendors / Contractors <span style="color:var(--txd);font-weight:400">— receive RSVP invite by email</span></label>'
+      +'<div id="me-vendor-cd"></div>'
+      +(VENDORS.length===0?'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:4px">No vendors in directory yet. Add them in Construction Admin → Vendors.</div>':'')
+    +'</div>'
+
+    +'<div class="frow"><label class="flbl">Other Emails <span style="color:var(--txd);font-weight:400">— clients, consultants · receive RSVP invite</span></label><input class="finp" id="me-ext" placeholder="client@email.com, structural@consultant.com" value="'+((m?.externalAttendees||[]).join(', '))+'"></div>'
     +'<div class="frow"><label class="flbl">Agenda</label><textarea class="ftarea" id="me-agenda" rows="3" placeholder="Items to discuss\u2026">'+(m?.agenda||pfill?.agenda||'')+'</textarea></div>'
-    +(isGcalConnected()&&!m?.gcalId?'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(82,133,224,.08);border-radius:6px;margin-bottom:12px"><input type="checkbox" id="me-gcal" checked><label style="font-family:var(--fm);font-size:10px;cursor:pointer" for="me-gcal">📅 Create in Google Calendar (sends invites)</label></div>':'')
+    +(isGcalConnected()&&!m?.gcalId?'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(82,133,224,.08);border-radius:6px;margin-bottom:12px"><input type="checkbox" id="me-gcal" checked><label style="font-family:var(--fm);font-size:10px;cursor:pointer" for="me-gcal">📅 Push to Google Calendar (sends RSVP invites to vendors and external emails)</label></div>':'')
+    +(!isGcalConnected()?'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(240,201,122,.08);border:1px solid rgba(240,201,122,.25);border-radius:6px;margin-bottom:12px"><span style="color:var(--gold);font-size:14px">⚠</span><div style="font-family:var(--fm);font-size:9px;color:var(--gold);line-height:1.4">Google Calendar not connected — calendar invites will not be sent. <a onclick="gcalSignIn()" style="color:var(--gld2);cursor:pointer;text-decoration:underline">Connect now</a></div></div>':'')
     +'<div style="display:flex;gap:8px"><button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="submitMtg(\''+( m?.id||'')+'\')">'+( m?'Save Changes':'Create Meeting')+'</button>'
     +(m?'<button class="btn bg bsm" style="color:var(--red)" onclick="cancelMtg(\''+m.id+'\')">Cancel Meeting</button>':'')
     +'<button class="btn bg" style="padding:11px 14px" onclick="closeModal(\'mtg-edit-ov\')">Cancel</button></div></div>';
+
   document.body.appendChild(div);
+
+  // Initialize chip-dropdowns AFTER the modal is in the DOM
+  const inhouse = STAFF.filter(s=>s.type!=='contractor');
+  const staffItems = inhouse.map(s=>({
+    id: s.id,
+    name: s.first+' '+s.last,
+    sub: s.role || '',
+    color: s.color,
+    initials: (s.first[0]+s.last[0]).toUpperCase()
+  }));
+  ChipDropdown.init('me-staff-cd', {
+    items: staffItems,
+    selected: m?.attendees || pfill?.attendees || [],
+    placeholder: '+ Add staff member',
+    chipClass: 'staff'
+  });
+
+  const vendorItems = VENDORS
+    .filter(v => v.status !== 'blacklisted')
+    .map(v=>{
+      const cat = (typeof vdGetCategory==='function') ? vdGetCategory(v.primaryCategory) : null;
+      return {
+        id: v.id,
+        name: v.companyName || '(Unnamed vendor)',
+        sub: (cat ? cat.name : '') + (v.contactPerson?' · '+v.contactPerson:''),
+        meta: v.email || (v.phone ? '📞 '+v.phone : 'No email'),
+        icon: cat ? cat.icon : '🏗'
+      };
+    });
+  ChipDropdown.init('me-vendor-cd', {
+    items: vendorItems,
+    selected: m?.vendorIds || [],
+    placeholder: VENDORS.length ? '+ Add vendor or contractor' : 'No vendors in directory yet',
+    chipClass: 'vendor'
+  });
 }
 async function submitMtg(mtgId){
   const title=(document.getElementById('me-title')?.value||'').trim();
@@ -15157,15 +15458,14 @@ async function submitMtg(mtgId){
   const externalAttendees=exRaw.split(',').map(e=>e.trim()).filter(Boolean);
   const agenda=document.getElementById('me-agenda')?.value||'';
   const pushGcal=document.getElementById('me-gcal')?.checked&&isGcalConnected();
-  const attendees=STAFF.filter(s=>document.getElementById('att-'+s.id)?.checked).map(s=>s.id);
+  // Read selections from the chip-dropdowns
+  const attendees = ChipDropdown.getSelected('me-staff-cd');
+  const vendorIds = ChipDropdown.getSelected('me-vendor-cd');
 
   // FIX 8 — double-booking detection
   if(time && attendees.length){
     const conflicts = checkMeetingConflicts(date, time, duration, attendees, mtgId||null);
     if(conflicts.length){
-      const conflictMsg = conflicts.map(c=>
-        `${c.clashStaff.join(', ')} already in "${c.meeting.title}" at ${c.meeting.time}`
-      ).join('\n');
       const proceed = await new Promise(res=>{
         const ex=document.getElementById('booking-conflict-ov');if(ex)ex.remove();
         const div=document.createElement('div');div.id='booking-conflict-ov';div.className='ov show';
@@ -15194,21 +15494,53 @@ async function submitMtg(mtgId){
     const m=MEETINGS.find(x=>x.id===mtgId);if(!m)return;
     const t2=document.getElementById('me-type')?.value||m.type||'other';
     const st2=document.getElementById('me-status')?.value||m.status||'scheduled';
-    Object.assign(m,{type:t2,status:st2,title,date,time,duration,proj,location,externalAttendees,agenda,attendees});
-    closeModal('mtg-edit-ov');if(m.gcalId&&isGcalConnected())await gcalUpdateEvent(m);
-    showNotif('Meeting updated',title);openMtgDetail(mtgId);
+    Object.assign(m,{type:t2,status:st2,title,date,time,duration,proj,location,externalAttendees,agenda,attendees,vendorIds});
+    closeModal('mtg-edit-ov');
+    // If meeting already in GCal, patch it; if not but pushGcal is requested, create it
+    if(m.gcalId && isGcalConnected()){
+      await gcalUpdateEvent(m);
+    } else if(pushGcal){
+      const ev = await gcalCreateEvent(m);
+      if(ev){ m.gcalId = ev.id; m.meetLink = ev.hangoutLink || ''; m.source = 'gcal'; }
+    }
+    showNotif('Meeting updated', title + (m.gcalId ? ' · Calendar updated' : ''));
+    openMtgDetail(mtgId);
   }else{
     const type=document.getElementById('me-type')?.value||'other';
     const status=document.getElementById('me-status')?.value||'scheduled';
-    const nm={id:nextMtgId(),gcalId:null,source:'local',type,status,title,date,time,duration,proj,location,externalAttendees,attendees,agenda,notes:'',actionItems:[],attendeeStatuses:attendees.map(function(id){return {id:id,status:'invited'};}),notionPageUrl:'',createdBy:CURRENT_USER_ID,meetLink:''};
+    const nm={id:nextMtgId(),gcalId:null,source:'local',type,status,title,date,time,duration,proj,location,externalAttendees,attendees,vendorIds,agenda,notes:'',actionItems:[],attendeeStatuses:attendees.map(function(id){return {id:id,status:'invited'};}),notionPageUrl:'',createdBy:CURRENT_USER_ID,meetLink:''};
     MEETINGS.push(nm);closeModal('mtg-edit-ov');
-    if(pushGcal){const ev=await gcalCreateEvent(nm);if(ev){nm.gcalId=ev.id;nm.meetLink=ev.hangoutLink||'';nm.source='gcal';}}
-    showNotif('Meeting created',title+(nm.gcalId?' \u00b7 Added to Google Calendar':''));openMtgDetail(nm.id);
+    if(pushGcal){
+      const ev=await gcalCreateEvent(nm);
+      if(ev){
+        nm.gcalId=ev.id;nm.meetLink=ev.hangoutLink||'';nm.source='gcal';
+        // Build a richer notification noting who got what
+        const vendorCount = vendorIds.length;
+        const extCount = externalAttendees.length;
+        let detail = 'Calendar created';
+        if(vendorCount || extCount){
+          const inviteParts = [];
+          if(vendorCount) inviteParts.push(vendorCount+' vendor'+(vendorCount>1?'s':''));
+          if(extCount) inviteParts.push(extCount+' external');
+          detail += ' · RSVP invites sent to '+inviteParts.join(' + ');
+        }
+        if(attendees.length) detail += ' · '+attendees.length+' staff calendar'+(attendees.length>1?'s':'')+' updated';
+        showNotif('Meeting created · '+title, detail);
+      } else {
+        showNotif('Meeting created · '+title, 'Saved locally — Google Calendar push failed');
+      }
+    } else {
+      showNotif('Meeting created', title + (isGcalConnected() ? ' · Not pushed to calendar' : ' · Connect Google Calendar to send invites'));
+    }
+    openMtgDetail(nm.id);
     addNotif({type:'meeting',icon:'📅',iconBg:'rgba(82,201,201,.2)',title:'Meeting scheduled: '+nm.title.split('—').pop().trim(),detail:(nm.proj?projName(nm.proj)+' · ':'')+nm.date+(nm.time?' at '+nm.time:''),projId:nm.proj,forAll:true});
   }
   renderMeetings();scheduleSave();updateGcalBadge();
   // Reverse sync: if this is a site-visit meeting, create/update CA SVR stub
   syncCAFromMeeting(mtgId);
+  // Cleanup chip-dropdown state
+  ChipDropdown.destroy('me-staff-cd');
+  ChipDropdown.destroy('me-vendor-cd');
 }
 function cancelMtg(id){
   const m=MEETINGS.find(x=>x.id===id);if(!m)return;
@@ -17364,21 +17696,27 @@ function vdRenderStars(rating){
 }
 
 function vdComputeLinkedProjects(vendor){
-  // Auto-link: scan RFI/Submittals/SVR/AI text for vendor name or contact (best-effort)
-  // For Template B, we keep this simple — combine any explicitly-stored linkedProjectIds
-  // with anything where vendor.companyName appears in CA records.
+  // Auto-link: pull in projects via two mechanisms:
+  //   1. Structured (preferred) — meetings that include vendor.id in vendorIds[]
+  //   2. Fuzzy (legacy) — vendor company name matched against CA record text fields
   const explicit = new Set(vendor.linkedProjectIds||[]);
+
+  // 1. Structured link via meetings.vendorIds — most reliable
+  if(typeof MEETINGS !== 'undefined'){
+    MEETINGS.forEach(mt=>{
+      if((mt.vendorIds||[]).includes(vendor.id) && mt.proj){
+        explicit.add(mt.proj);
+      }
+    });
+  }
+
+  // 2. Legacy fuzzy match — kept for backwards compat with old data entered before vendorIds
   const name = (vendor.companyName||'').toLowerCase();
   if(name && name.length > 2){
-    // Site Reports — contractorName
     CA_SVR.forEach(r=>{ if((r.contractorName||'').toLowerCase().includes(name)) explicit.add(r.projId); });
-    // RFIs — directedTo
     CA_RFIS.forEach(r=>{ if((r.directedTo||'').toLowerCase().includes(name)) explicit.add(r.projId); });
-    // Submittals — submittedBy as text? skip (it's staffId). Use notes
     CA_SUBMITTALS.forEach(r=>{ if((r.notes||'').toLowerCase().includes(name)) explicit.add(r.projId); });
-    // Snags — contractor
     CA_SNAGS.forEach(r=>{ if((r.contractor||'').toLowerCase().includes(name)) explicit.add(r.projId); });
-    // AIs — issuedTo
     CA_AIS.forEach(r=>{ if((r.issuedTo||'').toLowerCase().includes(name)) explicit.add(r.projId); });
   }
   return Array.from(explicit).filter(pid=>PROJS.find(p=>p.id===pid));
