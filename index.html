@@ -4523,6 +4523,22 @@ const ROLES = [
 ];
 function rd(role){return ROLES.find(r=>r.role===role)||{role,rank:5,color:'var(--txm)',bg:'rgba(122,120,136,.15)',canReview:false,canForecast:false,canSchedule:false}}
 function canSchedule(){ return rd(currentUser().role).canSchedule; }
+
+/* ── canCreate() — any active staff member can create records ─────
+   Used for: meetings, site reports (SVR), RFIs, submittals, snags,
+   vendor add/edit, vendor rates, vendor reviews, transmittal issuance.
+   Excludes: Consultants and Interns — they're typically external/temporary
+   and should not be creating firm records.
+   Senior-only actions (approve, close, formal AI, delete vendor) still
+   use canSchedule() as before. */
+function canCreate(){
+  const role = currentUser().role;
+  if(!role) return false;
+  // Block these roles from create flows; everyone else can create
+  if(role === 'Consultant') return false;
+  if(role === 'Intern')     return false;
+  return true;
+}
 /* Only Principal, Lead and Project Architect see ALL staff schedules; others see only their own */
 function canSeeAllSchedules(){
   // Principal, Lead, and Project Architects can see all staff schedules
@@ -6109,7 +6125,7 @@ const STAGE_MTG_TEMPLATES = {
 
 /* ── Stage-aware meeting scheduler ────────────────────────── */
 function openMtgFromProject(projId, mode){ // mode = 'internal' | 'client'
-  if(!canSchedule()){showNotif('Access restricted','Principal, Lead, and Project Architects can schedule meetings.');return;}
+  if(!canCreate()){showNotif('Access restricted','Interns and consultants cannot schedule meetings.');return;}
   const p=PROJS.find(x=>x.id===projId);if(!p)return;
   const phase=p.phase||'SD';
   const tpl=STAGE_MTG_TEMPLATES[phase]||STAGE_MTG_TEMPLATES['SD'];
@@ -12503,7 +12519,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v91',
+    appVersion: 'S62-v92',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -14955,7 +14971,7 @@ function renderMtgMonth(){
   var guide=document.getElementById('mtg-guide-card');
   if(guide&&MEETINGS.filter(function(m){return m.status!=='cancelled';}).length>3)guide.style.display='none';
 }
-function mtgCellClick(dateStr){if(canSchedule())openMtgModal(null,dateStr);}
+function mtgCellClick(dateStr){if(canCreate())openMtgModal(null,dateStr);}
 function renderMtgList(){
   var con=document.getElementById('mtg-list-body');if(!con)return;
   var proj=document.getElementById('mtg-proj-fil')&&document.getElementById('mtg-proj-fil').value||'ALL';
@@ -15366,7 +15382,7 @@ const ChipDropdown = (function(){
 })();
 
 function openMtgModal(mtgId,prefillDate){
-  if(!canSchedule()){showNotif('Access restricted','Only Principal, Lead, and Project Architects can create meetings.');return;}
+  if(!canCreate()){showNotif('Access restricted','Interns and consultants cannot create meetings.');return;}
   const m=mtgId?MEETINGS.find(x=>x.id===mtgId):null;
   const pfill=(!mtgId&&_mtgPrefill)?_mtgPrefill:null;if(pfill)_mtgPrefill=null;
   const pds=prefillDate&&prefillDate.includes('T')?prefillDate.slice(0,10):prefillDate;
@@ -15633,7 +15649,7 @@ function renderMtgWeek(){
 }
 
 function mtgSlotClick(dateStr, hour){
-  if(canSchedule()) openMtgModal(null, dateStr+'T'+String(hour).padStart(2,'0')+':00');
+  if(canCreate()) openMtgModal(null, dateStr+'T'+String(hour).padStart(2,'0')+':00');
 }
 
 /* ════ FEATURE A: Update mtgSetView + renderMeetings for week ══ */
@@ -16916,7 +16932,7 @@ function buildTxCardBody(tx){
     <!-- Action row -->
     <div class="tx-act-row">
       <button class="btn bp bsm" onclick="previewTransmittalById('${tx.id}')" style="font-size:10px">👁 Print / PDF</button>
-      ${tx.status==='draft' && canSchedule()
+      ${tx.status==='draft' && canCreate()
         ? `<button class="btn" style="background:var(--grn);color:#fff;padding:5px 13px;font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;border:none" onclick="issueTxById('${tx.id}')">✓ Issue Formally</button>`
         : ''}
       ${canSchedule()
@@ -16932,8 +16948,20 @@ function issueTxById(txId){
   const tx = TRANSMITTALS.find(x=>x.id===txId);
   if(!tx) return;
   if(!tx.issuedTo){ showNotif('Recipient required','Enter who this is issued to before formally issuing.'); return; }
+  // Confirmation gate (Option A): all staff can issue, but a confirmation
+  // dialog warns about the irreversible nature of formal issuance.
+  const confirmMsg = 'Issue Transmittal '+tx.ref+' formally to '+tx.issuedTo+'?\n\n'
+    + 'This will:\n'
+    + '• Lock the document — drawings cannot be changed after issue\n'
+    + '• Generate the official PDF for the recipient\n'
+    + '• Mark older overlapping transmittals as superseded\n'
+    + '• Stamp this with your name as the issuer\n\n'
+    + 'This action cannot be undone except by deleting the transmittal entirely.\n\n'
+    + 'Continue?';
+  if(!confirm(confirmMsg)) return;
   tx.status = 'issued';
   tx.issuedAt = toISO(new Date());
+  tx.issuedBy = CURRENT_USER_ID; // Stamp who issued it (in case different from createdBy)
   // Auto-supersede older issued transmittals for same drawings+project
   if(document.getElementById('tc-supersede')?.checked || true){
     TRANSMITTALS.filter(t=>t.id!==txId && t.projId===tx.projId && t.status==='issued').forEach(t=>{
@@ -17117,6 +17145,27 @@ function issueTransmittal(){
   const remarks = (document.getElementById('tc-remarks')?.value||'').trim();
   const doSupersede = document.getElementById('tc-supersede')?.checked;
   const editId = document.getElementById('tc-proj')?.dataset.editId;
+
+  // Confirmation gate (Option A): formal issue is permanent
+  if(!issuedTo){
+    showNotif('Recipient required','Enter who this is issued to before formally issuing.');
+    return;
+  }
+  const proj = PROJS.find(x=>x.id===projId);
+  const projName = proj ? proj.name : projId;
+  const confirmMsg = 'Issue this transmittal formally?\n\n'
+    + 'Project: '+projName+'\n'
+    + 'Drawings: '+_tcSelectedDrawings.size+'\n'
+    + 'Purpose: '+purpose+'\n'
+    + 'Recipient: '+issuedTo+'\n\n'
+    + 'This will:\n'
+    + '• Lock the document — drawings cannot be changed after issue\n'
+    + '• Generate the official PDF for the recipient\n'
+    + (doSupersede?'• Mark older overlapping transmittals as superseded\n':'')
+    + '• Stamp this with your name as the issuer\n\n'
+    + 'This action cannot be undone except by deleting the transmittal entirely.\n\n'
+    + 'Continue?';
+  if(!confirm(confirmMsg)) return;
 
   let tx;
   if(editId){
@@ -17741,7 +17790,7 @@ function renderVendorList(){
   hdr.innerHTML='<div style="font-family:var(--fd);font-size:15px">Vendors &amp; Contractors</div>'
     +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-left:6px">'+(VENDORS.length||0)+' total</div>'
     +'<div style="margin-left:auto;display:flex;gap:6px">'
-      +(canSchedule()?'<button class="btn bp bsm" onclick="openVendorEdit()">+ New Vendor</button>':'')
+      +(canCreate()?'<button class="btn bp bsm" onclick="openVendorEdit()">+ New Vendor</button>':'')
     +'</div>';
 
   // Filter / search toolbar
@@ -17813,7 +17862,7 @@ function renderVendorList(){
       html += '<div class="vd-empty">No vendors match the current filters.<br><br><button class="btn bg bsm" onclick="_vendorFilter={category:\'ALL\',city:\'\',search:\'\',status:\'active\'};renderVendorList()">Clear filters</button></div>';
     } else {
       html += '<div class="vd-empty">No vendors added yet.<br><br>Build your firm\'s vendor directory by adding contractors, consultants, and suppliers you regularly work with.<br><br>'
-        + (canSchedule()?'<button class="btn bp bsm" onclick="openVendorEdit()">+ Add your first vendor</button>':'')
+        + (canCreate()?'<button class="btn bp bsm" onclick="openVendorEdit()">+ Add your first vendor</button>':'')
         + '</div>';
     }
     body.innerHTML = html;
@@ -17877,8 +17926,8 @@ function renderVendorDetail(v){
   hdr.innerHTML='<div onclick="closeVendorDetail()" style="cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:10px;color:var(--txm)">← Back to vendors</div>'
     +'<div style="font-family:var(--fd);font-size:15px;margin-left:14px">'+cat.icon+' '+(v.companyName||'(Unnamed)')+'</div>'
     +'<div style="margin-left:auto;display:flex;gap:6px">'
-      +(canSchedule()?'<button class="btn bg bsm" onclick="openVendorEdit(\''+v.id+'\')">✏ Edit</button>':'')
-      +(canSchedule()?'<button class="btn bp bsm" onclick="openVendorReviewModal(\''+v.id+'\')">+ Add Review</button>':'')
+      +(canCreate()?'<button class="btn bg bsm" onclick="openVendorEdit(\''+v.id+'\')">✏ Edit</button>':'')
+      +(canCreate()?'<button class="btn bp bsm" onclick="openVendorReviewModal(\''+v.id+'\')">+ Add Review</button>':'')
     +'</div>';
 
   let html = '<div class="vd-detail">';
@@ -17963,7 +18012,7 @@ function renderVendorDetail(v){
   if(_vendorActiveTab==='rates'){
     html += '<div class="vd-section">'
       +'<div class="vd-section-hd">💰 Rate sheet'
-        +(canSchedule()?'<button class="btn bp bsm" style="margin-left:auto;font-size:9px" onclick="addVendorRate(\''+v.id+'\')">+ Add Rate</button>':'')
+        +(canCreate()?'<button class="btn bp bsm" style="margin-left:auto;font-size:9px" onclick="addVendorRate(\''+v.id+'\')">+ Add Rate</button>':'')
       +'</div>'
       +'<div class="vd-section-bd">';
     if(!(v.rates||[]).length){
@@ -17987,7 +18036,7 @@ function renderVendorDetail(v){
   if(_vendorActiveTab==='reviews'){
     html += '<div class="vd-section">'
       +'<div class="vd-section-hd">⭐ Reviews ('+(v.reviews?.length||0)+')'
-        +(canSchedule()?'<button class="btn bp bsm" style="margin-left:auto;font-size:9px" onclick="openVendorReviewModal(\''+v.id+'\')">+ Add Review</button>':'')
+        +(canCreate()?'<button class="btn bp bsm" style="margin-left:auto;font-size:9px" onclick="openVendorReviewModal(\''+v.id+'\')">+ Add Review</button>':'')
       +'</div>'
       +'<div class="vd-section-bd">';
     if(!(v.reviews||[]).length){
@@ -18450,7 +18499,7 @@ function renderCASVR(){
     +'<div style="display:flex;gap:8px;margin-left:auto">'
       +'<select class="fsel" id="ca-svr-status" onchange="renderCASVR()" style="font-size:10px;padding:4px 8px;width:auto">'+
         '<option value="">All</option><option value="open">Open issues</option></select>'
-      +(canSchedule()?'<button class="btn bp bsm" onclick="openCASVRModal()">+ New Site Report</button>':'')
+      +(canCreate()?'<button class="btn bp bsm" onclick="openCASVRModal()">+ New Site Report</button>':'')
     +'</div>';
 
   const kpi='<div class="ca-kpi-row">'
@@ -18461,7 +18510,7 @@ function renderCASVR(){
   +'</div>';
 
   if(!arr.length){
-    body.innerHTML=kpi+'<div style="padding:48px;text-align:center;font-family:var(--fm);color:var(--txd)">No site visit reports yet.'+(canSchedule()?' Click <b>+ New Site Report</b> to log your first visit.':'')+'</div>';
+    body.innerHTML=kpi+'<div style="padding:48px;text-align:center;font-family:var(--fm);color:var(--txd)">No site visit reports yet.'+(canCreate()?' Click <b>+ New Site Report</b> to log your first visit.':'')+'</div>';
     return;
   }
 
@@ -18523,7 +18572,7 @@ function renderCARFI(){
     +'<div style="margin-left:auto;display:flex;gap:6px">'
       +'<button class="btn bg bsm" onclick="gpExpandAll(\'rfi\')" style="font-size:9px">⊞ Expand</button>'
       +'<button class="btn bg bsm" onclick="gpCollapseAll(\'rfi\')" style="font-size:9px">⊟ Collapse</button>'
-      +(canSchedule()?'<button class="btn bp bsm" onclick="openCARFIModal()">+ New RFI</button>':'')
+      +(canCreate()?'<button class="btn bp bsm" onclick="openCARFIModal()">+ New RFI</button>':'')
     +'</div>';
 
   const kpi='<div class="ca-kpi-row">'
@@ -18534,7 +18583,7 @@ function renderCARFI(){
   +'</div>';
 
   if(!arr.length){
-    body.innerHTML=kpi+'<div class="gp-empty-msg">No RFIs logged yet.'+(canSchedule()?' Click <b>+ New RFI</b> to log one.':'')+'</div>';
+    body.innerHTML=kpi+'<div class="gp-empty-msg">No RFIs logged yet.'+(canCreate()?' Click <b>+ New RFI</b> to log one.':'')+'</div>';
     return;
   }
 
@@ -18662,7 +18711,7 @@ function renderCASUB(){
     +'<select class="fsel" id="ca-sub-status" onchange="renderCASUB()" style="font-size:10px;padding:4px 8px;width:auto">'
       +'<option value="">All</option><option value="pending">Pending Review</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="resubmit">Resubmit Required</option>'
     +'</select>'
-    +'<div style="margin-left:auto">'+(canSchedule()?'<button class="btn bp bsm" onclick="openCASUBModal()">+ New Submittal</button>':'')+'</div>';
+    +'<div style="margin-left:auto">'+(canCreate()?'<button class="btn bp bsm" onclick="openCASUBModal()">+ New Submittal</button>':'')+'</div>';
 
   const kpi='<div class="ca-kpi-row">'
     +'<div class="sc" style="padding:10px 12px"><div class="slbl">Total</div><div class="sval">'+arr.length+'</div></div>'
@@ -18718,7 +18767,7 @@ function renderCASnag(){
     +'<select class="fsel" id="ca-snag-status" onchange="renderCASnag()" style="font-size:10px;padding:4px 8px;width:auto">'
       +'<option value="">All</option><option value="open">Open</option><option value="resolved">Resolved</option>'
     +'</select>'
-    +'<div style="margin-left:auto">'+(canSchedule()?'<button class="btn bp bsm" onclick="openCASnagModal()">+ New Snag Item</button>':'')+'</div>';
+    +'<div style="margin-left:auto">'+(canCreate()?'<button class="btn bp bsm" onclick="openCASnagModal()">+ New Snag Item</button>':'')+'</div>';
 
   const kpi='<div class="ca-kpi-row">'
     +'<div class="sc" style="padding:10px 12px"><div class="slbl">Total Items</div><div class="sval">'+arr.length+'</div></div>'
