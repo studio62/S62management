@@ -1368,6 +1368,33 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 .cd-row .cd-row-name{font-weight:500;color:var(--tx)}
 .cd-row .cd-row-meta{font-family:var(--fm);font-size:9px;color:var(--txd);margin-left:auto}
 .cd-empty{padding:14px;text-align:center;font-family:var(--fm);font-size:10px;color:var(--txd)}
+
+/* ── PROJECT PICKER (single-select searchable dropdown) ── */
+.pp-wrap{position:relative}
+.pp-display{display:flex;align-items:center;gap:8px;min-height:36px;padding:7px 30px 7px 10px;background:var(--sf3);border:1px solid var(--bd);border-radius:6px;cursor:pointer;font-size:12px;transition:border-color .12s;position:relative}
+.pp-display:hover,.pp-display.open{border-color:var(--gold)}
+.pp-display .pp-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--txd);font-size:10px;pointer-events:none}
+.pp-display.open .pp-arrow{color:var(--gold);transform:translateY(-50%) rotate(180deg)}
+.pp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.pp-display-name{color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pp-display-sub{color:var(--txd);font-size:10px;font-family:var(--fm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1}
+.pp-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--sf);border:1px solid var(--bd2);border-radius:6px;z-index:99999;box-shadow:0 6px 20px rgba(0,0,0,.45);overflow:hidden;max-height:340px;display:flex;flex-direction:column}
+.pp-search-row{padding:8px;border-bottom:1px solid var(--bd);background:var(--sf2)}
+.pp-search{width:100%;padding:7px 10px;background:var(--sf3);border:1px solid var(--bd);border-radius:5px;color:var(--tx);font-size:11px;font-family:var(--fb);outline:none;transition:border-color .12s}
+.pp-search:focus{border-color:var(--gold)}
+.pp-options{flex:1;overflow-y:auto;max-height:240px}
+.pp-row{display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;border-bottom:1px solid var(--bd);transition:background .08s}
+.pp-row:last-child{border-bottom:none}
+.pp-row:hover,.pp-row.kbd-on{background:var(--sf2)}
+.pp-row.sel{background:rgba(201,169,110,.08);border-left:2px solid var(--gold);padding-left:9px}
+.pp-row-text{flex:1;min-width:0}
+.pp-row-name{font-size:11px;font-weight:500;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pp-row-sub{font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pp-row-meta{font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;margin-left:auto;padding-left:8px}
+.pp-empty{padding:18px;text-align:center;font-family:var(--fm);font-size:10px;color:var(--txd)}
+.pp-foot{padding:6px 11px;font-family:var(--fm);font-size:9px;color:var(--txd);text-align:center;border-top:1px solid var(--bd);background:var(--sf2)}
+.pp-arch-toggle{padding:6px 11px;font-family:var(--fm);font-size:10px;color:var(--txm);border-top:1px solid var(--bd);background:var(--sf2);text-align:right}
+.pp-arch-toggle input{margin-right:2px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -2016,6 +2043,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     <button class="drw-sv"    id="sv-overdue"     onclick="setDrwView('overdue',this)"><span id="sv-overdue-ct"></span>⚠ Overdue</button>
     <button class="drw-sv"    id="sv-week"        onclick="setDrwView('week',this)">📅 Due Soon</button>
     <button class="drw-sv"    id="sv-qa"          onclick="setDrwView('qa',this)" style="border-color:var(--pur);color:var(--pur)">◈ For Review <span id="sv-qa-ct" style="font-family:var(--fm);font-size:9px;background:var(--pur);color:#fff;padding:1px 5px;border-radius:8px;margin-left:2px"></span></button>
+    <button class="drw-sv"    id="sv-returned"    onclick="setDrwView('returned',this)" style="display:none;border-color:var(--red);color:var(--red)">↺ Returned <span id="sv-returned-ct" style="font-family:var(--fm);font-size:9px;background:var(--red);color:#fff;padding:1px 5px;border-radius:8px;margin-left:2px"></span></button>
     <button class="drw-sv"    id="sv-unassigned"  onclick="setDrwView('unassigned',this)">○ Unassigned</button>
     <div style="flex:1"></div>
     <button class="btn bg bsm" onclick="collapseAllDiscs()" title="Collapse all disciplines" style="font-size:11px">⊟ Collapse</button><button class="btn bg bsm" onclick="expandAllDiscs()" title="Expand all disciplines" style="font-size:11px">⊞ Expand</button><button class="btn bg bsm" onclick="toggleColConfig()" title="Configure columns" style="font-size:11px">⚙ Columns</button>
@@ -7249,6 +7277,12 @@ function renderDashboard(){
       qa+='<button class="btn bg bsm" onclick="go(\'staffsched\',null)" style="background:rgba(82,201,122,.08);border-color:rgba(82,201,122,.3);color:var(--grn)">📋 '+myPending+' pending drawings</button>';
     }
 
+    // Gap 4 (v94) — "Returned to me" chip — drawings that QA rejected back to current user
+    const myReturned = DRAWINGS.filter(d => d.sid === me.id && d.rejectedAt && d.status === 'ip' && d.pct < 100);
+    if(myReturned.length > 0){
+      qa+='<button class="btn bg bsm" onclick="go(\'drawings\',null);setTimeout(()=>setDrwView(\'returned\',document.getElementById(\'sv-returned\')),200)" style="background:rgba(224,82,82,.1);border-color:rgba(224,82,82,.4);color:var(--red);font-weight:500">↺ '+myReturned.length+' returned for revision</button>';
+    }
+
     // Primary actions (right-aligned)
     qa+='<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">';
     if(isAdmin){
@@ -7411,6 +7445,11 @@ function renderDashboard(){
   const badge=e('drw-badge');if(badge)badge.textContent=PROJS.length;
   const sbadge=e('sched-badge');if(sbadge){sbadge.textContent=SCHED_TASKS.filter(t=>t.status!=='done').length;sbadge.style.background='var(--blu)';}
   const svOct=e('sv-overdue-ct');if(svOct)svOct.textContent=overdueDrawings.length?overdueDrawings.length+' ':'';
+  // Gap 4 (v94) — returned count badge
+  const _meRet = currentUser();
+  const _retCount = _meRet ? DRAWINGS.filter(d=>d.sid===_meRet.id&&d.rejectedAt&&d.status==='ip'&&d.pct<100).length : 0;
+  const svRetCt = e('sv-returned-ct'); if(svRetCt) svRetCt.textContent = _retCount > 0 ? _retCount : '';
+  const svRetBtn = e('sv-returned'); if(svRetBtn) svRetBtn.style.display = _retCount > 0 ? '' : 'none';
   const svAllCt=e('sv-all-ct');if(svAllCt)svAllCt.textContent=allD.length?'('+allD.length+')':'';
 
   // ── CA ALERT STRIP ────────────────────────────────────────
@@ -8673,6 +8712,8 @@ function applySmartFilter(drawings){
     case 'review':    return drawings.filter(d=>d.status==='chk');
     case 'unassigned':return drawings.filter(d=>!d.sid&&d.status!=='done');
     case 'qa':        return drawings.filter(d=>d.status==='chk');
+    // Gap 4 (v94) — drawings rejected back to current user
+    case 'returned':  return drawings.filter(d=>d.sid===me.id&&d.rejectedAt&&d.status==='ip'&&d.pct<100);
     case 'all':        return drawings;
     default:          return drawings;
   }
@@ -10498,9 +10539,9 @@ function renderKanban(con){
 /* ── WORK ASSIGNMENT MODAL ── */
 function openAssignModal(projId=''){
   if(!canSchedule()){showNotif('Access restricted','Only Principal, Lead, and Project Architects can assign work.');return;}
-  // Populate project dropdown
-  const psel=document.getElementById('aw-proj');
-  psel.innerHTML=PROJS.map(p=>`<option value="${p.id}" ${p.id===projId?'selected':''}>${p.name}</option>`).join('');
+  // Init project picker
+  ProjectPicker.init('aw-proj', { selected: projId });
+  ProjectPicker.onChange('aw-proj', ()=>updateAwDrawings());
   updateAwDrawings();
   // Populate staff dropdown
   const ssel=document.getElementById('aw-staff');
@@ -10516,7 +10557,7 @@ function openAssignModal(projId=''){
 }
 
 function updateAwDrawings(){
-  const projId=document.getElementById('aw-proj')?.value;
+  const projId=ProjectPicker.getValue('aw-proj');
   const dsel=document.getElementById('aw-drawing');
   if(!dsel)return;
   const unassignedDrawings=DRAWINGS.filter(d=>d.proj===projId&&d.status!=='done');
@@ -10541,7 +10582,7 @@ function updateAwDrawings(){
 }
 
 function submitAssignment(){
-  const projId=document.getElementById('aw-proj').value;
+  const projId=ProjectPicker.getValue('aw-proj');
   const drawingId=document.getElementById('aw-drawing').value;
   const staffId=document.getElementById('aw-staff').value;
   const start=document.getElementById('aw-start').value;
@@ -10561,7 +10602,7 @@ function submitAssignment(){
   if(drawingId==='__NEW__'){
     const customTitle=notes||'Custom Task';
     DRW_COUNTER++;
-    const pid2=document.getElementById('aw-proj').value;
+    const pid2=ProjectPicker.getValue('aw-proj');
     const newDrw={id:pid2+'-X-'+DRW_COUNTER,proj:pid2,title:customTitle,disc:'ARCH',drwType:'GA',stage:'CD',status:'nst',rev:'-',due:due||'',tgt:due||'',pct:0,hrs:0,sid:staffId,revHistory:[],qaHistory:[]};
     DRAWINGS.push(newDrw);
     drw=newDrw;
@@ -12174,11 +12215,16 @@ function openAddDrawingModal(projId){
   document.getElementById('adm-id').placeholder='Auto-generated';
   document.getElementById('adm-pkg').value='';
   document.getElementById('adm-due').value='';
+  // Gap 1 — reset priority + est hours fields (added in v94)
+  const _priEl = document.getElementById('adm-priority');
+  if(_priEl) _priEl.value='normal';
+  const _ehEl = document.getElementById('adm-est-hours');
+  if(_ehEl) _ehEl.value='';
   document.getElementById('adm-id-preview').textContent='';
 
-  // Populate project select
-  const psel=document.getElementById('adm-proj');
-  psel.innerHTML=PROJS.map(pr=>`<option value="${pr.id}"${pr.id===pid?' selected':''}>${pr.name}</option>`).join('');
+  // Populate project picker
+  ProjectPicker.init('adm-proj', { selected: pid });
+  ProjectPicker.onChange('adm-proj', ()=>onAdmProjChange());
 
   // Populate discipline select
   const dsel=document.getElementById('adm-disc');
@@ -12212,6 +12258,14 @@ function openEditDrawingModal(drawingId){
   document.getElementById('adm-assignee').value=d.sid||'';
   document.getElementById('adm-due').value=d.tgt||'';
   document.getElementById('adm-pkg').value=d.pkg||'';
+  // Gap 1 — pull priority + est hours from existing SCHED_TASK (v94)
+  const _existingTask = SCHED_TASKS.find(t => t.drawingId === d.id);
+  if(_existingTask){
+    const _priEl = document.getElementById('adm-priority');
+    if(_priEl) _priEl.value = _existingTask.priority || 'normal';
+    const _ehEl = document.getElementById('adm-est-hours');
+    if(_ehEl) _ehEl.value = _existingTask.estHrs || '';
+  }
   onAdmTitleChange();
 }
 
@@ -12244,7 +12298,7 @@ function onAdmTitleChange(){
 
   // Auto-generate ID if not editing
   if(!editId){
-    const pid=document.getElementById('adm-proj')?.value||activeProjId||'P';
+    const pid=ProjectPicker.getValue('adm-proj')||activeProjId||'P';
     const disc=document.getElementById('adm-disc')?.value||'ARCH';
     const prefix={ARCH:'A',INT:'I',STRUCT:'S',ELEC:'E',PLMB:'P',LTG:'L',HVAC:'H',LAND:'LA',SPEC:'SP'}[disc]||'X';
     const existing=DRAWINGS.filter(d=>d.proj===pid&&d.disc===disc).length+1;
@@ -12257,7 +12311,7 @@ function onAdmTitleChange(){
 function submitAddDrawing(){
   const editId=document.getElementById('adm-edit-id').value;
   const title=document.getElementById('adm-title-inp').value.trim();
-  const pid=document.getElementById('adm-proj').value;
+  const pid=ProjectPicker.getValue('adm-proj');
   const disc=document.getElementById('adm-disc').value;
   const drwType=document.getElementById('adm-type').value;
   const stage=document.getElementById('adm-stage').value;
@@ -12274,26 +12328,167 @@ function submitAddDrawing(){
   const autoId=`${pid}-${prefix}-${String(existing).padStart(3,'0')}`;
   const finalId=customId||autoId;
 
+  // Capture priority/hours from optional inputs (added in v94 — graceful default if absent)
+  const priorityInput = document.getElementById('adm-priority')?.value || '';
+  const estHrsInput   = parseInt(document.getElementById('adm-est-hours')?.value) || 0;
+  const me = currentUser();
+  const todayStr = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
   if(editId){
-    // Edit existing
+    // ── EDIT EXISTING ──────────────────────────────────────
     const d=DRAWINGS.find(x=>x.id===editId);
     if(!d){showNotif('Error','Drawing not found.');return;}
+    const oldSid = d.sid;          // capture before mutation (Gap 2)
+    const reassigned = oldSid && sid && oldSid !== sid;
+
     d.title=title;d.disc=disc;d.drwType=drwType;d.stage=stage;
     d.sid=sid;d.tgt=tgt;d.due=tgt;d.pkg=pkg;
     if(sid){const s=STAFF.find(x=>x.id===sid);if(s&&!s.projects?.includes(pid)){(s.projects=s.projects||[]).push(pid);}}
-    showNotif('Drawing updated',`${finalId} — ${title}`);
+
+    // Gap 6 — assignment log for accountability
+    if(reassigned){
+      if(!Array.isArray(d.assignmentLog)) d.assignmentLog = [];
+      d.assignmentLog.push({
+        date: toISO(new Date()),
+        dateFmt: todayStr,
+        from: oldSid,
+        to: sid,
+        by: me.id,
+        byName: me.first+' '+me.last,
+        action: 'reassigned'
+      });
+    }
+
+    // Gap 2 — immediately update SCHED_TASK on reassignment + notify both
+    if(reassigned){
+      const task = SCHED_TASKS.find(t => t.drawingId === d.id);
+      if(task){
+        task.staffId = sid; task.sid = sid;
+        if(!Array.isArray(task.changeLog)) task.changeLog = [];
+        const oldStaff = STAFF.find(x => x.id === oldSid);
+        const newStaff = STAFF.find(x => x.id === sid);
+        task.changeLog.push({
+          date: todayStr,
+          by: me.first+' '+me.last,
+          note: 'Reassigned: ' + (oldStaff ? oldStaff.first+' '+oldStaff.last : oldSid)
+              + ' → ' + (newStaff ? newStaff.first+' '+newStaff.last : sid)
+        });
+      }
+      // Notify the new assignee
+      const newStaff = STAFF.find(x => x.id === sid);
+      if(newStaff){
+        addNotif({
+          type:'assignment', icon:'→', iconBg:'rgba(201,169,110,.2)',
+          title: d.id + ' assigned to you',
+          detail: d.title + ' · was with ' + (STAFF.find(x=>x.id===oldSid)?.first || 'someone') + ' · due ' + (tgt || 'TBD'),
+          projId: pid, drawingId: d.id, forStaff: sid
+        });
+      }
+      // Notify the old assignee (informational)
+      if(oldSid){
+        const oldStaff = STAFF.find(x => x.id === oldSid);
+        if(oldStaff){
+          addNotif({
+            type:'assignment', icon:'↔', iconBg:'rgba(122,120,136,.2)',
+            title: d.id + ' moved off your queue',
+            detail: d.title + ' · now assigned to ' + (newStaff?.first || 'someone else'),
+            projId: pid, drawingId: d.id, forStaff: oldSid
+          });
+        }
+      }
+    }
+    // Sync edits to priority + estHrs into existing SCHED_TASK (v94)
+    {
+      const _t = SCHED_TASKS.find(t => t.drawingId === d.id);
+      if(_t){
+        if(priorityInput && _t.priority !== priorityInput){
+          _t.priority = priorityInput;
+          if(!Array.isArray(_t.changeLog)) _t.changeLog = [];
+          _t.changeLog.push({date: todayStr, by: me.first+' '+me.last, note: 'Priority → '+priorityInput});
+        }
+        if(estHrsInput > 0 && _t.estHrs !== estHrsInput){
+          _t.estHrs = estHrsInput;
+          if(!Array.isArray(_t.changeLog)) _t.changeLog = [];
+          _t.changeLog.push({date: todayStr, by: me.first+' '+me.last, note: 'Est hours → '+estHrsInput+'h'});
+        }
+        if(tgt && _t.due !== tgt){
+          _t.due = tgt;
+        }
+      }
+    }
+    showNotif('Drawing updated', finalId + ' — ' + title + (reassigned?' · reassigned':''));
   } else {
-    // Check for duplicate ID
+    // ── CREATE NEW ─────────────────────────────────────────
     if(DRAWINGS.find(d=>d.id===finalId)){
       showNotif('Duplicate ID',`${finalId} already exists. Use a custom ID.`);return;
     }
-    DRAWINGS.push({
+    const newDrw = {
       id:finalId,proj:pid,title,drwType,disc,stage,status:'nst',rev:'-',
-      tgt,due:tgt,setby:canSchedule()?currentUser().id:'',pct:0,hrs:0,sid,pkg,
-      revHistory:[],qaHistory:[]
-    });
+      tgt,due:tgt,setby:canSchedule()?me.id:'',pct:0,hrs:0,sid,pkg,
+      revHistory:[],qaHistory:[],
+      assignmentLog: sid ? [{                      // Gap 6 — initial assignment record
+        date: toISO(new Date()),
+        dateFmt: todayStr,
+        from: null,
+        to: sid,
+        by: me.id,
+        byName: me.first+' '+me.last,
+        action: 'created-and-assigned'
+      }] : []
+    };
+    DRAWINGS.push(newDrw);
     if(sid){const s=STAFF.find(x=>x.id===sid);if(s&&!s.projects?.includes(pid)){(s.projects=s.projects||[]).push(pid);}}
-    showNotif('Drawing added',`${finalId} — ${title} added to register`);
+
+    // Gap 1 — create SCHED_TASKS entry directly with priority + change-log + notification
+    // (Replaces the generic syncSchedTasks() which uses heuristics with no notification)
+    const proj = PROJS.find(x => x.id === pid);
+    const dueDate = parseDue(tgt) || new Date(Date.now() + 14*24*60*60*1000);
+    const estHrs = estHrsInput > 0 ? estHrsInput : estimateHours(title);
+    const startDate = new Date(dueDate.getTime() - estHrs*60*60*1000*1.5);
+    const finalPriority = priorityInput || (proj ? prio(proj.phase, disc) : 'normal');
+
+    SCHED_TASKS.push({
+      id: 'T_' + finalId + '_' + Date.now(),
+      drawingId: finalId,
+      projId: pid,
+      title,
+      disc,
+      staffId: sid || '',
+      sid: sid || '',
+      phase: stage || 'CD',
+      status: 'nst',
+      start: fmt8601(startDate),
+      due: fmt8601(dueDate),
+      estHrs,
+      actHrs: 0,
+      pct: 0,
+      priority: finalPriority,
+      rag: 'green',
+      ragOverride: 'auto',
+      notes: '',
+      changeLog: [{
+        date: todayStr,
+        by: me.first+' '+me.last,
+        note: 'Created via + New Drawing' + (sid ? ' · assigned to ' + (STAFF.find(x=>x.id===sid)?.first || sid) : ' · unassigned')
+      }],
+      milestone: false,
+      deps: []
+    });
+
+    // Notify the assignee about new task
+    if(sid){
+      const newStaff = STAFF.find(x => x.id === sid);
+      if(newStaff && newStaff.id !== me.id){
+        addNotif({
+          type:'assignment', icon:'→', iconBg:'rgba(201,169,110,.2)',
+          title: finalId + ' assigned to you',
+          detail: title + ' · ' + estHrs + 'h est · due ' + (tgt || 'TBD'),
+          projId: pid, drawingId: finalId, forStaff: sid
+        });
+      }
+    }
+
+    showNotif('Drawing added', finalId + ' — ' + title + (sid ? ' · assigned to ' + (STAFF.find(x=>x.id===sid)?.first || sid) : ''));
   }
 
   closeModal('add-drw-ov');
@@ -12519,7 +12714,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v92',
+    appVersion: 'S62-v94',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -12948,7 +13143,64 @@ function setPctFromSlider(drawingId, val) {
     task.rag = d.status==='done'?'blue':spi>=0.95?'green':spi>=0.75?'amber':'red';
   }
   scheduleSave(); updateNavBadges();
-  if(newPct===100) maybeAutoSubmitForCheck(drawingId);
+  // Gap 5 (v94) — Confirmation gate before triggering submit-for-check.
+  // Reaching 100% via slider/input is a deliberate action, but accidental
+  // sliders happen. Show a confirm dialog so the drafter must explicitly
+  // commit to QA submission. Bypass: programmatic 100% sets (revisions,
+  // approvals) call submitForCheck directly without going through this path.
+  if(newPct===100){
+    confirmAndSubmitForCheck(drawingId);
+  }
+}
+
+/* Gap 5 helper — non-blocking confirm dialog wrapping submitForCheck */
+function confirmAndSubmitForCheck(drawingId){
+  const d = DRAWINGS.find(x => x.id === drawingId);
+  if(!d) return;
+  if(d.status === 'chk' || d.status === 'done') return; // already past
+  const approvers = STAFF.filter(s => rd(s.role).canSchedule);
+  const approverNames = approvers.length
+    ? approvers.slice(0,3).map(a => a.first).join(', ') + (approvers.length > 3 ? ' (+' + (approvers.length-3) + ')' : '')
+    : 'Principal/Lead';
+  const ex = document.getElementById('pct100-confirm-ov');
+  if(ex) ex.remove();
+  const ov = document.createElement('div');
+  ov.id = 'pct100-confirm-ov';
+  ov.className = 'ov show';
+  ov.innerHTML = '<div class="modal" style="max-width:440px">'
+    + '<div style="font-size:32px;margin-bottom:8px;text-align:center">✓</div>'
+    + '<div class="mtitle" style="text-align:center">Submit for QA check?</div>'
+    + '<div style="font-family:var(--fm);font-size:11px;color:var(--txm);line-height:1.65;margin:14px 0;padding:10px 14px;background:var(--sf3);border-radius:6px">'
+      + '<b style="color:var(--tx)">'+d.id+'</b> — '+(d.title||'')
+      + '<div style="margin-top:6px">This will:</div>'
+      + '<ul style="margin:4px 0 0 18px;padding:0">'
+      + '<li>Lock the drawing at 100%</li>'
+      + '<li>Notify '+approverNames+' for QA review</li>'
+      + '<li>Move the task to "Awaiting QA" on your dashboard</li>'
+      + '</ul>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button class="btn bg" style="flex:1;justify-content:center;padding:10px" onclick="cancelPct100(\''+drawingId+'\')">Save at 99% instead</button>'
+    + '<button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="confirmPct100(\''+drawingId+'\')">Submit for check</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(ov);
+}
+function confirmPct100(drawingId){
+  closeModal('pct100-confirm-ov');
+  maybeAutoSubmitForCheck(drawingId);
+}
+function cancelPct100(drawingId){
+  closeModal('pct100-confirm-ov');
+  const d = DRAWINGS.find(x => x.id === drawingId);
+  if(!d) return;
+  d.pct = 99;
+  const t = SCHED_TASKS.find(x => x.drawingId === drawingId);
+  if(t) t.pct = 99;
+  scheduleSave();
+  renderDrawings();
+  updateNavBadges();
+  showNotif('Saved at 99%', d.id + ' — increase to 100% when truly ready for QA');
 }
 
 
@@ -13267,6 +13519,53 @@ function submitAddRev(){
       maybeAutoSubmitForCheck(d.id);
     }
   }
+
+  // Gap 3 (v94) — when a revision is added to a drawing that's already
+  // been issued (status==='done'), reset its SCHED_TASK so the work is
+  // visible on the drafter's schedule again. Without this, revision work
+  // is invisible — the schedule shows it as completed.
+  if(d.status === 'done' || (purpose === 'IFR' && d.status !== 'chk')){
+    // For IFR (client revision) on a completed drawing, re-open the work
+    const _task = SCHED_TASKS.find(t => t.drawingId === drawingId);
+    if(_task && _task.status === 'done'){
+      _task.status = 'ip';
+      _task.pct = 0;
+      _task.rag = 'amber';
+      _task.ragOverride = 'auto';
+      if(!Array.isArray(_task.changeLog)) _task.changeLog = [];
+      const _todayStr = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      _task.changeLog.push({
+        date: _todayStr,
+        by: stf.first+' '+stf.last,
+        note: 'Revision ' + rev + ' started — ' + (purpose === 'IFR' ? 'client revision' : purpose) + (note ? ' · ' + note.slice(0,60) : '')
+      });
+      // For client revisions, also reset the drawing's pct to allow new work tracking
+      if(purpose === 'IFR'){
+        d.pct = 0;
+        d.status = 'ip';
+        d.checkedBy = null; // clear so the next submit-for-check works correctly
+      }
+      // Notify drafter and approvers
+      const drafter = d.sid ? STAFF.find(x => x.id === d.sid) : null;
+      if(drafter){
+        addNotif({
+          type:'qa', icon:'↺', iconBg:'rgba(240,201,122,.2)',
+          title: d.id + ' — Revision ' + rev + ' to draft',
+          detail: (purpose === 'IFR' ? 'Client revision: ' : 'Revision: ') + (note || 'see drawing'),
+          projId: d.proj, drawingId, forStaff: d.sid, urgent: purpose === 'IFR'
+        });
+      }
+      // Notify approvers about pending revision work
+      addNotif({
+        type:'qa', icon:'↺', iconBg:'rgba(240,201,122,.15)',
+        title: 'Revision pending: ' + d.id + ' Rev ' + rev,
+        detail: d.title + (drafter ? ' · ' + drafter.first + ' to revise' : ''),
+        projId: d.proj, drawingId,
+        forRoles: ['Principal Architect','Associate Principal','Lead Architect','Project Architect']
+      });
+    }
+  }
+
   closeModal('add-rev-ov');
   showNotif('Revision added',d.id+' Rev '+rev+' — '+purpose);
   scheduleSave();renderDrawings();renderProjList();updateNavBadges();
@@ -15381,6 +15680,248 @@ const ChipDropdown = (function(){
   return {init, add, remove, search, kbd, focus, open, close, getSelected, destroy};
 })();
 
+/* ════════════════════════════════════════════════════════════
+   PROJECT PICKER — single-select searchable dropdown
+   Drop-in replacement for native <select> when picking a project.
+
+   Usage:
+     <div id="me-proj"></div>
+     ProjectPicker.init('me-proj', {
+       selected: 'P82431',           // initial value (optional)
+       allowEmpty: true,              // show "No project" option (default false)
+       emptyLabel: 'No project',      // label for empty option (default "— Select —")
+       includeArchived: false,        // include archived projects (default false)
+     });
+     ProjectPicker.getValue('me-proj') -> 'P82431' or ''
+
+   IDs are stable across re-renders so existing code that calls
+   document.getElementById('me-proj').value won't work — call
+   ProjectPicker.getValue('me-proj') instead.
+   ════════════════════════════════════════════════════════════ */
+const ProjectPicker = (function(){
+  const _state = {}; // {wrapId: {selected, allowEmpty, emptyLabel, includeArchived, query, kbdIdx, isOpen}}
+
+  function _filtered(s){
+    let list = PROJS.slice();
+    if(!s.includeArchived) list = list.filter(p => p.status !== 'archived');
+    const q = (s.query||'').toLowerCase().trim();
+    if(q){
+      list = list.filter(p => {
+        const haystack = (p.name||'') + ' ' + (p.client||'') + ' ' + (p.id||'') + ' ' + (p.phase||'');
+        return haystack.toLowerCase().includes(q);
+      });
+    }
+    return list;
+  }
+
+  function _renderHL(text, query){
+    if(!query) return text;
+    const idx = (text||'').toLowerCase().indexOf(query.toLowerCase());
+    if(idx < 0) return text;
+    const before = text.slice(0, idx);
+    const match  = text.slice(idx, idx+query.length);
+    const after  = text.slice(idx+query.length);
+    return before + '<strong style="color:var(--gld2);font-weight:600">' + match + '</strong>' + after;
+  }
+
+  function init(wrapId, opts){
+    opts = opts || {};
+    _state[wrapId] = {
+      selected: opts.selected || '',
+      allowEmpty: !!opts.allowEmpty,
+      emptyLabel: opts.emptyLabel || '— Select project —',
+      includeArchived: !!opts.includeArchived,
+      query: '',
+      kbdIdx: 0,
+      isOpen: false
+    };
+    render(wrapId);
+  }
+
+  function render(wrapId){
+    const s = _state[wrapId];
+    const root = document.getElementById(wrapId);
+    if(!s||!root) return;
+
+    const selectedProj = s.selected ? PROJS.find(p=>p.id===s.selected) : null;
+    const filtered = _filtered(s);
+    const totalCount = (s.includeArchived ? PROJS : PROJS.filter(p=>p.status!=='archived')).length;
+
+    let optsHtml = '';
+    if(s.allowEmpty){
+      optsHtml += '<div class="pp-row '+(s.kbdIdx===-1?'kbd-on':'')+(s.selected===''?' sel':'')+'" onclick="ProjectPicker.select(\''+wrapId+'\',\'\')">'
+        + '<span style="color:var(--txd);font-style:italic">'+s.emptyLabel+'</span>'
+        + '</div>';
+    }
+    if(filtered.length){
+      optsHtml += filtered.map((p, idx)=>{
+        const phaseLbl = p.phase || '';
+        const isSel = p.id === s.selected;
+        return '<div class="pp-row'+(idx===s.kbdIdx?' kbd-on':'')+(isSel?' sel':'')+'" onclick="ProjectPicker.select(\''+wrapId+'\',\''+p.id+'\')">'
+          + '<span class="pp-dot" style="background:'+(p.color||'var(--txd)')+'"></span>'
+          + '<div class="pp-row-text">'
+            + '<div class="pp-row-name">'+_renderHL(p.name||'(Untitled)', s.query)+'</div>'
+            + (p.client?'<div class="pp-row-sub">'+_renderHL(p.client, s.query)+'</div>':'')
+          + '</div>'
+          + '<div class="pp-row-meta">'+(phaseLbl?phaseLbl+' · ':'')+_renderHL(p.id, s.query)+'</div>'
+          + '</div>';
+      }).join('');
+    } else {
+      optsHtml += '<div class="pp-empty">No projects match "'+s.query+'"</div>';
+    }
+
+    const filterFooter = s.query
+      ? '<div class="pp-foot">'+filtered.length+' of '+totalCount+' projects · <a onclick="ProjectPicker.search(\''+wrapId+'\',\'\')" style="cursor:pointer;color:var(--gold)">clear</a></div>'
+      : '';
+
+    const archToggle = '<div class="pp-arch-toggle">'
+      + '<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer">'
+      + '<input type="checkbox" '+(s.includeArchived?'checked':'')+' onchange="ProjectPicker.toggleArchived(\''+wrapId+'\',this.checked)">'
+      + 'Show archived</label>'
+      + '</div>';
+
+    let displayHtml;
+    if(selectedProj){
+      displayHtml = '<span class="pp-dot" style="background:'+(selectedProj.color||'var(--txd)')+'"></span>'
+        + '<span class="pp-display-name">'+selectedProj.name+'</span>'
+        + (selectedProj.client?'<span class="pp-display-sub">· '+selectedProj.client+'</span>':'');
+    } else if(s.allowEmpty && s.selected===''){
+      displayHtml = '<span style="color:var(--txd);font-style:italic">'+s.emptyLabel+'</span>';
+    } else {
+      displayHtml = '<span style="color:var(--txd)">'+s.emptyLabel+'</span>';
+    }
+
+    root.innerHTML = ''
+      + '<div class="pp-wrap" id="'+wrapId+'-wrap">'
+        + '<div class="pp-display'+(s.isOpen?' open':'')+'" id="'+wrapId+'-disp" onclick="ProjectPicker.toggle(\''+wrapId+'\')">'
+          + displayHtml
+          + '<span class="pp-arrow">▾</span>'
+        + '</div>'
+        + (s.isOpen ? (
+            '<div class="pp-menu" id="'+wrapId+'-menu">'
+            + '<div class="pp-search-row">'
+              + '<input type="text" id="'+wrapId+'-in" class="pp-search" placeholder="Search by name, client, or ID…" '
+              +   'value="'+(s.query||'').replace(/"/g,'&quot;')+'" '
+              +   'oninput="ProjectPicker.search(\''+wrapId+'\',this.value)" '
+              +   'onkeydown="ProjectPicker.kbd(\''+wrapId+'\',event)" '
+              +   'onclick="event.stopPropagation()" '
+              +   'autocomplete="off">'
+            + '</div>'
+            + '<div class="pp-options">'+optsHtml+'</div>'
+            + filterFooter
+            + archToggle
+            + '</div>'
+          ) : '')
+      + '</div>';
+
+    if(s.isOpen){
+      // Auto-focus the search input on open
+      setTimeout(()=>{
+        const i = document.getElementById(wrapId+'-in');
+        if(i){ i.focus(); i.setSelectionRange(s.query.length, s.query.length); }
+      }, 0);
+    }
+  }
+
+  function toggle(wrapId){
+    const s = _state[wrapId]; if(!s) return;
+    s.isOpen = !s.isOpen;
+    if(!s.isOpen){ s.query = ''; s.kbdIdx = 0; }
+    render(wrapId);
+  }
+  function open(wrapId){
+    const s = _state[wrapId]; if(!s) return;
+    s.isOpen = true;
+    render(wrapId);
+  }
+  function close(wrapId){
+    const s = _state[wrapId]; if(!s) return;
+    s.isOpen = false;
+    s.query = '';
+    s.kbdIdx = 0;
+    render(wrapId);
+  }
+  function search(wrapId, q){
+    const s = _state[wrapId]; if(!s) return;
+    s.query = q || '';
+    s.kbdIdx = 0;
+    render(wrapId);
+  }
+  function select(wrapId, id){
+    const s = _state[wrapId]; if(!s) return;
+    s.selected = id;
+    s.isOpen = false;
+    s.query = '';
+    s.kbdIdx = 0;
+    render(wrapId);
+    // Fire change callback if any
+    const cb = _state[wrapId+':onChange'];
+    if(typeof cb === 'function') cb(id);
+  }
+  function setValue(wrapId, id){
+    const s = _state[wrapId]; if(!s) return;
+    s.selected = id;
+    render(wrapId);
+  }
+  function getValue(wrapId){
+    const s = _state[wrapId];
+    return s ? s.selected : '';
+  }
+  function onChange(wrapId, cb){
+    _state[wrapId+':onChange'] = cb;
+  }
+  function toggleArchived(wrapId, checked){
+    const s = _state[wrapId]; if(!s) return;
+    s.includeArchived = !!checked;
+    s.kbdIdx = 0;
+    render(wrapId);
+  }
+  function kbd(wrapId, e){
+    const s = _state[wrapId]; if(!s) return;
+    const filtered = _filtered(s);
+    const min = s.allowEmpty ? -1 : 0;
+    const max = filtered.length - 1;
+    if(e.key === 'ArrowDown'){
+      e.preventDefault();
+      s.kbdIdx = Math.min(max, s.kbdIdx+1);
+      render(wrapId);
+    } else if(e.key === 'ArrowUp'){
+      e.preventDefault();
+      s.kbdIdx = Math.max(min, s.kbdIdx-1);
+      render(wrapId);
+    } else if(e.key === 'Enter'){
+      e.preventDefault();
+      if(s.kbdIdx === -1 && s.allowEmpty){
+        select(wrapId, '');
+      } else if(filtered[s.kbdIdx]){
+        select(wrapId, filtered[s.kbdIdx].id);
+      }
+    } else if(e.key === 'Escape'){
+      e.preventDefault();
+      close(wrapId);
+    }
+  }
+  function destroy(wrapId){
+    delete _state[wrapId];
+    delete _state[wrapId+':onChange'];
+  }
+
+  // Close on outside click
+  document.addEventListener('click', function(e){
+    Object.keys(_state).forEach(wrapId=>{
+      if(wrapId.endsWith(':onChange')) return;
+      const s = _state[wrapId];
+      if(!s || !s.isOpen) return;
+      const wrap = document.getElementById(wrapId+'-wrap');
+      if(wrap && !wrap.contains(e.target)){
+        close(wrapId);
+      }
+    });
+  });
+
+  return {init, render, toggle, open, close, search, select, setValue, getValue, onChange, toggleArchived, kbd, destroy};
+})();
+
 function openMtgModal(mtgId,prefillDate){
   if(!canCreate()){showNotif('Access restricted','Interns and consultants cannot create meetings.');return;}
   const m=mtgId?MEETINGS.find(x=>x.id===mtgId):null;
@@ -15402,8 +15943,7 @@ function openMtgModal(mtgId,prefillDate){
     +'<div class="fgrid"><div class="frow"><label class="flbl">Date</label><input class="finp" id="me-date" type="date" value="'+defDate+'"></div>'
     +'<div class="frow"><label class="flbl">Time</label><input class="finp" id="me-time" type="time" value="'+defTime+'"></div></div>'
     +'<div class="fgrid"><div class="frow"><label class="flbl">Duration (mins)</label><input class="finp" id="me-dur" type="number" value="'+(m?.duration||60)+'" placeholder="60"></div>'
-    +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="me-proj"><option value="">No project</option>'
-    +PROJS.filter(p=>p.status!=='archived').map(p=>'<option value="'+p.id+'"'+((m?.proj||pfill?.proj)===p.id?' selected':'')+'>'+p.name+'</option>').join('')+'</select></div></div>'
+    +'<div class="frow"><label class="flbl">Project</label><div id="me-proj"></div></div></div>'
     +'<div class="frow"><label class="flbl">Location</label><input class="finp" id="me-loc" placeholder="Studio / Google Meet / Site" value="'+(m?.location||'')+'"></div>'
 
     // ── Staff chip-dropdown ─────────────────────────────────
@@ -15426,6 +15966,13 @@ function openMtgModal(mtgId,prefillDate){
     +'<button class="btn bg" style="padding:11px 14px" onclick="closeModal(\'mtg-edit-ov\')">Cancel</button></div></div>';
 
   document.body.appendChild(div);
+
+  // Initialize project picker
+  ProjectPicker.init('me-proj', {
+    selected: m?.proj || pfill?.proj || '',
+    allowEmpty: true,
+    emptyLabel: 'No project'
+  });
 
   // Initialize chip-dropdowns AFTER the modal is in the DOM
   const inhouse = STAFF.filter(s=>s.type!=='contractor');
@@ -15468,7 +16015,7 @@ async function submitMtg(mtgId){
   const date=document.getElementById('me-date')?.value||'';
   if(!date){showNotif('Date required','');return;}
   const time=document.getElementById('me-time')?.value||'',duration=parseInt(document.getElementById('me-dur')?.value)||60;
-  const proj=document.getElementById('me-proj')?.value||null;
+  const proj=ProjectPicker.getValue('me-proj')||null;
   const location=document.getElementById('me-loc')?.value||'';
   const exRaw=document.getElementById('me-ext')?.value||'';
   const externalAttendees=exRaw.split(',').map(e=>e.trim()).filter(Boolean);
@@ -15557,6 +16104,7 @@ async function submitMtg(mtgId){
   // Cleanup chip-dropdown state
   ChipDropdown.destroy('me-staff-cd');
   ChipDropdown.destroy('me-vendor-cd');
+  ProjectPicker.destroy('me-proj');
 }
 function cancelMtg(id){
   const m=MEETINGS.find(x=>x.id===id);if(!m)return;
@@ -16483,7 +17031,6 @@ function deleteInvoice(id){
 function openAddInvoiceModal(){
   const ex=document.getElementById('add-inv-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='add-inv-ov';div.className='ov show';
-  const projOpts=PROJS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   div.innerHTML=`<div class="modal" style="max-width:500px">
     <button class="mclose" onclick="closeModal('add-inv-ov')">✕</button>
     <div class="mtitle">Add Invoice</div>
@@ -16491,7 +17038,7 @@ function openAddInvoiceModal(){
       <div class="frow"><label class="flbl">Invoice #</label>
         <input class="finp" id="inv-id" value="INV-${String(Date.now()).slice(-4)}" style="font-family:var(--fm);font-size:11px"></div>
       <div class="frow"><label class="flbl">Project</label>
-        <select class="fsel" id="inv-proj">${projOpts}</select></div>
+        <div id="inv-proj"></div></div>
     </div>
     <div class="frow"><label class="flbl">Description</label>
       <input class="finp" id="inv-desc" placeholder="e.g. Stage 3 Design Fee"></div>
@@ -16520,11 +17067,12 @@ function openAddInvoiceModal(){
     </div>
   </div>`;
   document.body.appendChild(div);
+  ProjectPicker.init('inv-proj', {});
 }
 
 function submitAddInvoice(){
   const id=(document.getElementById('inv-id')?.value||'').trim();
-  const projId=document.getElementById('inv-proj')?.value||'';
+  const projId=ProjectPicker.getValue('inv-proj')||'';
   const desc=(document.getElementById('inv-desc')?.value||'').trim();
   const amountNum=parseFloat(document.getElementById('inv-amount')?.value)||0;
   const status=document.getElementById('inv-status')?.value||'pending';
@@ -18337,12 +18885,11 @@ function openVendorReviewModal(vendorId){
   const v = VENDORS.find(x=>x.id===vendorId); if(!v) return;
   const ex=document.getElementById('vendor-rev-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='vendor-rev-ov';div.className='ov show';
-  const projOpts = '<option value="">— Select project —</option>'+PROJS.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join('');
 
   div.innerHTML='<div class="modal" style="max-width:520px">'
     +'<button class="mclose" onclick="closeModal(\'vendor-rev-ov\')">✕</button>'
     +'<div class="mtitle">⭐ Review '+v.companyName+'</div>'
-    +'<div class="frow"><label class="flbl">Project worked on *</label><select class="fsel" id="rv-projId">'+projOpts+'</select></div>'
+    +'<div class="frow"><label class="flbl">Project worked on *</label><div id="rv-projId"></div></div>'
 
     +'<div style="background:var(--sf3);border-radius:8px;padding:12px 14px;margin:8px 0">'
       +vdScoreInput('rv-quality',    'Quality',    'Workmanship, finish, attention to detail')
@@ -18358,6 +18905,7 @@ function openVendorReviewModal(vendorId){
     +'</div>'
   +'</div>';
   document.body.appendChild(div);
+  ProjectPicker.init('rv-projId', { allowEmpty: true, emptyLabel: '— Select project —' });
 }
 function vdScoreInput(id, label, hint){
   let h = '<div style="margin-bottom:10px">'
@@ -18382,7 +18930,7 @@ function vdSetScore(prefix, score){
 }
 function saveVendorReview(vendorId){
   const v = VENDORS.find(x=>x.id===vendorId); if(!v) return;
-  const projId = document.getElementById('rv-projId')?.value;
+  const projId = ProjectPicker.getValue('rv-projId');
   const q = parseInt(document.getElementById('rv-quality')?.value) || 0;
   const t = parseInt(document.getElementById('rv-timeliness')?.value) || 0;
   const p = parseInt(document.getElementById('rv-pricing')?.value) || 0;
@@ -18844,7 +19392,6 @@ function openCASVRModal(id){
   const isEdit=!!r;
   const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
   const div=document.createElement('div');div.id='ca-svr-ov';div.className='ov show';
-  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+(( r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
   const staffOpts=STAFF.filter(s=>s.type!=='contractor').map(s=>'<option value="'+s.id+'" '+(( r?.visitedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
   const weather=['Sunny','Partly Cloudy','Overcast','Rain','Hot & Humid','Windy'];
   const stages=['SD','DD','CD','CA'];
@@ -18863,7 +19410,7 @@ function openCASVRModal(id){
 
     // ── SECTION 1: Visit details ──────────────────────────────
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="svr-proj">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Project</label><div id="svr-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Stage</label><select class="fsel" id="svr-stage">'+stages.map(s=>'<option value="'+s+'" '+((r?.stage||'CA')===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>'
       +'<div class="frow"><label class="flbl">Visit Date</label><input class="finp" type="date" id="svr-date" value="'+(r?.date||caToday())+'"></div>'
       +'<div class="frow"><label class="flbl">Visit Time</label><input class="finp" type="time" id="svr-time" value="'+(r?.time||'09:00')+'"></div>'
@@ -18927,6 +19474,7 @@ function openCASVRModal(id){
     +'</div>'
   +'</div>';
   document.body.appendChild(div);
+  ProjectPicker.init('svr-proj', { selected: r?.projId || projId });
 }
 
 function addCASVRIssue(){
@@ -18945,7 +19493,7 @@ function addCASVRIssue(){
 }
 
 function saveCASVR(editId){
-  const projId=document.getElementById('svr-proj')?.value; if(!projId){showNotif('Project required','');return;}
+  const projId=ProjectPicker.getValue('svr-proj'); if(!projId){showNotif('Project required','');return;}
   const date=document.getElementById('svr-date')?.value; if(!date){showNotif('Date required','');return;}
   const issRows=Array.from(document.querySelectorAll('[id^=iss-row-]'));
   const issues=issRows.map((row,i)=>({
@@ -19149,10 +19697,10 @@ function saveCASVR(editId){
    Without this, the drawings list stays scoped to the originally-
    selected project, allowing broken cross-references. */
 function refreshRFIDrawings(){
-  const projSel = document.getElementById('rfi-proj');
   const drwSel  = document.getElementById('rfi-drws');
-  if(!projSel || !drwSel) return;
-  const projId = projSel.value;
+  if(!drwSel) return;
+  const projId = ProjectPicker.getValue('rfi-proj');
+  if(!projId) return;
   // Preserve any already-selected drawing IDs (in case user is editing)
   const prevSelected = Array.from(drwSel.selectedOptions).map(o=>o.value);
   const filtered = DRAWINGS.filter(d=>d.proj===projId);
@@ -19169,7 +19717,6 @@ function openCARFIModal(id){
   const isEdit=!!r;
   const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
   const div=document.createElement('div');div.id='ca-rfi-ov';div.className='ov show';
-  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+((r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
   const inhouse=STAFF.filter(s=>s.type!=='contractor');
   const staffOpts=inhouse.map(s=>'<option value="'+s.id+'" '+((r?.raisedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
   const assignOpts='<option value="">— Unassigned —</option>'+inhouse.map(s=>'<option value="'+s.id+'" '+(r?.assignedTo===s.id?'selected':'')+'>'+s.first+' '+s.last+(s.role?' · '+s.role:'')+'</option>').join('');
@@ -19181,7 +19728,7 @@ function openCARFIModal(id){
     +'<div class="mtitle">'+(isEdit?'Edit':'New')+' RFI</div>'
 
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="rfi-proj" onchange="refreshRFIDrawings()">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Project</label><div id="rfi-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Date Raised</label><input class="finp" type="date" id="rfi-date" value="'+(r?.raisedDate||caToday())+'"></div>'
       +'<div class="frow"><label class="flbl">Raised By</label><select class="fsel" id="rfi-by">'+staffOpts+'</select></div>'
       +'<div class="frow"><label class="flbl">Directed To (External)</label><input class="finp" id="rfi-to" value="'+(r?.directedTo||'')+'" placeholder="Contractor / Engineer"></div>'
@@ -19223,12 +19770,14 @@ function openCARFIModal(id){
     +'</div>'
   +'</div>';
   document.body.appendChild(div);
+  ProjectPicker.init('rfi-proj', { selected: r?.projId || projId });
+  ProjectPicker.onChange('rfi-proj', refreshRFIDrawings);
   // Initial clash banner render
   setTimeout(()=>caUpdateClashBanner('rfi',1), 50);
 }
 
 function saveCARFI(editId){
-  const projId=document.getElementById('rfi-proj')?.value;if(!projId){showNotif('Project required','');return;}
+  const projId=ProjectPicker.getValue('rfi-proj');if(!projId){showNotif('Project required','');return;}
   const subj=document.getElementById('rfi-subj')?.value.trim();if(!subj){showNotif('Subject required','');return;}
   const drwSel=document.getElementById('rfi-drws');
   const drawingRefs=drwSel?Array.from(drwSel.selectedOptions).map(o=>o.value).filter(Boolean):[];
@@ -19289,7 +19838,6 @@ function openCASUBModal(id){
   const isEdit=!!r;
   const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
   const div=document.createElement('div');div.id='ca-sub-ov';div.className='ov show';
-  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+((r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
   const inhouse=STAFF.filter(s=>s.type!=='contractor');
   const staffOpts=inhouse.map(s=>'<option value="'+s.id+'" '+((r?.submittedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
   const assignOpts='<option value="">— Unassigned —</option>'+inhouse.map(s=>'<option value="'+s.id+'" '+(r?.assignedTo===s.id?'selected':'')+'>'+s.first+' '+s.last+(s.role?' · '+s.role:'')+'</option>').join('');
@@ -19300,7 +19848,7 @@ function openCASUBModal(id){
     +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Submittal</div>'
 
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="sub-proj">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Project</label><div id="sub-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Spec Section</label><input class="finp" id="sub-spec" value="'+(r?.specSection||'')+'" placeholder="e.g. 08 80 00 — Glazing"></div>'
       +'<div class="frow"><label class="flbl">Date Submitted</label><input class="finp" type="date" id="sub-date" value="'+(r?.submittedDate||caToday())+'"></div>'
       +'<div class="frow"><label class="flbl">Submitted By</label><select class="fsel" id="sub-by">'+staffOpts+'</select></div>'
@@ -19341,12 +19889,13 @@ function openCASUBModal(id){
     +'</div>'
   +'</div>';
   document.body.appendChild(div);
+  ProjectPicker.init('sub-proj', { selected: r?.projId || projId });
   // Initial clash banner render
   setTimeout(()=>caUpdateClashBanner('sub',2), 50);
 }
 
 function saveCASUB(editId){
-  const projId=document.getElementById('sub-proj')?.value;if(!projId){showNotif('Project required','');return;}
+  const projId=ProjectPicker.getValue('sub-proj');if(!projId){showNotif('Project required','');return;}
   const title=document.getElementById('sub-title')?.value.trim();if(!title){showNotif('Title required','');return;}
   const drwsRaw=(document.getElementById('sub-drws')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
   const status=document.getElementById('sub-status')?.value||'pending';
@@ -19403,13 +19952,12 @@ function openCASnagModal(id){
   const isEdit=!!r;
   const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
   const div=document.createElement('div');div.id='ca-snag-ov';div.className='ov show';
-  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+((r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
   const drwOpts='<option value="">— None —</option>'+DRAWINGS.filter(d=>d.proj===(r?.projId||projId)).map(d=>'<option value="'+d.id+'" '+(r?.drawingRef===d.id?'selected':'')+'>'+d.id+' — '+d.title.slice(0,35)+'</option>').join('');
   div.innerHTML='<div class="modal" style="max-width:480px">'
     +'<button class="mclose" onclick="closeModal(\'ca-snag-ov\')">✕</button>'
     +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Snag Item</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="snag-proj">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Project</label><div id="snag-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Priority</label><select class="fsel" id="snag-pri"><option value="low" '+(r?.priority==='low'?'selected':'')+'>Low</option><option value="high" '+((!r||r.priority==='high')?'selected':'')+'>High</option><option value="critical" '+(r?.priority==='critical'?'selected':'')+'>Critical</option></select></div>'
       +'<div class="frow"><label class="flbl">Date Found</label><input class="finp" type="date" id="snag-date" value="'+(r?.reportedDate||caToday())+'"></div>'
       +'<div class="frow"><label class="flbl">Status</label><select class="fsel" id="snag-status"><option value="open" '+((!r||r.status==='open')?'selected':'')+'>Open</option><option value="resolved" '+(r?.status==='resolved'?'selected':'')+'>Resolved</option></select></div>'
@@ -19424,10 +19972,11 @@ function openCASnagModal(id){
     +'</div>'
   +'</div>';
   document.body.appendChild(div);
+  ProjectPicker.init('snag-proj', { selected: r?.projId || projId });
 }
 
 function saveCASnag(editId){
-  const projId=document.getElementById('snag-proj')?.value;if(!projId){showNotif('Project required','');return;}
+  const projId=ProjectPicker.getValue('snag-proj');if(!projId){showNotif('Project required','');return;}
   const desc=document.getElementById('snag-desc')?.value.trim();if(!desc){showNotif('Description required','');return;}
   const entry={
     id:editId||('SNAG-'+Date.now()),
@@ -19455,13 +20004,12 @@ function openCAAIModal(id){
   const isEdit=!!r;
   const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
   const div=document.createElement('div');div.id='ca-ai-ov';div.className='ov show';
-  const projOpts=PROJS.map(p=>'<option value="'+p.id+'" '+((r?.projId||projId)===p.id?'selected':'')+'>'+p.name+'</option>').join('');
   const staffOpts=STAFF.filter(s=>s.type!=='contractor').map(s=>'<option value="'+s.id+'" '+((r?.issuedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
   div.innerHTML='<div class="modal" style="max-width:520px">'
     +'<button class="mclose" onclick="closeModal(\'ca-ai-ov\')">✕</button>'
     +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Architect\'s Instruction</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Project</label><select class="fsel" id="ai-proj">'+projOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl">Project</label><div id="ai-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Date Issued</label><input class="finp" type="date" id="ai-date" value="'+(r?.issuedDate||caToday())+'"></div>'
       +'<div class="frow"><label class="flbl">Issued By</label><select class="fsel" id="ai-by">'+staffOpts+'</select></div>'
       +'<div class="frow"><label class="flbl">Issued To (Contractor)</label><input class="finp" id="ai-to" value="'+(r?.issuedTo||'')+'" placeholder="Contractor name"></div>'
@@ -19477,10 +20025,11 @@ function openCAAIModal(id){
     +'</div>'
   +'</div>';
   document.body.appendChild(div);
+  ProjectPicker.init('ai-proj', { selected: r?.projId || projId });
 }
 
 function saveCAAI(editId){
-  const projId=document.getElementById('ai-proj')?.value;if(!projId){showNotif('Project required','');return;}
+  const projId=ProjectPicker.getValue('ai-proj');if(!projId){showNotif('Project required','');return;}
   const title=document.getElementById('ai-title')?.value.trim();if(!title){showNotif('Title required','');return;}
   const drwsRaw=(document.getElementById('ai-drws')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
   const entry={
@@ -20733,7 +21282,7 @@ function updateVisBadge(){
 
     <div class="fgrid">
       <div class="frow"><label class="flbl">Project</label>
-        <select class="fsel" id="aw-proj" onchange="updateAwDrawings()"></select>
+        <div id="aw-proj"></div>
       </div>
       <div class="frow"><label class="flbl">Task / Drawing</label>
         <select class="fsel" id="aw-drawing"></select>
@@ -20851,7 +21400,7 @@ function updateVisBadge(){
 
     <div class="fgrid">
       <div class="frow"><label class="flbl">Project</label>
-        <select class="fsel" id="adm-proj" onchange="onAdmProjChange()"></select></div>
+        <select class="fsel" id="adm-proj-OBSOLETE" style="display:none"></select><div id="adm-proj"></div></div>
       <div class="frow"><label class="flbl">Discipline</label>
         <select class="fsel" id="adm-disc" onchange="onAdmDiscChange()"></select></div>
     </div>
@@ -20900,6 +21449,20 @@ function updateVisBadge(){
       </div>
       <div class="frow"><label class="flbl">Package</label>
         <input class="finp" id="adm-pkg" placeholder="e.g. 50DD" style="font-family:var(--fm);font-size:11px">
+      </div>
+    </div>
+
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Priority</label>
+        <select class="fsel" id="adm-priority">
+          <option value="low">Low</option>
+          <option value="normal" selected>Normal</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+      <div class="frow"><label class="flbl">Est. Hours <span style="color:var(--txd);font-weight:400">(optional)</span></label>
+        <input class="finp" id="adm-est-hours" type="number" min="1" placeholder="Auto-estimate if blank" style="font-family:var(--fm);font-size:11px">
       </div>
     </div>
 
