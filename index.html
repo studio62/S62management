@@ -458,6 +458,8 @@ body{font-family:var(--fb);background:var(--bg);color:var(--tx);display:flex;hei
 .think span{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:pulse 1.2s ease-in-out infinite}
 .think span:nth-child(2){animation-delay:.2s}.think span:nth-child(3){animation-delay:.4s}
 @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.1)}}
+/* v98 — Undo toast slide-up animation */
+@keyframes undoSlideUp{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
 
 /* ── NOTIF ────────────────────────────────────────────── */
 .notif{position:fixed;bottom:22px;right:22px;background:var(--sf);border:1px solid var(--bd2);border-radius:10px;padding:13px 17px;max-width:320px;z-index:9999;transform:translateY(100px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1)}
@@ -9128,8 +9130,12 @@ function renderDrawings(){
   const noProj=document.getElementById('drw-no-proj');
   if(!con)return;
 
-  // Smart views that work across projects show all (no proj filter)
-  const crossProjView=drwSmartView!=='all'&&drwSmartView!=='mine';
+  // v97 (Bug 2 fix) — 'mine' is now cross-project so users see ALL their
+  // drawings across the firm, not just within the active project. Project
+  // labels appear inline via the existing crossProjView header rendering.
+  // Only 'all' remains in the single-project flow because it's the natural
+  // mode for browsing one project at a time.
+  const crossProjView=drwSmartView!=='all';
 
   // Determine which projects to show
   let projsToShow;
@@ -9162,9 +9168,13 @@ function renderDrawings(){
       return true;
     });
     pdwgs=applySmartFilter(pdwgs);
-    if(!pdwgs.length&&crossProjView)return;
-    if(!pdwgs.length&&(discF!=='ALL'||statusF!=='ALL'||search))return;
-    if(!pdwgs.length&&!crossProjView)pdwgs=DRAWINGS.filter(d=>d.proj===proj.id);
+    // v97 (Bug 1 fix) — when a project has zero matches, skip it. The old
+    // fallback (`pdwgs = DRAWINGS.filter(d => d.proj === proj.id)`) used to
+    // override the smart filter and show ALL drawings, silently disabling
+    // whatever filter the user had picked. That's now gone — empty results
+    // honestly stay empty, and the per-filter empty-state message at the
+    // end of this function explains why.
+    if(!pdwgs.length) return;
 
     const mode=drwGroupMode[proj.id]||'disc';
 
@@ -9183,9 +9193,59 @@ function renderDrawings(){
     else h+=renderByPackage(proj, pdwgs);
   });
 
-  con.innerHTML=h||'<div style="padding:40px;text-align:center;font-family:var(--fm);font-size:12px;color:var(--txd)">No drawings match the current filters.</div>';
+  // v97 — filter-aware empty-state message. When the smart filter genuinely
+  // returns nothing, tell the user what's happening rather than a generic
+  // "no drawings match" line. Each smart view gets a tailored message that
+  // either reassures (queue clear) or guides (try a different filter).
+  con.innerHTML = h || '<div style="padding:40px;text-align:center;font-family:var(--fm);font-size:12px;color:var(--txd);line-height:1.7">'
+    + smartFilterEmptyMessage()
+    + '<div style="margin-top:14px"><button class="btn bg bsm" onclick="setDrwView(\'all\',document.getElementById(\'sv-all\'))" style="font-size:11px">⊟ Show All Drawings</button></div>'
+    + '</div>';
   setTimeout(initColResize, 30);
   setTimeout(updateDrwFadeEdges, 50);  // v95 — refresh fade-edge visibility after re-render
+}
+
+/* v97 — produce a helpful message based on which smart filter is active.
+   Used inside renderDrawings when no drawings match. Each view gets a
+   distinct line so users understand why the table is empty.            */
+function smartFilterEmptyMessage(){
+  const me = currentUser();
+  const search = (document.getElementById('drw-search')?.value || '').toLowerCase();
+  const discF  = document.getElementById('drw-disc-filter')?.value || 'ALL';
+  const statusF= document.getElementById('drw-status-filter')?.value || 'ALL';
+  const hasOtherFilters = (discF !== 'ALL' || statusF !== 'ALL' || !!search);
+  // If the user has stacked extra filters on top of a smart view, mention it
+  const stackedNote = hasOtherFilters
+    ? '<div style="margin-top:6px;font-size:11px;color:var(--txd)">Other filters are also active — try clearing the search/discipline/status filters.</div>'
+    : '';
+  switch(drwSmartView){
+    case 'mine':
+      return '<div style="font-size:14px;color:var(--tx)">No drawings assigned to <strong>'+(me.first||'you')+'</strong>.</div>'
+        + '<div style="margin-top:6px">All your work is up to date — or no work has been assigned to you yet.</div>' + stackedNote;
+    case 'overdue':
+      return '<div style="font-size:14px;color:var(--grn)">✓ Nothing overdue.</div>'
+        + '<div style="margin-top:6px">All drawings are on track or already issued.</div>' + stackedNote;
+    case 'week':
+      return '<div style="font-size:14px;color:var(--tx)">📅 Nothing due this week.</div>'
+        + '<div style="margin-top:6px">No active drawings are due in the next 7 days.</div>' + stackedNote;
+    case 'review':
+    case 'qa':
+      return '<div style="font-size:14px;color:var(--grn)">✓ QA queue is clear.</div>'
+        + '<div style="margin-top:6px">No drawings are currently waiting for review.</div>' + stackedNote;
+    case 'unassigned':
+      return '<div style="font-size:14px;color:var(--grn)">✓ All drawings have an owner.</div>'
+        + '<div style="margin-top:6px">Every active drawing is assigned to someone.</div>' + stackedNote;
+    case 'returned':
+      return '<div style="font-size:14px;color:var(--grn)">✓ Nothing returned for revision.</div>'
+        + '<div style="margin-top:6px">No drawings of yours are sitting in rework.</div>' + stackedNote;
+    case 'all':
+    default:
+      return hasOtherFilters
+        ? '<div style="font-size:14px;color:var(--tx)">No drawings match the active filters.</div>'
+          + '<div style="margin-top:6px">Try clearing the discipline, status, or search filters.</div>'
+        : '<div style="font-size:14px;color:var(--tx)">No drawings yet.</div>'
+          + '<div style="margin-top:6px">Click <strong>+ Add Drawing</strong> in the toolbar to start.</div>';
+  }
 }
 
 /* ── v95 (Option A) — Update fade-edge visibility based on scroll position ──
@@ -9443,7 +9503,9 @@ function buildDrwTable(proj, rows, disc){
         +'✗ ' + r.rejectionNote.slice(0,60)+(r.rejectionNote.length>60?'…':'')+'</div>':'')
       +'<div style="display:flex;align-items:center;gap:6px">'
       +'<div onclick="openDrwDetail(\''+r.id+'\')" title="'+r.title+'" style="cursor:pointer">'
-      +'<div style="font-size:11px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">'+r.title+'</div>'
+      +'<div style="font-size:11px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">'+r.title
+        + (r.superseded ? ' <span style="display:inline-block;font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.04em;background:rgba(186,117,23,.15);color:var(--gold);padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle">SUPERSEDED</span>' : '')
+        +'</div>'
       +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:'+(proj?proj.color:'var(--txd)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">\u25a0 '+(proj?proj.name:r.proj)+'</div>'
       +'</div>'
       +(function(){const badges=caGetDrwBadges(r.id);return badges?'<div style="display:flex;gap:2px;flex-wrap:wrap">'+badges+'</div>':'';}())
@@ -9533,14 +9595,8 @@ function buildDrwTable(proj, rows, disc){
     // Package
     +(c.pkg?'<td>'+(DRW_PACKAGES.find(pk=>pk.drawings.includes(r.id))?'<span class="pkg-badge">📦 '+(DRW_PACKAGES.find(pk=>pk.drawings.includes(r.id))?.id||'')+'</span>':'')+'</td>':'')
 
-    // Actions
-    +(c.actions?'<td><div style="display:flex;gap:3px;justify-content:flex-end">'
-      +'<button class="btn bg bsm" style="padding:2px 5px;font-size:9px" onclick="openDrwDetail(\''+r.id+'\')" title="Details">⋯</button>'
-      +(r.status!=='done'?'<button class="btn bg bsm" style="padding:2px 5px;font-size:9px" title="Log a client revision" onclick="openAddRevModal(\''+r.id+'\')" title="Add revision">+Rev</button>':'')
-      +(r.status==='chk'&&canSchedule()?'<button class="btn bsm" style="padding:2px 6px;font-size:9px;background:var(--grn);color:#fff" onclick="openQaModal(\''+r.id+'\')" title="QA review">✓ Check</button>':'')
-      +(r.status!=='done'&&canSchedule()?'<button class="btn bg bsm" style="padding:2px 6px;font-size:10px" onclick="openEditDrawingModal(\''+r.id+'\')" title="Edit">✏</button>':'')
-      +(isAdmin?'<button class="btn bg bsm" style="padding:2px 5px;font-size:9px" onclick="cycleDrw(\''+r.id+'\')" title="Cycle">↻</button>':'')
-    +'</div></td>':'')
+    // Actions — v98 Option C: single primary button + ⋯ menu
+    +(c.actions ? '<td>' + drwActionCell(r) + '</td>' : '')
 
     +'</tr>';
   });
@@ -12372,6 +12428,18 @@ function openAddDrawingModal(projId){
   if(_ehEl) _ehEl.value='';
   document.getElementById('adm-id-preview').textContent='';
 
+  // v98 Option C — reset metadata-lock state from a prior edit-issued session
+  ['adm-disc','adm-type','adm-stage'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){
+      el.disabled = false;
+      el.style.opacity = '';
+      el.title = '';
+    }
+  });
+  const banner = document.getElementById('adm-issued-banner');
+  if(banner) banner.remove();
+
   // Populate project picker
   ProjectPicker.init('adm-proj', { selected: pid });
   ProjectPicker.onChange('adm-proj', ()=>onAdmProjChange());
@@ -12415,6 +12483,37 @@ function openEditDrawingModal(drawingId){
     if(_priEl) _priEl.value = _existingTask.priority || 'normal';
     const _ehEl = document.getElementById('adm-est-hours');
     if(_ehEl) _ehEl.value = _existingTask.estHrs || '';
+  }
+  // v98 Option C — Metadata-only mode for issued drawings.
+  // When status='done', the drawing is under controlled change management.
+  // Title, assignee, package, hours can still be corrected (typos happen),
+  // but discipline/type/stage become read-only — those changes require a
+  // proper revision via "+ New Revision". Helps preserve audit integrity.
+  if(d.status === 'done'){
+    document.getElementById('adm-title').textContent='Edit Metadata · '+d.id+' Rev '+d.rev;
+    document.getElementById('adm-disc').disabled = true;
+    document.getElementById('adm-type').disabled = true;
+    document.getElementById('adm-stage').disabled = true;
+    // Visual cue
+    ['adm-disc','adm-type','adm-stage'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el){
+        el.style.opacity = '0.55';
+        el.title = 'Locked — issued drawings can only have rev-impacting fields changed via + New Revision';
+      }
+    });
+    // Also add a banner inside the modal
+    const titleEl = document.getElementById('adm-title');
+    if(titleEl && !document.getElementById('adm-issued-banner')){
+      const banner = document.createElement('div');
+      banner.id = 'adm-issued-banner';
+      banner.style.cssText = 'background:rgba(82,201,122,.1);border:1px solid rgba(82,201,122,.3);'
+        + 'border-radius:5px;padding:8px 12px;font-family:var(--fm);font-size:10px;color:var(--grn);'
+        + 'margin:8px 0 12px;line-height:1.55';
+      banner.innerHTML = '<b>✓ Issued · Rev '+d.rev+'</b> — title, assignee, due date, package, priority can be corrected. '
+        + 'To change discipline, type, or stage, use <b>+ New Revision</b> instead.';
+      titleEl.parentNode.insertBefore(banner, titleEl.nextSibling);
+    }
   }
   onAdmTitleChange();
 }
@@ -12868,7 +12967,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v96',
+    appVersion: 'S62-v98',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -13331,6 +13430,451 @@ function updatePctSlider(el, val) {
   const ro = el.parentNode && el.parentNode.querySelector('.pct-readout');
   if(ro) ro.textContent = val + '%';
 }
+/* ═════════════════════════════════════════════════════════════════════
+   v98 OPTION C — Row Action Engine
+   ─────────────────────────────────
+   Replaces the row's 4-5 small icon buttons with a single context-aware
+   primary button + ⋯ secondary menu. Each function is small and pure;
+   the renderer in renderByDisc/renderByPhase/renderByPackage just calls
+   drwActionCell(r) once per row. All existing modals and functions are
+   reused — this layer is purely presentational.
+═════════════════════════════════════════════════════════════════════ */
+
+/* Primary action for a drawing based on its status + the current user.
+   Returns {label, onclick, color, bg, icon, available} so the renderer
+   can build the button. If available=false, the renderer falls back to
+   "⋯ Open" only.                                                       */
+function drwPrimaryAction(d){
+  const me = currentUser();
+  const isMine = d.sid === me.id;
+  const canQa = canSchedule();
+  // QA review takes precedence — when a drawing is in 'chk', the
+  // approver's primary action is reviewing it
+  if(d.status === 'chk'){
+    if(canQa){
+      return {
+        label: 'QA Review', icon: '◈',
+        bg: '#7A3CB0', color: '#fff',
+        onclick: 'openQaModal(\''+d.id+'\')',
+        available: true
+      };
+    }
+    return {
+      label: 'Awaiting QA', icon: '◈',
+      bg: 'var(--sf3)', color: 'var(--txm)',
+      onclick: 'openDrwDetail(\''+d.id+'\')',
+      available: true,
+      disabled: true   // styled muted, but still clickable to view detail
+    };
+  }
+  if(d.status === 'done'){
+    // Issued — primary action is "+ New Revision". Available to drafter
+    // and any senior. Anyone else gets the muted "Issued" view.
+    if(isMine || canQa){
+      return {
+        label: 'New Revision', icon: '+',
+        bg: '#BA7517', color: '#fff',
+        onclick: 'openAddRevModal(\''+d.id+'\')',
+        available: true
+      };
+    }
+    return {
+      label: 'Issued · Rev '+(d.rev||'A'), icon: '✓',
+      bg: 'var(--sf3)', color: 'var(--grn)',
+      onclick: 'openDrwDetail(\''+d.id+'\')',
+      available: true,
+      disabled: true
+    };
+  }
+  if(d.status === 'nst'){
+    // Not started — drafter starts the work
+    if(isMine || canQa){
+      return {
+        label: 'Start drawing', icon: '▶',
+        bg: '#185FA5', color: '#fff',
+        onclick: 'startDrawingWork(\''+d.id+'\')',
+        available: true
+      };
+    }
+    return {
+      label: 'Not started', icon: '○',
+      bg: 'var(--sf3)', color: 'var(--txm)',
+      onclick: 'openDrwDetail(\''+d.id+'\')',
+      available: true,
+      disabled: true
+    };
+  }
+  // status === 'ip' — main work in progress
+  if(isMine || canQa){
+    if(d.pct >= 100){
+      // 99% saved-state from undo — prompt to re-submit
+      return {
+        label: 'Submit for Review', icon: '📤',
+        bg: '#185FA5', color: '#fff',
+        onclick: 'submitForCheckBtn(\''+d.id+'\')',
+        available: true
+      };
+    }
+    // Show pct in the label so it's obvious the slider is the way forward
+    return {
+      label: 'Update progress · '+d.pct+'%', icon: '◐',
+      bg: 'var(--sf3)', color: 'var(--tx)',
+      onclick: 'openDrwProgressInline(\''+d.id+'\')',
+      available: true,
+      hasBorder: true
+    };
+  }
+  return {
+    label: 'In progress · '+d.pct+'%', icon: '◐',
+    bg: 'var(--sf3)', color: 'var(--txm)',
+    onclick: 'openDrwDetail(\''+d.id+'\')',
+    available: true,
+    disabled: true
+  };
+}
+
+/* Build the actual <td> HTML for the action cell. Renders primary button
+   + ⋯ menu trigger. The menu itself is created on demand by openDrwMenu. */
+function drwActionCell(r){
+  const a = drwPrimaryAction(r);
+  const borderStyle = a.hasBorder ? ';border:1px solid var(--bd2)' : ';border:none';
+  const oc = a.disabled ? 'opacity:.7' : 'cursor:pointer';
+  return '<div style="display:flex;gap:4px;justify-content:flex-end;align-items:center">'
+    + '<button class="drw-row-primary" '
+      + 'style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:5px;'
+      + 'font-family:var(--fm);font-size:10px;font-weight:500;line-height:1.3;white-space:nowrap;'
+      + 'background:'+a.bg+';color:'+a.color+';'+borderStyle+';'+oc+'" '
+      + 'onclick="event.stopPropagation();'+a.onclick+'" '
+      + 'title="'+a.label+'">'
+      + '<span style="font-size:11px">'+a.icon+'</span><span>'+a.label+'</span>'
+    + '</button>'
+    + '<button class="drw-row-menu" '
+      + 'style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;'
+      + 'border:1px solid var(--bd2);background:var(--sf2);color:var(--txm);border-radius:5px;cursor:pointer;'
+      + 'font-size:14px;line-height:1" '
+      + 'onclick="event.stopPropagation();openDrwMenu(\''+r.id+'\',this)" '
+      + 'title="More actions">⋯</button>'
+    + '</div>';
+}
+
+/* The popup menu component. Status-aware: returns different items for
+   different states. Items: {icon, label, onclick, danger, divider}    */
+function drwMenuItems(d){
+  const me = currentUser();
+  const isMine = d.sid === me.id;
+  const canQa = canSchedule();
+  const items = [
+    {icon:'⋯', label:'Open details', onclick:'openDrwDetail(\''+d.id+'\')'},
+  ];
+  // Edit metadata — available on every status, but locked fields differ
+  if(isMine || canQa){
+    items.push({icon:'✏', label: d.status==='done' ? 'Edit metadata' : 'Edit drawing',
+      onclick:'openEditDrawingModal(\''+d.id+'\')'});
+  }
+  // Add revision — available on any status if user has permission
+  if((isMine || canQa) && d.status !== 'chk'){
+    items.push({icon:'📋', label: d.status==='done' ? 'Add revision' : 'Log revision',
+      onclick:'openAddRevModal(\''+d.id+'\')'});
+  }
+  // Status-specific items
+  if(d.status === 'chk' && canQa){
+    items.push({icon:'↺', label:'Recall to drafter',
+      onclick:'recallFromQA(\''+d.id+'\')'});
+  }
+  if(d.status === 'done'){
+    items.push({divider:true});
+    items.push({icon:'📜', label:'Revision history',
+      onclick:'openDrwDetail(\''+d.id+'\')'});
+    // Recall Issue — only within 24h of issue + only drafter or Principal
+    if(canRecallIssue(d, me)){
+      items.push({icon:'↺', label:'Recall issue (within 24h)',
+        onclick:'recallIssue(\''+d.id+'\')',
+        warning: true});
+    }
+    items.push({icon:'⊖', label:'Mark superseded',
+      onclick:'markDrawingSuperseded(\''+d.id+'\')',
+      warning: true});
+  }
+  // Delete — drafter or admin, but only if not yet issued
+  if(d.status !== 'done' && (isMine || canQa)){
+    items.push({divider:true});
+    items.push({icon:'🗑', label:'Delete drawing',
+      onclick:'doRemoveDrawing(\''+d.id+'\')',
+      danger: true});
+  }
+  return items;
+}
+
+/* Open the popup menu anchored to the trigger button. The menu auto-
+   closes on outside click or escape. Only one menu open at a time.   */
+function openDrwMenu(drawingId, anchorEl){
+  closeDrwMenu();
+  const d = DRAWINGS.find(x=>x.id===drawingId); if(!d) return;
+  const items = drwMenuItems(d);
+  const menu = document.createElement('div');
+  menu.id = 'drw-row-menu-pop';
+  menu.style.cssText = 'position:fixed;z-index:9000;background:var(--sf);'
+    + 'border:1px solid var(--bd2);border-radius:6px;'
+    + 'box-shadow:0 4px 18px rgba(0,0,0,.18);min-width:200px;padding:5px 0;'
+    + 'font-family:var(--fm);font-size:11px';
+  let h = '';
+  items.forEach(it=>{
+    if(it.divider){
+      h += '<div style="height:1px;background:var(--bd);margin:4px 0"></div>';
+      return;
+    }
+    const colorRule = it.danger ? 'color:var(--red)' : (it.warning ? 'color:var(--gold)' : 'color:var(--tx)');
+    h += '<div onclick="closeDrwMenu();'+it.onclick+'" '
+      + 'onmouseenter="this.style.background=\'var(--sf3)\'" '
+      + 'onmouseleave="this.style.background=\'transparent\'" '
+      + 'style="padding:6px 12px;cursor:pointer;display:flex;align-items:center;gap:9px;'+colorRule+'">'
+      + '<span style="width:14px;text-align:center;font-size:11px">'+(it.icon||'')+'</span>'
+      + '<span style="flex:1">'+it.label+'</span>'
+      + '</div>';
+  });
+  menu.innerHTML = h;
+  document.body.appendChild(menu);
+  // Position relative to anchor
+  const r = anchorEl.getBoundingClientRect();
+  const menuW = 200;
+  const menuH = menu.offsetHeight;
+  let left = r.right - menuW;
+  let top = r.bottom + 4;
+  if(top + menuH > window.innerHeight - 10){ top = r.top - menuH - 4; }
+  if(left < 10) left = 10;
+  if(left + menuW > window.innerWidth - 10) left = window.innerWidth - menuW - 10;
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+  // Close on outside click or escape
+  setTimeout(()=>{
+    document.addEventListener('click', _drwMenuOutside, {once:false});
+    document.addEventListener('keydown', _drwMenuEsc);
+  }, 0);
+}
+function closeDrwMenu(){
+  const ex = document.getElementById('drw-row-menu-pop');
+  if(ex) ex.remove();
+  document.removeEventListener('click', _drwMenuOutside);
+  document.removeEventListener('keydown', _drwMenuEsc);
+}
+function _drwMenuOutside(e){
+  const m = document.getElementById('drw-row-menu-pop');
+  if(m && !m.contains(e.target)) closeDrwMenu();
+}
+function _drwMenuEsc(e){ if(e.key==='Escape') closeDrwMenu(); }
+
+/* ── v98 Action helpers ───────────────────────────────────────────── */
+
+/* Start a drawing's work — kicks status from 'nst' to 'ip', sets pct=1. */
+function startDrawingWork(drawingId){
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  if(!d || d.status !== 'nst'){ showNotif('Already started', d?.id||drawingId); return; }
+  d.status = 'ip';
+  d.pct = 1;
+  const t = SCHED_TASKS.find(x=>x.drawingId===drawingId);
+  if(t){ t.status='ip'; t.pct=1; }
+  if(!Array.isArray(d.assignmentLog)) d.assignmentLog = [];
+  const me = currentUser();
+  d.assignmentLog.push({
+    date: toISO(new Date()),
+    dateFmt: new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}),
+    by: me.id, byName: me.first+' '+me.last,
+    action: 'started-work'
+  });
+  scheduleSave({immediate:true});
+  renderDrawings(); renderProjList(); updateNavBadges();
+  showNotif('Started', d.id+' — use the slider to track progress');
+}
+
+/* Wrapper for "Submit for Review" button — when user is back at 99% and
+   wants to re-submit. Identical to the auto-submit path but explicit. */
+function submitForCheckBtn(drawingId){
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  if(!d || d.status==='chk' || d.status==='done') return;
+  if(d.pct < 100){ d.pct = 100; }
+  submitForCheck(drawingId);
+  showUndoToast(
+    'Submitted ' + drawingId + ' for QA review',
+    ()=>undoSubmitForCheck(drawingId),
+    6000
+  );
+}
+
+/* Recall a drawing from QA back to the drafter — used when a senior
+   submitted on someone's behalf or wants to pull it back before review. */
+function recallFromQA(drawingId){
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  if(!d || d.status!=='chk') return;
+  if(!canSchedule()){ showNotif('Access denied','Senior staff only.'); return; }
+  d.status = 'ip';
+  d.pct = 99;
+  d.submittedAt = null;
+  d.submittedBy = null;
+  const t = SCHED_TASKS.find(x=>x.drawingId===drawingId);
+  if(t){ t.status='ip'; t.pct=99; }
+  const me = currentUser();
+  if(!Array.isArray(d.qaHistory)) d.qaHistory = [];
+  d.qaHistory.push({action:'recalled-from-qa', by:me.id, byName:me.first+' '+me.last,
+    date: toISO(new Date()), dateFmt: fmtDate(new Date()),
+    note: 'Recalled to drafter before review',
+    fromStatus:'chk', toStatus:'ip'});
+  // Notify drafter
+  if(d.sid){
+    addNotif({type:'qa', icon:'↺', iconBg:'rgba(240,201,122,.2)',
+      title: d.id+' recalled from QA',
+      detail: d.title+' · returned to your queue',
+      projId: d.proj, drawingId, forStaff: d.sid});
+  }
+  scheduleSave({immediate:true});
+  renderDrawings(); renderProjList(); renderDashboard(); updateNavBadges();
+  showNotif('Recalled', d.id+' — back to drafter');
+}
+
+/* Can the current user recall an already-issued drawing? Allowed if:
+   - It was issued within the last 24 hours, AND
+   - Current user is the drafter OR canSchedule, AND
+   - No subsequent revision has been added                          */
+function canRecallIssue(d, me){
+  if(d.status !== 'done') return false;
+  if(!d.checkDate) return false;
+  const ms24 = 24*60*60*1000;
+  const issued = parseDue(d.checkDate);
+  if(!issued) return false;
+  if(Date.now() - issued.getTime() > ms24) return false;
+  // Has a newer revision been added since the issue?
+  if(Array.isArray(d.revHistory) && d.revHistory.length){
+    const lastRev = d.revHistory[d.revHistory.length-1];
+    if(lastRev.dateISO && parseDue(lastRev.dateISO).getTime() > issued.getTime()) return false;
+  }
+  if(d.sid === me.id) return true;
+  if(canSchedule()) return true;
+  return false;
+}
+
+/* Recall an issued drawing — reverts to 'ip' status, preserves rev letter,
+   logs the recall, and withdraws any transmittal that referenced this
+   issued state. Notifies all transmittal recipients.                    */
+function recallIssue(drawingId){
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  if(!d) return;
+  const me = currentUser();
+  if(!canRecallIssue(d, me)){
+    showNotif('Cannot recall', 'Recall window has closed (24h) or you don\'t have permission.');
+    return;
+  }
+  if(!confirm('Recall '+d.id+' Rev '+d.rev+'?\n\nThis will:\n• Revert the drawing to in-progress (Rev letter preserved)\n• Withdraw any transmittals that issued this revision\n• Notify all transmittal recipients\n\nProceed?')) return;
+
+  // Log recall
+  if(!Array.isArray(d.qaHistory)) d.qaHistory = [];
+  d.qaHistory.push({action:'recalled-after-issue', by:me.id, byName:me.first+' '+me.last,
+    date: toISO(new Date()), dateFmt: fmtDate(new Date()),
+    note: 'Recalled within 24h of issue · Rev '+d.rev+' withdrawn',
+    fromStatus:'done', toStatus:'ip'});
+
+  d.status = 'ip';
+  d.pct = 99;
+  d.checkedBy = null;
+  d.checkDate = null;
+  // Rev letter preserved — when re-issued, it will increment again. The
+  // recalled rev is recorded in qaHistory for full audit traceability.
+
+  const t = SCHED_TASKS.find(x=>x.drawingId===drawingId);
+  if(t){ t.status='ip'; t.pct=99; t.rag='amber'; }
+
+  // Withdraw any transmittals that issued this revision
+  const affected = TRANSMITTALS.filter(tx =>
+    tx.status === 'issued' &&
+    Array.isArray(tx.drawings) &&
+    tx.drawings.some(x => (x.id||x.drawingId) === drawingId)
+  );
+  affected.forEach(tx=>{
+    tx.status = 'withdrawn';
+    if(!Array.isArray(tx.history)) tx.history = [];
+    tx.history.push({
+      action: 'withdrawn',
+      date: toISO(new Date()),
+      by: me.id, byName: me.first+' '+me.last,
+      reason: 'Drawing '+d.id+' Rev '+d.rev+' was recalled within the 24h window'
+    });
+    // Notify each recipient
+    if(Array.isArray(tx.recipients)){
+      tx.recipients.forEach(rcp=>{
+        SENT_EMAILS.unshift({
+          type: 'transmittal-withdrawn',
+          to: rcp.email || rcp,
+          from: me.email || 'studio62@studio62.in',
+          subject: 'Transmittal '+(tx.id||'')+' withdrawn — '+d.id+' recalled',
+          body: 'The transmittal '+(tx.id||'')+' has been withdrawn because '+d.id+' Rev '+d.rev
+            + ' was recalled within the 24-hour window. Please discard or hold the affected drawing(s) '
+            + 'pending re-issue. — '+me.first+' '+me.last,
+          date: toISO(new Date()),
+          drawingId, projId: d.proj,
+          read: false, urgent: true
+        });
+      });
+    }
+  });
+
+  // Notify drafter
+  if(d.sid){
+    addNotif({type:'qa', icon:'↺', iconBg:'rgba(240,201,122,.2)',
+      title: d.id+' recalled — back to draft',
+      detail: 'Issued Rev '+d.rev+' withdrawn · '+(affected.length?affected.length+' transmittal(s) withdrawn':'no transmittals affected'),
+      projId: d.proj, drawingId, forStaff: d.sid, urgent: true});
+  }
+
+  scheduleSave({immediate:true});
+  renderDrawings(); renderProjList(); renderDashboard(); updateNavBadges();
+  if(typeof renderTransmittals === 'function') renderTransmittals();
+  showNotif('Recalled', d.id+' — back to draft' + (affected.length?' · '+affected.length+' transmittal(s) withdrawn':''));
+}
+
+/* Mark a drawing as superseded — used when a newer revision has been
+   issued and the older one should no longer be referenced. Sets a flag
+   on the drawing itself; UI surfaces this as a "superseded" badge.    */
+function markDrawingSuperseded(drawingId){
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  if(!d) return;
+  const me = currentUser();
+  if(!canSchedule() && d.sid !== me.id){
+    showNotif('Access denied','Drafter or senior staff only.'); return;
+  }
+  if(d.superseded){
+    if(!confirm('Already marked superseded. Remove the marker?')) return;
+    d.superseded = false;
+    d.supersededAt = null;
+    d.supersededBy = null;
+    showNotif('Marker removed', d.id+' is no longer marked superseded');
+  } else {
+    if(!confirm('Mark '+d.id+' as superseded?\n\nThis flags the drawing as no longer current. Used when a newer revision has been issued elsewhere or the drawing has been replaced.')) return;
+    d.superseded = true;
+    d.supersededAt = toISO(new Date());
+    d.supersededBy = me.id;
+    if(!Array.isArray(d.qaHistory)) d.qaHistory = [];
+    d.qaHistory.push({action:'superseded', by:me.id, byName:me.first+' '+me.last,
+      date: toISO(new Date()), dateFmt: fmtDate(new Date()),
+      note: 'Marked as superseded',
+      fromStatus: d.status, toStatus: d.status});
+    showNotif('Superseded', d.id+' marked as superseded');
+  }
+  scheduleSave({immediate:true});
+  renderDrawings(); renderProjList();
+}
+
+/* Open an inline progress slider for a drawing — used when user clicks
+   the "Update progress · 75%" button on an in-progress row. Just
+   re-uses the existing detail panel which has the progress slider.   */
+function openDrwProgressInline(drawingId){
+  openDrwDetail(drawingId);
+  // Scroll to and focus the progress slider once detail panel renders
+  setTimeout(()=>{
+    const slider = document.querySelector('input[type=range][onchange*="setPctFromSlider"][onchange*="'+drawingId+'"]');
+    if(slider){ slider.focus(); slider.scrollIntoView({block:'center', behavior:'smooth'}); }
+  }, 200);
+}
+
+/* End of v98 Option C row action engine. Below this line is unchanged. */
+
 function setPctFromSlider(drawingId, val) {
   const d = DRAWINGS.find(x=>x.id===drawingId); if(!d) return;
   if(d.status==='done') return; // locked
@@ -13345,53 +13889,76 @@ function setPctFromSlider(drawingId, val) {
     task.rag = d.status==='done'?'blue':spi>=0.95?'green':spi>=0.75?'amber':'red';
   }
   scheduleSave(); updateNavBadges();
-  // Gap 5 (v94) — Confirmation gate before triggering submit-for-check.
-  // Reaching 100% via slider/input is a deliberate action, but accidental
-  // sliders happen. Show a confirm dialog so the drafter must explicitly
-  // commit to QA submission. Bypass: programmatic 100% sets (revisions,
-  // approvals) call submitForCheck directly without going through this path.
-  if(newPct===100){
-    confirmAndSubmitForCheck(drawingId);
+  // v98 Option C — Auto-submit at 100% with Undo toast.
+  // The v94 popup was friction; reaching 100% IS the signal that work is
+  // done. Submit immediately and surface a 5-second Undo so the drafter can
+  // reverse a slip. The undoSubmitForCheck() helper rolls back status/pct
+  // and removes the QA notification chain.
+  if(newPct===100 && d.status!=='chk' && d.status!=='done'){
+    submitForCheck(drawingId);
+    showUndoToast(
+      'Submitted ' + drawingId + ' for QA review',
+      ()=>undoSubmitForCheck(drawingId),
+      6000
+    );
   }
 }
 
-/* Gap 5 helper — non-blocking confirm dialog wrapping submitForCheck */
-function confirmAndSubmitForCheck(drawingId){
-  const d = DRAWINGS.find(x => x.id === drawingId);
-  if(!d) return;
-  if(d.status === 'chk' || d.status === 'done') return; // already past
-  const approvers = STAFF.filter(s => rd(s.role).canSchedule);
-  const approverNames = approvers.length
-    ? approvers.slice(0,3).map(a => a.first).join(', ') + (approvers.length > 3 ? ' (+' + (approvers.length-3) + ')' : '')
-    : 'Principal/Lead';
-  const ex = document.getElementById('pct100-confirm-ov');
+/* v98 — Undo toast component. Stays visible for ms duration; user can
+   click Undo to revert. Only one toast at a time. */
+let _undoToastTimer = null;
+function showUndoToast(message, undoFn, ms){
+  ms = ms || 5000;
+  const ex = document.getElementById('undo-toast');
   if(ex) ex.remove();
-  const ov = document.createElement('div');
-  ov.id = 'pct100-confirm-ov';
-  ov.className = 'ov show';
-  ov.innerHTML = '<div class="modal" style="max-width:440px">'
-    + '<div style="font-size:32px;margin-bottom:8px;text-align:center">✓</div>'
-    + '<div class="mtitle" style="text-align:center">Submit for QA check?</div>'
-    + '<div style="font-family:var(--fm);font-size:11px;color:var(--txm);line-height:1.65;margin:14px 0;padding:10px 14px;background:var(--sf3);border-radius:6px">'
-      + '<b style="color:var(--tx)">'+d.id+'</b> — '+(d.title||'')
-      + '<div style="margin-top:6px">This will:</div>'
-      + '<ul style="margin:4px 0 0 18px;padding:0">'
-      + '<li>Lock the drawing at 100%</li>'
-      + '<li>Notify '+approverNames+' for QA review</li>'
-      + '<li>Move the task to "Awaiting QA" on your dashboard</li>'
-      + '</ul>'
-    + '</div>'
-    + '<div style="display:flex;gap:8px">'
-    + '<button class="btn bg" style="flex:1;justify-content:center;padding:10px" onclick="cancelPct100(\''+drawingId+'\')">Save at 99% instead</button>'
-    + '<button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="confirmPct100(\''+drawingId+'\')">Submit for check</button>'
-    + '</div>'
-    + '</div>';
-  document.body.appendChild(ov);
+  if(_undoToastTimer){ clearTimeout(_undoToastTimer); _undoToastTimer = null; }
+  const t = document.createElement('div');
+  t.id = 'undo-toast';
+  t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;'
+    + 'background:var(--sf);border:1px solid var(--bd2);border-radius:8px;padding:10px 14px 10px 16px;'
+    + 'box-shadow:0 6px 20px rgba(0,0,0,.22);display:flex;align-items:center;gap:14px;'
+    + 'font-family:var(--fm);font-size:11px;color:var(--tx);min-width:280px;max-width:480px;'
+    + 'animation:undoSlideUp .25s ease-out';
+  t.innerHTML = '<span style="flex:1">'+message+'</span>'
+    + '<button id="undo-toast-btn" style="background:var(--gold);color:#0a0a0f;border:none;'
+      + 'padding:5px 14px;border-radius:5px;font-family:var(--fm);font-size:11px;font-weight:600;cursor:pointer">Undo</button>'
+    + '<button onclick="document.getElementById(\'undo-toast\')?.remove()" style="background:transparent;'
+      + 'color:var(--txd);border:none;font-size:14px;cursor:pointer;padding:0 4px">×</button>';
+  document.body.appendChild(t);
+  document.getElementById('undo-toast-btn').onclick = function(){
+    try{ undoFn && undoFn(); }catch(e){ console.warn('Undo failed:', e); }
+    t.remove();
+    if(_undoToastTimer){ clearTimeout(_undoToastTimer); _undoToastTimer = null; }
+  };
+  _undoToastTimer = setTimeout(()=>{ t.remove(); _undoToastTimer = null; }, ms);
 }
-function confirmPct100(drawingId){
-  closeModal('pct100-confirm-ov');
-  maybeAutoSubmitForCheck(drawingId);
+
+/* v98 — Reverse submitForCheck on Undo click. Restores status to 'ip',
+   pct to 99, removes the most-recent QA email entries (the undoable ones
+   our submit just produced), and re-renders. */
+function undoSubmitForCheck(drawingId){
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  if(!d || d.status!=='chk') return;
+  d.status = 'ip';
+  d.pct = 99;
+  d.submittedAt = null;
+  d.submittedBy = null;
+  const t = SCHED_TASKS.find(x=>x.drawingId===drawingId);
+  if(t){ t.status='ip'; t.pct=99; }
+  // Remove the most-recent unread QA-check emails for this drawing
+  for(let i=SENT_EMAILS.length-1; i>=0 && i>SENT_EMAILS.length-20; i--){
+    if(SENT_EMAILS[i].type==='qa-check-request' && SENT_EMAILS[i].drawingId===drawingId && !SENT_EMAILS[i].read){
+      SENT_EMAILS.splice(i,1);
+    }
+  }
+  scheduleSave({immediate:true});
+  renderDrawings(); renderProjList(); renderDashboard(); updateNavBadges();
+  showNotif('Reverted', drawingId + ' returned to draft at 99%');
 }
+
+// v98 — Legacy popup helpers retained as no-ops for any external callers.
+function confirmAndSubmitForCheck(drawingId){ submitForCheck(drawingId); }
+function confirmPct100(drawingId){ closeModal('pct100-confirm-ov'); maybeAutoSubmitForCheck(drawingId); }
 function cancelPct100(drawingId){
   closeModal('pct100-confirm-ov');
   const d = DRAWINGS.find(x => x.id === drawingId);
@@ -13402,7 +13969,6 @@ function cancelPct100(drawingId){
   scheduleSave();
   renderDrawings();
   updateNavBadges();
-  showNotif('Saved at 99%', d.id + ' — increase to 100% when truly ready for QA');
 }
 
 
