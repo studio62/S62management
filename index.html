@@ -4819,6 +4819,612 @@ let FIRM_CONFIG = {
   setupComplete: true,           // skip wizard on first load
 };
 
+/* ═════════════════════════════════════════════════════════════════════
+   v99 — DRAWING TEMPLATES (Indian Standards aligned)
+   ─────────────────────────────────────────────────────────────────────
+   References:
+   • IS 962:1989 — sheet sizes, layout, line work, discipline prefixes
+   • COA Comprehensive Architectural Services — 11-stage scope (Stages 1-11)
+   • COA Manual of Architectural Practice (Vol 4) — man-hours fee method
+   • Industry practice — GFC / IFC / AFC progression
+
+   Each template has versioned drawing lists. Projects record the template
+   they were created from and the version they're synced to. Re-sync
+   compares versions and surfaces a clash dialog to the user.
+
+   Hours estimates are calibrated against COA man-hours norms and reflect
+   working-drawing-level depth (CD/GFC). Smaller projects use these as
+   ceiling values; larger projects multiply per-floor/per-zone.
+
+   Permission: Principal Architect, Associate Principal, Project Architect
+   can edit firm templates. Custom drawings added at the project level by
+   these roles are flagged customForProject:true and remain immune to
+   template re-sync.
+═════════════════════════════════════════════════════════════════════ */
+
+let DRW_TEMPLATES = [
+  /* ── TEMPLATE 1 — Architecture: Residential (Single-Family) ───────── */
+  {
+    id: 'tmpl_arch_residential',
+    name: 'Architecture — Residential',
+    description: 'Single-family residence, villa, or small townhouse. ~25 drawings, ~250 hours typical.',
+    icon: '🏠',
+    builtin: true,
+    appliesTo: ['RES-NEW','RES-RENO','RES-EXT'],
+    activeVersion: '1.0.0',
+    versions: [{
+      version: '1.0.0',
+      publishedAt: '2026-05-01',
+      publishedBy: 'system',
+      changeNote: 'Initial template — COA Stages 1-11 aligned with IS 962 prefixes',
+      drawings: [
+        // Stage 1-2 · SD · Concept & Preliminary
+        {ref:'A-PR-001', title:'Site Analysis & Brief',         disc:'ARCH', stage:'SD', drwType:'GA',  estHrs:8,  priority:'normal'},
+        {ref:'A-PR-002', title:'Conceptual Site Plan',          disc:'ARCH', stage:'SD', drwType:'GA',  estHrs:10, priority:'normal'},
+        {ref:'A-PR-003', title:'Conceptual Floor Plans',        disc:'ARCH', stage:'SD', drwType:'GA',  estHrs:14, priority:'normal'},
+        {ref:'A-PR-004', title:'Conceptual Elevations & 3D',    disc:'ARCH', stage:'SD', drwType:'ELV', estHrs:12, priority:'normal'},
+        // Stage 3 · DD · Statutory Submission
+        {ref:'A-ST-001', title:'Submission Site Plan (1:200)',  disc:'ARCH', stage:'DD', drwType:'GA',  estHrs:8,  priority:'high'},
+        {ref:'A-ST-002', title:'Submission Floor Plans (1:100)',disc:'ARCH', stage:'DD', drwType:'GA',  estHrs:16, priority:'high'},
+        {ref:'A-ST-003', title:'Submission Elevations & Sections',disc:'ARCH',stage:'DD',drwType:'ELV', estHrs:14, priority:'high'},
+        {ref:'A-ST-004', title:'FAR / Coverage Calculations',   disc:'ARCH', stage:'DD', drwType:'SCH', estHrs:6,  priority:'high'},
+        {ref:'S-ST-001', title:'Structural Submission (consultant)',disc:'STRUCT',stage:'DD',drwType:'GA',estHrs:0,priority:'high', consultant:true},
+        // Stage 4 · CD · Working Drawings
+        {ref:'A-WD-001', title:'Site Plan (1:200) — Working',   disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:10, priority:'normal'},
+        {ref:'A-WD-002', title:'Floor Plans (1:50) — Working',  disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:24, priority:'normal'},
+        {ref:'A-WD-003', title:'Roof Plan',                     disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:8,  priority:'normal'},
+        {ref:'A-WD-004', title:'Elevations (1:50) — All Faces', disc:'ARCH', stage:'CD', drwType:'ELV', estHrs:16, priority:'normal'},
+        {ref:'A-WD-005', title:'Building Sections (min. 2 cuts)',disc:'ARCH',stage:'CD', drwType:'SEC', estHrs:14, priority:'normal'},
+        {ref:'A-WD-006', title:'Wall Sections (typical, 1:20)', disc:'ARCH', stage:'CD', drwType:'SEC', estHrs:12, priority:'normal'},
+        {ref:'A-WD-007', title:'Reflected Ceiling Plans',       disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:10, priority:'normal'},
+        {ref:'A-WD-008', title:'Door & Window Schedule',        disc:'ARCH', stage:'CD', drwType:'SCH', estHrs:8,  priority:'normal'},
+        {ref:'A-WD-009', title:'Finishes Schedule',             disc:'ARCH', stage:'CD', drwType:'SCH', estHrs:6,  priority:'normal'},
+        {ref:'A-WD-010', title:'Toilet Details (1:20)',         disc:'ARCH', stage:'CD', drwType:'DET', estHrs:10, priority:'normal'},
+        {ref:'A-WD-011', title:'Staircase Details (1:20)',      disc:'ARCH', stage:'CD', drwType:'DET', estHrs:8,  priority:'normal'},
+        {ref:'A-WD-012', title:'Kitchen / Wet-Area Layout',     disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:8,  priority:'normal'},
+        // Stage 6 · CA · GFC
+        {ref:'A-GFC-001',title:'GFC Set: Architectural (coordinated)',disc:'ARCH',stage:'CA',drwType:'GA',estHrs:18,priority:'high'},
+        {ref:'A-GFC-002',title:'Joinery Details (1:5/1:10)',    disc:'ARCH', stage:'CA', drwType:'DET', estHrs:14, priority:'high'},
+        {ref:'A-GFC-003',title:'External Cladding/Façade Details',disc:'ARCH',stage:'CA',drwType:'DET', estHrs:12, priority:'high'},
+        // Stage 11 · CA · As-Built
+        {ref:'A-AB-001', title:'As-Built Architectural Set',    disc:'ARCH', stage:'CA', drwType:'GA',  estHrs:12, priority:'normal'},
+      ]
+    }]
+  },
+
+  /* ── TEMPLATE 2 — Architecture: Commercial / Office ──────────────── */
+  {
+    id: 'tmpl_arch_commercial',
+    name: 'Architecture — Commercial / Office',
+    description: 'Office buildings, retail, mixed-use. ~35 drawings, ~450 hours typical.',
+    icon: '🏢',
+    builtin: true,
+    appliesTo: ['COM-OFF','COM-RET','COM-MIX'],
+    activeVersion: '1.0.0',
+    versions: [{
+      version: '1.0.0',
+      publishedAt: '2026-05-01',
+      publishedBy: 'system',
+      changeNote: 'Initial commercial template — additional service-coordination drawings for MEP-heavy buildings',
+      drawings: [
+        // SD
+        {ref:'A-PR-001', title:'Site Analysis & Programme Brief',disc:'ARCH',stage:'SD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'A-PR-002', title:'Massing Studies',                disc:'ARCH',stage:'SD',drwType:'GA', estHrs:12, priority:'high'},
+        {ref:'A-PR-003', title:'Conceptual Site & Floor Plans',  disc:'ARCH',stage:'SD',drwType:'GA', estHrs:20, priority:'high'},
+        {ref:'A-PR-004', title:'Conceptual Elevations & 3D Views',disc:'ARCH',stage:'SD',drwType:'ELV',estHrs:16, priority:'high'},
+        {ref:'A-PR-005', title:'Parking & Circulation Studies',  disc:'ARCH',stage:'SD',drwType:'GA', estHrs:10, priority:'high'},
+        // DD · Statutory
+        {ref:'A-ST-001', title:'Submission Site Plan',           disc:'ARCH',stage:'DD',drwType:'GA', estHrs:12, priority:'critical'},
+        {ref:'A-ST-002', title:'Submission Floor Plans',         disc:'ARCH',stage:'DD',drwType:'GA', estHrs:24, priority:'critical'},
+        {ref:'A-ST-003', title:'Submission Elevations & Sections',disc:'ARCH',stage:'DD',drwType:'ELV',estHrs:18, priority:'critical'},
+        {ref:'A-ST-004', title:'FAR/FSI/Coverage Calculations',  disc:'ARCH',stage:'DD',drwType:'SCH',estHrs:8,  priority:'critical'},
+        {ref:'A-ST-005', title:'Fire & Life Safety Submission',  disc:'ARCH',stage:'DD',drwType:'GA', estHrs:14, priority:'critical'},
+        {ref:'A-ST-006', title:'NBC Compliance Drawings',        disc:'ARCH',stage:'DD',drwType:'GA', estHrs:12, priority:'critical'},
+        {ref:'S-ST-001', title:'Structural Submission (consultant)',disc:'STRUCT',stage:'DD',drwType:'GA',estHrs:0,priority:'critical',consultant:true},
+        // CD · Working
+        {ref:'A-WD-001', title:'Site Plan & Hardscape',          disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'A-WD-002', title:'Basement & GF Floor Plans',      disc:'ARCH',stage:'CD',drwType:'GA', estHrs:22, priority:'high'},
+        {ref:'A-WD-003', title:'Typical Floor Plans',            disc:'ARCH',stage:'CD',drwType:'GA', estHrs:18, priority:'high'},
+        {ref:'A-WD-004', title:'Terrace & Roof Plan',            disc:'ARCH',stage:'CD',drwType:'GA', estHrs:10, priority:'high'},
+        {ref:'A-WD-005', title:'All Elevations (1:50)',          disc:'ARCH',stage:'CD',drwType:'ELV',estHrs:20, priority:'high'},
+        {ref:'A-WD-006', title:'Building Sections (min. 4 cuts)',disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:18, priority:'high'},
+        {ref:'A-WD-007', title:'Wall Sections (typical, 1:20)',  disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:16, priority:'high'},
+        {ref:'A-WD-008', title:'Reflected Ceiling Plans',        disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'A-WD-009', title:'Door & Window Schedule',         disc:'ARCH',stage:'CD',drwType:'SCH',estHrs:12, priority:'high'},
+        {ref:'A-WD-010', title:'Finishes Schedule',              disc:'ARCH',stage:'CD',drwType:'SCH',estHrs:10, priority:'high'},
+        {ref:'A-WD-011', title:'Common Area Toilet Details',     disc:'ARCH',stage:'CD',drwType:'DET',estHrs:14, priority:'high'},
+        {ref:'A-WD-012', title:'Lift & Lobby Details',           disc:'ARCH',stage:'CD',drwType:'DET',estHrs:12, priority:'high'},
+        {ref:'A-WD-013', title:'Staircase Details (Fire Stairs)',disc:'ARCH',stage:'CD',drwType:'DET',estHrs:14, priority:'high'},
+        {ref:'A-WD-014', title:'Façade System Drawings',         disc:'ARCH',stage:'CD',drwType:'DET',estHrs:18, priority:'high'},
+        {ref:'A-WD-015', title:'Service Coordination Plans',     disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
+        // CA · GFC
+        {ref:'A-GFC-001',title:'GFC Architectural (coordinated)',disc:'ARCH',stage:'CA',drwType:'GA', estHrs:24, priority:'critical'},
+        {ref:'A-GFC-002',title:'Joinery & Fitting Details',      disc:'ARCH',stage:'CA',drwType:'DET',estHrs:18, priority:'high'},
+        {ref:'A-GFC-003',title:'Cladding & Façade Shop Coord',   disc:'ARCH',stage:'CA',drwType:'DET',estHrs:16, priority:'high'},
+        {ref:'A-GFC-004',title:'Signage & Wayfinding',           disc:'ARCH',stage:'CA',drwType:'DET',estHrs:10, priority:'normal'},
+        {ref:'A-GFC-005',title:'External Works Details',         disc:'ARCH',stage:'CA',drwType:'DET',estHrs:12, priority:'normal'},
+        // As-Built
+        {ref:'A-AB-001', title:'As-Built Architectural Set',     disc:'ARCH',stage:'CA',drwType:'GA', estHrs:18, priority:'normal'},
+      ]
+    }]
+  },
+
+  /* ── TEMPLATE 3 — Architecture: Civic / Institutional ────────────── */
+  {
+    id: 'tmpl_arch_civic',
+    name: 'Architecture — Civic / Institutional',
+    description: 'Libraries, community centers, schools, government buildings. ~30 drawings, ~380 hours typical.',
+    icon: '🏛',
+    builtin: true,
+    appliesTo: ['CIV-LIB','CIV-COM','CIV-EDU','CIV-GOV','SPO-CEN'],
+    activeVersion: '1.0.0',
+    versions: [{
+      version: '1.0.0',
+      publishedAt: '2026-05-01',
+      publishedBy: 'system',
+      changeNote: 'Initial civic template — public-building emphasis on accessibility and assembly',
+      drawings: [
+        // SD
+        {ref:'A-PR-001', title:'Site Analysis & Public Realm Study', disc:'ARCH',stage:'SD',drwType:'GA', estHrs:16, priority:'high'},
+        {ref:'A-PR-002', title:'Programme & Functional Diagrams',disc:'ARCH',stage:'SD',drwType:'GA', estHrs:12, priority:'high'},
+        {ref:'A-PR-003', title:'Conceptual Plans & Massing',     disc:'ARCH',stage:'SD',drwType:'GA', estHrs:20, priority:'high'},
+        {ref:'A-PR-004', title:'Conceptual Elevations & 3D',     disc:'ARCH',stage:'SD',drwType:'ELV',estHrs:14, priority:'high'},
+        {ref:'A-PR-005', title:'Accessibility Strategy (NBC Part 3)',disc:'ARCH',stage:'SD',drwType:'GA',estHrs:10,priority:'high'},
+        // DD
+        {ref:'A-ST-001', title:'Submission Site Plan',           disc:'ARCH',stage:'DD',drwType:'GA', estHrs:12, priority:'critical'},
+        {ref:'A-ST-002', title:'Submission Floor Plans',         disc:'ARCH',stage:'DD',drwType:'GA', estHrs:22, priority:'critical'},
+        {ref:'A-ST-003', title:'Submission Elevations & Sections',disc:'ARCH',stage:'DD',drwType:'ELV',estHrs:16, priority:'critical'},
+        {ref:'A-ST-004', title:'FAR & Public Building Compliance',disc:'ARCH',stage:'DD',drwType:'SCH',estHrs:8,  priority:'critical'},
+        {ref:'A-ST-005', title:'Fire & Life Safety / Egress',    disc:'ARCH',stage:'DD',drwType:'GA', estHrs:14, priority:'critical'},
+        {ref:'A-ST-006', title:'Accessibility Submission (HCC)', disc:'ARCH',stage:'DD',drwType:'GA', estHrs:10, priority:'critical'},
+        // CD
+        {ref:'A-WD-001', title:'Site Plan & Approach',           disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'A-WD-002', title:'All Floor Plans (1:50)',         disc:'ARCH',stage:'CD',drwType:'GA', estHrs:24, priority:'high'},
+        {ref:'A-WD-003', title:'Roof Plan',                      disc:'ARCH',stage:'CD',drwType:'GA', estHrs:10, priority:'high'},
+        {ref:'A-WD-004', title:'All Elevations (1:50)',          disc:'ARCH',stage:'CD',drwType:'ELV',estHrs:18, priority:'high'},
+        {ref:'A-WD-005', title:'Building Sections (min. 3 cuts)',disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:16, priority:'high'},
+        {ref:'A-WD-006', title:'Wall Sections (typical & special)',disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:14,priority:'high'},
+        {ref:'A-WD-007', title:'Reflected Ceiling Plans',        disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'A-WD-008', title:'Door & Window Schedule',         disc:'ARCH',stage:'CD',drwType:'SCH',estHrs:10, priority:'high'},
+        {ref:'A-WD-009', title:'Finishes Schedule',              disc:'ARCH',stage:'CD',drwType:'SCH',estHrs:10, priority:'high'},
+        {ref:'A-WD-010', title:'Toilet & Accessible Toilet Details',disc:'ARCH',stage:'CD',drwType:'DET',estHrs:12,priority:'high'},
+        {ref:'A-WD-011', title:'Stair & Ramp Details',           disc:'ARCH',stage:'CD',drwType:'DET',estHrs:14, priority:'high'},
+        {ref:'A-WD-012', title:'Assembly Hall / Public Space Details',disc:'ARCH',stage:'CD',drwType:'DET',estHrs:18,priority:'high'},
+        {ref:'A-WD-013', title:'Acoustic Details (where applicable)',disc:'ARCH',stage:'CD',drwType:'DET',estHrs:12,priority:'normal'},
+        // CA · GFC
+        {ref:'A-GFC-001',title:'GFC Architectural (coordinated)',disc:'ARCH',stage:'CA',drwType:'GA', estHrs:20, priority:'critical'},
+        {ref:'A-GFC-002',title:'Joinery & Custom Fittings',      disc:'ARCH',stage:'CA',drwType:'DET',estHrs:16, priority:'high'},
+        {ref:'A-GFC-003',title:'External Façade & Cladding',     disc:'ARCH',stage:'CA',drwType:'DET',estHrs:14, priority:'high'},
+        {ref:'A-GFC-004',title:'Signage & Wayfinding',           disc:'ARCH',stage:'CA',drwType:'DET',estHrs:12, priority:'normal'},
+        {ref:'A-GFC-005',title:'Landscape Coordination',         disc:'ARCH',stage:'CA',drwType:'DET',estHrs:10, priority:'normal'},
+        // As-Built
+        {ref:'A-AB-001', title:'As-Built Architectural Set',     disc:'ARCH',stage:'CA',drwType:'GA', estHrs:16, priority:'normal'},
+      ]
+    }]
+  },
+
+  /* ── TEMPLATE 4 — Interior Fitout: Residential ──────────────────── */
+  {
+    id: 'tmpl_int_residential',
+    name: 'Interior Fitout — Residential',
+    description: 'Apartment or residence interior design. ~20 drawings, ~200 hours typical.',
+    icon: '🛋',
+    builtin: true,
+    appliesTo: ['INT-RES','INT-APT'],
+    activeVersion: '1.0.0',
+    versions: [{
+      version: '1.0.0',
+      publishedAt: '2026-05-01',
+      publishedBy: 'system',
+      changeNote: 'Initial interior residential template',
+      drawings: [
+        // SD · Concept
+        {ref:'I-PR-001', title:'Concept Mood Boards',            disc:'INT', stage:'SD',drwType:'GA', estHrs:8,  priority:'normal'},
+        {ref:'I-PR-002', title:'Layout Options & Space Planning',disc:'INT', stage:'SD',drwType:'GA', estHrs:12, priority:'normal'},
+        {ref:'I-PR-003', title:'Conceptual 3D Views',            disc:'INT', stage:'SD',drwType:'3D', estHrs:14, priority:'normal'},
+        // DD
+        {ref:'I-DD-001', title:'Approved Layout Plan',           disc:'INT', stage:'DD',drwType:'GA', estHrs:10, priority:'high'},
+        {ref:'I-DD-002', title:'Furniture & FF&E Layout',        disc:'INT', stage:'DD',drwType:'GA', estHrs:12, priority:'high'},
+        {ref:'I-DD-003', title:'Reflected Ceiling Plan & Lighting',disc:'INT',stage:'DD',drwType:'GA',estHrs:10, priority:'high'},
+        {ref:'I-DD-004', title:'Material Palette & Finishes',    disc:'INT', stage:'DD',drwType:'SCH',estHrs:8,  priority:'high'},
+        // CD · Working
+        {ref:'I-WD-001', title:'Floor Pattern & Flooring Layout',disc:'INT', stage:'CD',drwType:'GA', estHrs:10, priority:'high'},
+        {ref:'I-WD-002', title:'Wall Elevations (all rooms)',    disc:'INT', stage:'CD',drwType:'ELV',estHrs:18, priority:'high'},
+        {ref:'I-WD-003', title:'Joinery Drawings — Living/Dining',disc:'INT',stage:'CD',drwType:'DET',estHrs:14, priority:'high'},
+        {ref:'I-WD-004', title:'Joinery Drawings — Bedrooms',    disc:'INT', stage:'CD',drwType:'DET',estHrs:14, priority:'high'},
+        {ref:'I-WD-005', title:'Kitchen Joinery & Details',      disc:'INT', stage:'CD',drwType:'DET',estHrs:18, priority:'high'},
+        {ref:'I-WD-006', title:'Wardrobe Details',               disc:'INT', stage:'CD',drwType:'DET',estHrs:12, priority:'high'},
+        {ref:'I-WD-007', title:'Bathroom Layouts & Elevations',  disc:'INT', stage:'CD',drwType:'DET',estHrs:14, priority:'high'},
+        {ref:'I-WD-008', title:'False Ceiling Details',          disc:'INT', stage:'CD',drwType:'DET',estHrs:10, priority:'high'},
+        {ref:'I-WD-009', title:'Lighting Layout & Schedule',     disc:'INT', stage:'CD',drwType:'SCH',estHrs:10, priority:'high'},
+        {ref:'I-WD-010', title:'Furniture Schedule',             disc:'INT', stage:'CD',drwType:'SCH',estHrs:8,  priority:'normal'},
+        {ref:'I-WD-011', title:'Hardware & Accessories Schedule',disc:'INT', stage:'CD',drwType:'SCH',estHrs:6,  priority:'normal'},
+        // CA · GFC
+        {ref:'I-GFC-001',title:'GFC Interior Set (coordinated)', disc:'INT', stage:'CA',drwType:'GA', estHrs:16, priority:'high'},
+        {ref:'I-AB-001', title:'As-Built Interior Set',          disc:'INT', stage:'CA',drwType:'GA', estHrs:8,  priority:'normal'},
+      ]
+    }]
+  },
+
+  /* ── TEMPLATE 5 — Interior Fitout: Commercial / Office ───────────── */
+  {
+    id: 'tmpl_int_commercial',
+    name: 'Interior Fitout — Commercial / Office',
+    description: 'Office, co-working, retail interior fitout. ~25 drawings, ~280 hours typical.',
+    icon: '🏪',
+    builtin: true,
+    appliesTo: ['INT-COM','INT-OFF','INT-RET'],
+    activeVersion: '1.0.0',
+    versions: [{
+      version: '1.0.0',
+      publishedAt: '2026-05-01',
+      publishedBy: 'system',
+      changeNote: 'Initial commercial interior template — workplace and retail emphasis',
+      drawings: [
+        // SD
+        {ref:'I-PR-001', title:'Brand Brief & Mood Board',       disc:'INT', stage:'SD',drwType:'GA', estHrs:10, priority:'high'},
+        {ref:'I-PR-002', title:'Space Planning Options',         disc:'INT', stage:'SD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'I-PR-003', title:'Concept 3D Views',               disc:'INT', stage:'SD',drwType:'3D', estHrs:16, priority:'high'},
+        {ref:'I-PR-004', title:'Workplace Strategy / Density Study',disc:'INT',stage:'SD',drwType:'GA',estHrs:10, priority:'high'},
+        // DD
+        {ref:'I-DD-001', title:'Approved Floor Plan',            disc:'INT', stage:'DD',drwType:'GA', estHrs:14, priority:'critical'},
+        {ref:'I-DD-002', title:'Furniture Layout & FF&E',        disc:'INT', stage:'DD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'I-DD-003', title:'RCP & Lighting Concept',         disc:'INT', stage:'DD',drwType:'GA', estHrs:12, priority:'high'},
+        {ref:'I-DD-004', title:'Material & Finishes Palette',    disc:'INT', stage:'DD',drwType:'SCH',estHrs:10, priority:'high'},
+        {ref:'I-DD-005', title:'Branding & Signage Concept',     disc:'INT', stage:'DD',drwType:'GA', estHrs:10, priority:'high'},
+        // CD
+        {ref:'I-WD-001', title:'Demolition / Existing Conditions',disc:'INT',stage:'CD',drwType:'GA', estHrs:8,  priority:'high'},
+        {ref:'I-WD-002', title:'Setting-out & Partition Layout', disc:'INT', stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'I-WD-003', title:'Floor Finishes Plan',            disc:'INT', stage:'CD',drwType:'GA', estHrs:10, priority:'high'},
+        {ref:'I-WD-004', title:'Reflected Ceiling Plan & Lighting',disc:'INT',stage:'CD',drwType:'GA',estHrs:14, priority:'high'},
+        {ref:'I-WD-005', title:'Wall Elevations (all zones)',    disc:'INT', stage:'CD',drwType:'ELV',estHrs:18, priority:'high'},
+        {ref:'I-WD-006', title:'Reception & Lobby Joinery',      disc:'INT', stage:'CD',drwType:'DET',estHrs:14, priority:'high'},
+        {ref:'I-WD-007', title:'Workstation / Cabin Joinery',    disc:'INT', stage:'CD',drwType:'DET',estHrs:16, priority:'high'},
+        {ref:'I-WD-008', title:'Pantry / Cafeteria Details',     disc:'INT', stage:'CD',drwType:'DET',estHrs:12, priority:'high'},
+        {ref:'I-WD-009', title:'Toilet Details',                 disc:'INT', stage:'CD',drwType:'DET',estHrs:12, priority:'high'},
+        {ref:'I-WD-010', title:'Conference Room Details',        disc:'INT', stage:'CD',drwType:'DET',estHrs:14, priority:'high'},
+        {ref:'I-WD-011', title:'Furniture Schedule (FF&E)',      disc:'INT', stage:'CD',drwType:'SCH',estHrs:12, priority:'high'},
+        {ref:'I-WD-012', title:'Lighting Schedule',              disc:'INT', stage:'CD',drwType:'SCH',estHrs:8,  priority:'high'},
+        {ref:'I-WD-013', title:'Hardware / Door Schedule',       disc:'INT', stage:'CD',drwType:'SCH',estHrs:8,  priority:'normal'},
+        {ref:'I-WD-014', title:'Signage & Wayfinding Details',   disc:'INT', stage:'CD',drwType:'DET',estHrs:10, priority:'normal'},
+        // CA
+        {ref:'I-GFC-001',title:'GFC Interior Set (coordinated)', disc:'INT', stage:'CA',drwType:'GA', estHrs:18, priority:'critical'},
+        {ref:'I-AB-001', title:'As-Built Interior Set',          disc:'INT', stage:'CA',drwType:'GA', estHrs:10, priority:'normal'},
+      ]
+    }]
+  },
+];
+
+/* Helper: get the active version of a template by id */
+function getTemplate(tid){
+  return DRW_TEMPLATES.find(t => t.id === tid);
+}
+function getTemplateVersion(tid, vstr){
+  const t = getTemplate(tid);
+  if(!t) return null;
+  return t.versions.find(v => v.version === (vstr || t.activeVersion));
+}
+function canEditTemplate(){
+  const me = currentUser();
+  if(!me) return false;
+  return ['Principal Architect','Associate Principal','Project Architect'].includes(me.role);
+}
+
+let DRW_TEMPLATES_INITIALIZED = true; /* sanity flag */
+
+/* ═════════════════════════════════════════════════════════════════════
+   v99 — TEMPLATE OPERATIONS
+   apply, re-sync, fork, edit, save-version
+═════════════════════════════════════════════════════════════════════ */
+
+/* Increment a semver string. Bump = 'major' | 'minor' | 'patch' */
+function bumpVersion(v, bump){
+  const parts = (v||'1.0.0').split('.').map(n => parseInt(n) || 0);
+  while(parts.length < 3) parts.push(0);
+  if(bump === 'major'){ parts[0]++; parts[1]=0; parts[2]=0; }
+  else if(bump === 'minor'){ parts[1]++; parts[2]=0; }
+  else { parts[2]++; }
+  return parts.join('.');
+}
+
+/* Compute the next sequence number for a discipline within a project.
+   Looks at existing DRAWINGS for that project+discipline and returns N+1. */
+function nextDrawingSeq(projId, discPrefix){
+  const reg = new RegExp('^'+projId+'-'+discPrefix+'-(\\d+)');
+  let max = 0;
+  DRAWINGS.forEach(d=>{
+    if(d.proj !== projId) return;
+    const m = d.id.match(reg);
+    if(m){ max = Math.max(max, parseInt(m[1])); }
+  });
+  return max + 1;
+}
+
+/* Apply a template version to a project. Creates drawings for each
+   non-conflicting template entry. Returns {created, skipped}.
+   Assumes caller has confirmed via clash dialog if needed.            */
+/* v100 Phase 1 — Stage window resolver. Returns a map of {SD, DD, CD, CA, _fallback}
+   each entry being {start: Date, end: Date}. Falls back to project.start/end
+   when a stage window is undefined. Past windows push forward to today. */
+function computeStageWindows(proj){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const projStart = proj.start ? new Date(proj.start) : today;
+  const projEnd = proj.end ? new Date(proj.end) : new Date(today.getTime() + 365*24*60*60*1000);
+  // If both project dates are in the past, push the whole window forward
+  const todayMs = today.getTime();
+  let baseStart = projStart;
+  let baseEnd = projEnd;
+  if(projEnd.getTime() < todayMs){
+    // Whole project window is past — assume continuation, default 1 year forward
+    baseStart = today;
+    baseEnd = new Date(todayMs + 365*24*60*60*1000);
+  } else if(projStart.getTime() < todayMs){
+    // Project started but not ended — start window from today
+    baseStart = today;
+  }
+  const fallback = {start: baseStart, end: baseEnd};
+
+  const windows = {_fallback: fallback};
+  ['SD','DD','CD','CA'].forEach(s=>{
+    const stg = proj.stages && proj.stages[s];
+    if(stg && stg.start && stg.end){
+      let st = new Date(stg.start);
+      let en = new Date(stg.end);
+      // Push forward if entirely in the past
+      if(en.getTime() < todayMs){
+        // Estimate stage duration and push forward
+        const dur = en.getTime() - st.getTime();
+        st = today;
+        en = new Date(todayMs + Math.max(dur, 30*24*60*60*1000));
+      } else if(st.getTime() < todayMs){
+        st = today;
+      }
+      windows[s] = {start: st, end: en};
+    } else {
+      windows[s] = fallback;
+    }
+  });
+  return windows;
+}
+
+/* Compute target date for a drawing based on its position within a stage's
+   window. Index 0 of N drawings → near start; index N-1 → near end. Uses
+   even spread with a small offset so the first drawing isn't on day 1. */
+function computeStageDate(window, idx, total){
+  if(!window || !window.start || !window.end) return '';
+  const sMs = window.start.getTime();
+  const eMs = window.end.getTime();
+  const dur = Math.max(eMs - sMs, 14*24*60*60*1000);
+  // Spread fraction: idx 0 → 5%, idx N-1 → 95%
+  const denom = Math.max(total - 1, 1);
+  const frac = total === 1 ? 0.5 : 0.05 + (idx/denom) * 0.90;
+  const dateMs = sMs + Math.round(dur * frac);
+  const d = new Date(dateMs);
+  return toISO(d);
+}
+
+function applyTemplateToProject(projId, tid, vstr, options){
+  options = options || {};
+  const proj = PROJS.find(p=>p.id===projId);
+  const tv = getTemplateVersion(tid, vstr);
+  if(!proj || !tv){ showNotif('Cannot apply','Template or project missing.'); return null; }
+
+  const me = currentUser();
+  let created = 0, skipped = 0, conflicted = [];
+  const onlyRefs = options.onlyRefs;  // optional whitelist of refs to apply
+  const skipExisting = options.skipExisting !== false; // default true
+
+  // v100 Phase 1 — pre-compute stage windows for date distribution.
+  // Drawings within a stage spread evenly between that stage's start and
+  // end. Stage windows fall back to project.start/end when undefined, and
+  // past windows push forward to today + (index × 5 days) so newly-applied
+  // drawings don't appear pre-overdue on day one.
+  const stageWindows = computeStageWindows(proj);
+  // Count drawings per stage (ignoring consultant rows and non-selected refs)
+  // so each row knows its position within its stage's window
+  const stageCounts = {};
+  const stageIndices = {};
+  tv.drawings.forEach(td=>{
+    if(td.consultant) return;
+    if(onlyRefs && !onlyRefs.includes(td.ref)) return;
+    const existing = DRAWINGS.find(d=>d.proj===projId && d.templateRef===td.ref);
+    if(existing && skipExisting) return;
+    const s = td.stage || 'CD';
+    stageCounts[s] = (stageCounts[s] || 0) + 1;
+  });
+
+  tv.drawings.forEach(td=>{
+    // Skip consultant rows entirely (they're placeholders)
+    if(td.consultant) return;
+    // Filter by explicit selection if provided
+    if(onlyRefs && !onlyRefs.includes(td.ref)) return;
+    // Skip if a drawing with this templateRef already exists in the project
+    const existing = DRAWINGS.find(d=>d.proj===projId && d.templateRef===td.ref);
+    if(existing){
+      if(skipExisting){ skipped++; return; }
+      conflicted.push({existing, template: td});
+      return;
+    }
+    // Compute discipline prefix from disc — IS 962
+    const discPrefix = (td.disc==='ARCH'?'A':td.disc==='INT'?'I':td.disc==='STRUCT'?'S':td.disc==='ELEC'?'E':td.disc==='PLMB'?'P':td.disc==='HVAC'?'M':td.disc.charAt(0));
+    const seq = nextDrawingSeq(projId, discPrefix);
+    const newId = projId + '-' + discPrefix + '-' + String(seq).padStart(3,'0');
+
+    // v100 Phase 1 — compute target date based on stage + position
+    const stg = td.stage || 'CD';
+    const idxInStage = stageIndices[stg] || 0;
+    stageIndices[stg] = idxInStage + 1;
+    const totalInStage = stageCounts[stg] || 1;
+    const tgtDate = computeStageDate(stageWindows[stg] || stageWindows._fallback, idxInStage, totalInStage);
+
+    const newDrw = {
+      id: newId,
+      proj: projId,
+      title: td.title,
+      drwType: td.drwType || 'GA',
+      disc: td.disc,
+      stage: td.stage,
+      status: 'nst',
+      rev: '-',
+      tgt: tgtDate,
+      due: tgtDate,
+      setby: me ? me.id : '',
+      pct: 0,
+      hrs: 0,
+      sid: '',          // unassigned by default — drafter assigned later
+      pkg: '',
+      revHistory: [],
+      qaHistory: [],
+      // v99 template tracking
+      templateRef: td.ref,
+      fromTemplate: true,
+      customForProject: false,
+    };
+    DRAWINGS.push(newDrw);
+
+    // Also create the SCHED_TASK using template's hours/priority
+    SCHED_TASKS.push({
+      id: 'T_'+newId+'_'+Date.now()+'_'+seq,
+      drawingId: newId,
+      projId: projId,
+      title: td.title,
+      disc: td.disc,
+      staffId: '', sid: '',
+      phase: td.stage || 'CD',
+      status: 'nst',
+      start: '', due: tgtDate,
+      estHrs: td.estHrs || 5,
+      actHrs: 0,
+      pct: 0,
+      priority: td.priority || 'normal',
+      rag: 'green',
+      ragOverride: 'auto',
+      notes: '',
+      changeLog: [{
+        date: new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}),
+        by: me ? (me.first+' '+me.last) : 'system',
+        note: 'Created from template ' + tid + ' v' + tv.version
+      }],
+      milestone: false,
+      deps: [],
+      fromTemplate: true,
+      templateRef: td.ref,
+    });
+    created++;
+  });
+
+  // Mark project with template binding
+  proj.templateId = tid;
+  proj.templateVersion = tv.version;
+  proj.templateAppliedAt = toISO(new Date());
+
+  return {created, skipped, conflicted};
+}
+
+/* Diff a project against a template version. Returns:
+     - newInTemplate[]: template entries with no matching drawing in project
+     - changedInTemplate[]: template entries that exist in project but
+                            template's title/hrs/etc has changed
+     - customInProject[]: project drawings flagged custom (left alone)
+     - deletedInTemplate[]: drawings in project from template that were
+                            removed in the new version
+*/
+function diffProjectVsTemplate(projId, tid, vstr){
+  const tv = getTemplateVersion(tid, vstr);
+  if(!tv) return null;
+  const projDrawings = DRAWINGS.filter(d=>d.proj===projId);
+  const fromTemplateDrawings = projDrawings.filter(d=>d.fromTemplate);
+  const newInTemplate = [];
+  const changedInTemplate = [];
+  const customInProject = projDrawings.filter(d=>d.customForProject);
+
+  tv.drawings.forEach(td=>{
+    if(td.consultant) return;
+    const found = fromTemplateDrawings.find(d=>d.templateRef===td.ref);
+    if(!found){
+      newInTemplate.push(td);
+    } else {
+      // Compare title, disc, stage, drwType — flag if any changed
+      if(found.title !== td.title || found.stage !== td.stage || found.drwType !== td.drwType){
+        changedInTemplate.push({template: td, existing: found});
+      }
+      // Also check the SCHED_TASK estHrs and priority
+      const task = SCHED_TASKS.find(t=>t.drawingId===found.id);
+      if(task && (task.estHrs !== td.estHrs || task.priority !== td.priority)){
+        changedInTemplate.push({template: td, existing: found, task: task});
+      }
+    }
+  });
+
+  // deletedInTemplate: drawings in project from template, but template no longer has the ref
+  const tvRefs = new Set(tv.drawings.filter(td=>!td.consultant).map(td=>td.ref));
+  const deletedInTemplate = fromTemplateDrawings.filter(d=>d.templateRef && !tvRefs.has(d.templateRef));
+
+  return {newInTemplate, changedInTemplate, customInProject, deletedInTemplate};
+}
+
+/* Fork a built-in template. Creates a new editable copy with same
+   drawings list. The original built-in template is untouched.        */
+function forkTemplate(tid){
+  const orig = getTemplate(tid);
+  if(!orig) return null;
+  const me = currentUser();
+  const copyId = 'tmpl_custom_'+Date.now();
+  const newTemplate = {
+    id: copyId,
+    name: orig.name + ' (Custom)',
+    description: 'Forked from ' + orig.name + ' on ' + new Date().toLocaleDateString(),
+    icon: orig.icon,
+    builtin: false,
+    forkedFrom: tid,
+    appliesTo: [...(orig.appliesTo||[])],
+    activeVersion: '1.0.0',
+    versions: [{
+      version: '1.0.0',
+      publishedAt: toISO(new Date()),
+      publishedBy: me ? me.id : '',
+      changeNote: 'Forked from ' + orig.name + ' v' + orig.activeVersion,
+      drawings: JSON.parse(JSON.stringify(orig.versions.find(v=>v.version===orig.activeVersion).drawings))
+    }]
+  };
+  DRW_TEMPLATES.push(newTemplate);
+  return newTemplate;
+}
+
+/* Save edits as a new version. bump='minor' adds a new version,
+   keeping history. The active version is updated to the new one.    */
+function saveTemplateVersion(tid, newDrawings, changeNote, bump){
+  const t = getTemplate(tid);
+  if(!t || t.builtin) { showNotif('Cannot save','Built-in templates must be forked first.'); return null; }
+  const me = currentUser();
+  const newVer = bumpVersion(t.activeVersion, bump || 'minor');
+  t.versions.push({
+    version: newVer,
+    publishedAt: toISO(new Date()),
+    publishedBy: me ? me.id : '',
+    changeNote: changeNote || 'Edits',
+    drawings: JSON.parse(JSON.stringify(newDrawings))
+  });
+  t.activeVersion = newVer;
+  return newVer;
+}
+
+/* Delete a custom template. Built-ins cannot be deleted.            */
+function deleteTemplate(tid){
+  const t = getTemplate(tid);
+  if(!t) return false;
+  if(t.builtin){ showNotif('Cannot delete','Built-in templates can only be hidden, not deleted.'); return false; }
+  // Warn if any project uses it
+  const using = PROJS.filter(p=>p.templateId===tid);
+  if(using.length){
+    if(!confirm('This template is used by '+using.length+' project(s). They will keep their drawings but lose template binding. Proceed?')) return false;
+    using.forEach(p=>{ p.templateId=null; p.templateVersion=null; });
+  }
+  const idx = DRW_TEMPLATES.findIndex(t=>t.id===tid);
+  if(idx>=0){ DRW_TEMPLATES.splice(idx,1); return true; }
+  return false;
+}
+
 /* ── AUDIT LOG ─────────────────────────────────────────── */
 let AUDIT_LOG = [];
 const AUDIT_MAX = 500; // keep last 500 entries
@@ -9505,6 +10111,8 @@ function buildDrwTable(proj, rows, disc){
       +'<div onclick="openDrwDetail(\''+r.id+'\')" title="'+r.title+'" style="cursor:pointer">'
       +'<div style="font-size:11px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">'+r.title
         + (r.superseded ? ' <span style="display:inline-block;font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.04em;background:rgba(186,117,23,.15);color:var(--gold);padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle">SUPERSEDED</span>' : '')
+        + (r.customForProject ? ' <span style="display:inline-block;font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.04em;background:rgba(82,133,224,.12);color:var(--blu);padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle" title="Project-specific drawing — not from template, will not be touched by template re-sync">CUSTOM</span>' : '')
+        + (r.fromTemplate && r.templateRef ? ' <span style="display:inline-block;font-family:var(--fm);font-size:7.5px;color:var(--txd);padding:1px 4px;border-radius:3px;margin-left:4px;vertical-align:middle" title="From template: '+r.templateRef+'">📐 '+r.templateRef+'</span>' : '')
         +'</div>'
       +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:'+(proj?proj.color:'var(--txd)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">\u25a0 '+(proj?proj.name:r.proj)+'</div>'
       +'</div>'
@@ -9779,12 +10387,16 @@ function buildProjColorPicker(){
 function renderTemplatePreview(pt){
   const el=document.getElementById('ap-template-preview');if(!el)return;
   if(!pt){el.innerHTML='';return;}
+  // v100 Phase 2 — when a DRW_TEMPLATE matches and the user has it ticked,
+  // hide the legacy preview (the template card replaces it).
+  const tmplApplyEl = document.getElementById('ap-tmpl-apply');
+  if(tmplApplyEl && tmplApplyEl.checked){ el.innerHTML=''; return; }
   const discList=Object.keys(pt.drawingTemplate||{}).filter(d=>pt.drawingTemplate[d]&&pt.drawingTemplate[d].length>0);
   const total=discList.reduce((a,d)=>a+(pt.drawingTemplate[d]?.length||0),0);
   if(!total){el.innerHTML='';return;}
   el.innerHTML='<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;margin-bottom:14px">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-      +'<span style="font-family:var(--fm);font-size:10px;font-weight:600;color:var(--txm);text-transform:uppercase;letter-spacing:.06em">Drawing Register Preview</span>'
+      +'<span style="font-family:var(--fm);font-size:10px;font-weight:600;color:var(--txm);text-transform:uppercase;letter-spacing:.06em">Drawing Register Preview (legacy)</span>'
       +'<span style="font-family:var(--fm);font-size:10px;background:var(--gold);color:#0a0a0f;padding:2px 8px;border-radius:5px;font-weight:700">'+total+' drawings</span>'
     +'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
@@ -9799,6 +10411,50 @@ function renderTemplatePreview(pt){
     }).join('')
     +'</div>'
   +'</div>';
+}
+
+/* v100 Phase 2 — Render the "Recommended template" card if a DRW_TEMPLATE
+   matches this project type. Card has a checkbox (default checked) — when
+   ticked, this template will be applied instead of the legacy PROJECT_TYPES
+   drawing list at project-create time. When unticked, the legacy preview
+   reappears as a fallback. */
+function renderRecommendedTemplate(projType){
+  const el = document.getElementById('ap-tmpl-card');
+  if(!el) return;
+  if(!projType){ el.innerHTML=''; return; }
+  // Find DRW_TEMPLATE whose appliesTo includes this project type
+  const matching = DRW_TEMPLATES.find(t => Array.isArray(t.appliesTo) && t.appliesTo.includes(projType));
+  if(!matching){ el.innerHTML=''; return; }  // no template match → legacy fallback runs
+  const tv = getTemplateVersion(matching.id);
+  if(!tv){ el.innerHTML=''; return; }
+  const drwCount = (tv.drawings||[]).filter(d=>!d.consultant).length;
+  const totalHrs = (tv.drawings||[]).filter(d=>!d.consultant).reduce((s,d)=>s+(d.estHrs||0),0);
+
+  el.innerHTML = '<div style="background:rgba(186,117,23,.08);border:1px solid var(--gold);border-radius:8px;padding:12px 14px;margin-bottom:14px">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+      +'<span style="font-size:24px">'+(matching.icon||'📐')+'</span>'
+      +'<div style="flex:1">'
+        +'<div style="font-weight:600;color:var(--gold);font-size:13px">Recommended template: '+matching.name+'</div>'
+        +'<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">'+matching.description+'</div>'
+        +'<div style="font-family:var(--fm);font-size:10px;color:var(--txm);margin-top:3px">v'+matching.activeVersion+' · '+drwCount+' drawings · ~'+totalHrs+'h total · COA + IS 962 aligned</div>'
+      +'</div>'
+    +'</div>'
+    +'<label style="display:flex;align-items:center;gap:8px;padding:8px 0 4px;border-top:1px solid var(--bd2);cursor:pointer;font-family:var(--fm);font-size:11px;color:var(--tx)">'
+      +'<input type="checkbox" id="ap-tmpl-apply" data-tid="'+matching.id+'" checked onchange="onTmplToggle()" style="width:14px;height:14px;accent-color:var(--gold)">'
+      +'Apply this template to seed the drawing register'
+    +'</label>'
+    +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:4px;padding-left:22px;line-height:1.55">'
+      +'When ticked, your project gets '+drwCount+' COA-aligned drawings with stage-distributed dates and pre-set hours. Untick to use the legacy discipline-based register below.'
+    +'</div>'
+  +'</div>';
+}
+
+/* v100 Phase 2 — Toggle handler. When the user toggles the template
+   checkbox, refresh the legacy preview so it appears or disappears. */
+function onTmplToggle(){
+  const tid = document.getElementById('ap-type')?.value;
+  const pt = PROJECT_TYPES.find(t=>t.id===tid);
+  if(pt) renderTemplatePreview(pt);
 }
 
 function onProjTypeChange(){
@@ -9825,6 +10481,7 @@ function onProjTypeChange(){
       ${isMand?'<span style="font-family:var(--fm);font-size:8px;color:var(--txd)">(req)</span>':''}
     </label>`;
   }).join('');
+  renderRecommendedTemplate(pt.id);
   renderTemplatePreview(pt);
 }
 
@@ -9892,7 +10549,20 @@ function submitProject(){
       delete editIdEl.dataset.fromPipelineId;
     }
 
-    if(pt){
+    // v100 Phase 2 — Apply DRW_TEMPLATE if user ticked the recommended template
+    // checkbox. Otherwise fall through to the legacy PROJECT_TYPES drawingTemplate
+    // path. The template path uses applyTemplateToProject which gives stage-based
+    // dates (Phase 1) and uses the COA-aligned curated drawing list.
+    const tmplApply = document.getElementById('ap-tmpl-apply');
+    const useTmpl = tmplApply && tmplApply.checked;
+    const tmplId = useTmpl ? tmplApply.dataset.tid : null;
+    if(useTmpl && tmplId){
+      const result = applyTemplateToProject(pid, tmplId);
+      if(result){
+        addAudit('template-apply', 'Template applied at create',
+          (getTemplate(tmplId)?.name||tmplId)+' v'+(getTemplate(tmplId)?.activeVersion||'?')+' → '+pid+' · '+result.created+' drawings');
+      }
+    } else if(pt){
       DISC.forEach(disc=>{
         if(!selectedDiscs[disc.id])return;
         const tmpl=pt.drawingTemplate[disc.id];if(!tmpl)return;
@@ -9914,7 +10584,7 @@ function submitProject(){
         });
       });
     }
-    showNotif(`Project created — ${DRAWINGS.filter(d=>d.proj===pid).length} drawings`,`${name} added with ${pt?.label||type} drawing register.`);
+    showNotif(`Project created — ${DRAWINGS.filter(d=>d.proj===pid).length} drawings`,`${name} added with ${useTmpl?(getTemplate(tmplId)?.name||'template'):(pt?.label||type)} drawing register.`);
     selectedDiscs={};
   }
   closeModal('add-proj-ov');
@@ -12031,6 +12701,10 @@ function renderProjCtxBar(){
         ?'<button class="btn bg bsm" style="font-size:9px" onclick="openMtgFromProject(\''+p.id+'\',\'internal\')" title="Schedule internal meeting">👥 Meet</button>'
         +'<button class="btn bp bsm" style="font-size:9px" onclick="openMtgFromProject(\''+p.id+'\',\'client\')" title="Schedule client meeting">🤝 Client</button>'
         :'')
+      +(typeof canEditTemplate==='function'&&canEditTemplate()
+        ?'<button class="btn bg bsm" style="font-size:9px" onclick="openApplyTemplateModal(\''+p.id+'\')" title="'+(p.templateId?'Re-sync drawings from template':'Apply firm-wide drawing template')+'">'
+          +(p.templateId?'🔄 Re-sync':'📐 Template')+'</button>'
+        :'')
       +'<button class="btn bg bsm" onclick="openEditProjectModal(\''+p.id+'\')" title="Edit project" style="font-size:10px">✏</button>'
       +'<button class="btn bd2 bsm" onclick="confirmRemoveProject(\''+p.id+'\')" title="Remove project" style="font-size:10px">✕</button>'
     +'</div>';
@@ -12675,6 +13349,11 @@ function submitAddDrawing(){
       id:finalId,proj:pid,title,drwType,disc,stage,status:'nst',rev:'-',
       tgt,due:tgt,setby:canSchedule()?me.id:'',pct:0,hrs:0,sid,pkg,
       revHistory:[],qaHistory:[],
+      // v99 — drawings added directly by user (not from template) are flagged
+      // as project-specific. They survive template re-syncs untouched and show
+      // a "Custom" badge in the register. Principal/Associate/PA can add these.
+      customForProject: true,
+      fromTemplate: false,
       assignmentLog: sid ? [{                      // Gap 6 — initial assignment record
         date: toISO(new Date()),
         dateFmt: todayStr,
@@ -12967,7 +13646,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v98',
+    appVersion: 'S62-v100',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -12996,6 +13675,7 @@ function packData() {
     caSnags:       CA_SNAGS||[],
     caAis:         CA_AIS||[],
     vendors:       VENDORS||[],
+    drwTemplates:  DRW_TEMPLATES||[],
     // currentUserId: REMOVED from sync — each browser/staff member has their own
     // identity from Google sign-in. Including it here caused all users to take on
     // whoever was the last person to sync.
@@ -13020,6 +13700,27 @@ function unpackData(data) {
   if(data.invoices!==undefined){ INVOICES=data.invoices; }
   if(data.notifications!==undefined){ NOTIFICATIONS=data.notifications; }
   if(data.transmittals!==undefined){ TRANSMITTALS=data.transmittals; }
+  if(data.drwTemplates!==undefined && Array.isArray(data.drwTemplates) && data.drwTemplates.length){
+    // v99 — merge synced templates with built-in seeds. Built-ins (id starts
+    // with tmpl_arch_ or tmpl_int_) are kept fresh from local seed; custom
+    // templates and any modifications come from cloud.
+    const customIncoming = data.drwTemplates.filter(t => !t.builtin || t.versions.length > 1);
+    customIncoming.forEach(incoming=>{
+      const existing = DRW_TEMPLATES.find(t=>t.id===incoming.id);
+      if(existing){
+        // Merge versions — keep all unique
+        incoming.versions.forEach(v=>{
+          if(!existing.versions.find(ev=>ev.version===v.version)) existing.versions.push(v);
+        });
+        existing.activeVersion = incoming.activeVersion;
+        if(incoming.name) existing.name = incoming.name;
+        if(incoming.description) existing.description = incoming.description;
+        if(incoming.appliesTo) existing.appliesTo = incoming.appliesTo;
+      } else {
+        DRW_TEMPLATES.push(incoming);
+      }
+    });
+  }
   if(data.visuals!==undefined){ VISUALS=data.visuals; }
   if(data.firmConfig&&data.firmConfig.name){ Object.assign(FIRM_CONFIG,data.firmConfig); applyFirmTheme(); }
   if(data.auditLog!==undefined){ AUDIT_LOG=data.auditLog; }
@@ -21331,6 +22032,18 @@ function openFirmSettings(){
       <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px">Overrides the theme's accent. Leave at theme default unless you want to match a specific brand colour.</div>
     </div>
 
+    <div style="margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--bd2)">
+      <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Drawing Templates</div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:10px;line-height:1.55">
+        Firm-wide drawing templates aligned with COA Comprehensive Architectural Services and IS 962.
+        New projects can apply a template to seed their drawing register; existing projects can re-sync from updated templates.
+        ${canEditTemplate() ? 'You can edit templates below.' : 'Editable by Principal/Associate/Project Architect only.'}
+      </div>
+      <button class="btn bg" style="width:100%;justify-content:center;padding:10px;font-family:var(--fm);font-size:11px" onclick="closeModal('firm-settings-ov');openDrwTemplatesModal()">
+        📐 Manage Drawing Templates · ${DRW_TEMPLATES.length} available
+      </button>
+    </div>
+
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveFirmSettingsModal()">Save Settings</button>
       <button class="btn bg" onclick="closeModal('firm-settings-ov')" style="padding:10px 14px">Cancel</button>
@@ -21364,6 +22077,881 @@ function saveFirmSettingsModal(){
   addAudit('settings','Firm settings updated','Name: '+FIRM_CONFIG.name);
   closeModal('firm-settings-ov');
   showNotif('Firm settings saved', FIRM_CONFIG.name+' · '+FIRM_CONFIG.city);
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v99 — DRAWING TEMPLATES MODAL
+   ─────────────────────────────────────────────────────────────────────
+   Top-level modal listing all templates. Click any template to expand
+   its drawing list inline. Edit / fork / delete / set active version.
+═════════════════════════════════════════════════════════════════════ */
+
+let _drwTplExpanded = null;  // id of currently-expanded template
+
+function openDrwTemplatesModal(){
+  const ex = document.getElementById('drw-tpl-ov');
+  if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'drw-tpl-ov';
+  div.className = 'ov show';
+  div.innerHTML = `<div class="modal" style="max-width:780px;max-height:85vh;display:flex;flex-direction:column">
+    <button class="mclose" onclick="closeModal('drw-tpl-ov')">✕</button>
+    <div class="mtitle">📐 Drawing Templates</div>
+    <div class="msub">${DRW_TEMPLATES.length} templates · IS 962 + COA aligned · ${canEditTemplate() ? 'You can edit' : 'View-only (Principal/Associate/PA can edit)'}</div>
+
+    <div style="overflow-y:auto;flex:1;margin:14px 0;padding-right:6px" id="drw-tpl-list">
+      ${renderDrwTemplateList()}
+    </div>
+
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2)">
+      ${canEditTemplate() ? '<button class="btn bg" onclick="createCustomTemplateBlank()" style="padding:8px 14px;font-size:11px">+ New Custom Template</button>' : ''}
+      <div style="flex:1"></div>
+      <button class="btn bg" onclick="closeModal('drw-tpl-ov')" style="padding:8px 14px">Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function renderDrwTemplateList(){
+  if(!DRW_TEMPLATES.length){
+    return '<div style="text-align:center;padding:30px;font-family:var(--fm);font-size:11px;color:var(--txd)">No templates yet. Click + New Custom Template to create one.</div>';
+  }
+  return DRW_TEMPLATES.map(t=>{
+    const tv = getTemplateVersion(t.id);
+    const drwCount = (tv?.drawings||[]).filter(d=>!d.consultant).length;
+    const totalHrs = (tv?.drawings||[]).reduce((s,d)=>s+(d.estHrs||0),0);
+    const expanded = _drwTplExpanded === t.id;
+    const usedBy = PROJS.filter(p=>p.templateId===t.id);
+    return `<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:6px;margin-bottom:10px;overflow:hidden">
+      <div onclick="toggleDrwTplExpand('${t.id}')" style="padding:11px 14px;cursor:pointer;display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">${t.icon||'📐'}</span>
+        <div style="flex:1">
+          <div style="font-weight:600;color:var(--tx);font-size:13px">${t.name}
+            ${t.builtin?'<span style="font-family:var(--fm);font-size:8px;font-weight:600;background:var(--sf3);color:var(--txm);padding:2px 6px;border-radius:3px;margin-left:6px">BUILT-IN</span>':''}
+          </div>
+          <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">${t.description||''}</div>
+          <div style="font-family:var(--fm);font-size:10px;color:var(--txm);margin-top:4px">
+            v${t.activeVersion} · ${drwCount} drawings · ~${totalHrs}h total · ${usedBy.length} project${usedBy.length!==1?'s':''} using
+          </div>
+        </div>
+        <span style="font-size:14px;color:var(--txd);transform:rotate(${expanded?'180':'0'}deg);transition:transform .2s">▾</span>
+      </div>
+      ${expanded ? renderDrwTplDetail(t) : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleDrwTplExpand(tid){
+  _drwTplExpanded = (_drwTplExpanded === tid) ? null : tid;
+  const el = document.getElementById('drw-tpl-list');
+  if(el) el.innerHTML = renderDrwTemplateList();
+}
+
+function renderDrwTplDetail(t){
+  const tv = getTemplateVersion(t.id);
+  if(!tv) return '';
+  const stages = ['SD','DD','CD','CA'];
+  const byStage = {SD:[],DD:[],CD:[],CA:[]};
+  tv.drawings.forEach(d=>{ (byStage[d.stage]||byStage.CD).push(d); });
+  const tableBody = stages.map(s=>{
+    if(!byStage[s].length) return '';
+    const stageLabel = {SD:'Schematic Design (Stage 1-2)',DD:'Design Development / Statutory (Stage 3)',CD:'Construction Documents / Working (Stage 4-5)',CA:'Construction Admin / GFC / As-Built (Stage 6-11)'}[s];
+    const rows = byStage[s].map(d=>{
+      return `<tr>
+        <td style="padding:5px 8px;font-family:var(--fm);font-size:10px;color:var(--tx);font-weight:500">${d.ref}</td>
+        <td style="padding:5px 8px;font-size:11px">${d.title}${d.consultant?' <span style="font-family:var(--fm);font-size:8px;color:var(--txd);font-style:italic">(consultant)</span>':''}</td>
+        <td style="padding:5px 8px;font-family:var(--fm);font-size:9px;color:var(--txm)">${d.disc}</td>
+        <td style="padding:5px 8px;font-family:var(--fm);font-size:9px;color:var(--txm)">${d.drwType||'GA'}</td>
+        <td style="padding:5px 8px;font-family:var(--fm);font-size:10px;color:var(--gold);text-align:right;font-weight:600">${d.consultant?'—':d.estHrs+'h'}</td>
+        <td style="padding:5px 8px;font-family:var(--fm);font-size:9px;color:var(--txm);text-align:center">${d.priority||'normal'}</td>
+      </tr>`;
+    }).join('');
+    return `<tr><td colspan="6" style="padding:8px 8px 4px;font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;background:var(--sf3)">${stageLabel}</td></tr>${rows}`;
+  }).join('');
+
+  const usingProjs = PROJS.filter(p=>p.templateId===t.id);
+  const editButtons = canEditTemplate() ? `
+    <button class="btn bg bsm" onclick="editDrwTemplate('${t.id}')" style="font-size:10px;padding:5px 10px">✏ Edit drawings</button>
+    ${usingProjs.length > 0 ? `<button class="btn bg bsm" onclick="openBulkResyncModal('${t.id}')" style="font-size:10px;padding:5px 10px;color:var(--blu)">🔄 Bulk Re-sync · ${usingProjs.length} project${usingProjs.length!==1?'s':''}</button>` : ''}
+    ${t.builtin
+      ? `<button class="btn bg bsm" onclick="forkDrwTemplate('${t.id}')" style="font-size:10px;padding:5px 10px">🔀 Fork as custom</button>`
+      : `<button class="btn bg bsm" onclick="if(deleteTemplate('${t.id}')){scheduleSave({immediate:true});toggleDrwTplExpand('');showNotif('Deleted','Template removed');}" style="font-size:10px;padding:5px 10px;color:var(--red)">🗑 Delete</button>`}` : '';
+
+  const versionList = t.versions.length > 1 ? `
+    <div style="margin-top:10px;padding:8px 12px;background:var(--sf3);border-radius:4px">
+      <div style="font-family:var(--fm);font-size:9px;font-weight:600;color:var(--txm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Version history (${t.versions.length})</div>
+      ${t.versions.slice().reverse().slice(0,5).map(v=>`<div style="font-family:var(--fm);font-size:10px;color:var(--txd);padding:2px 0">
+        <strong style="color:${v.version===t.activeVersion?'var(--gold)':'var(--txm)'}">v${v.version}${v.version===t.activeVersion?' · active':''}</strong> — ${v.changeNote||'No notes'} <span style="color:var(--txd);font-size:9px">· ${v.publishedAt?new Date(v.publishedAt).toLocaleDateString():''}</span>
+      </div>`).join('')}
+    </div>` : '';
+
+  return `<div style="padding:0 14px 14px;border-top:1px solid var(--bd2)">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0">${editButtons}</div>
+    <div style="background:var(--sf);border:1px solid var(--bd);border-radius:5px;overflow:hidden;max-height:400px;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--sf3)">
+          <th style="text-align:left;padding:6px 8px;font-family:var(--fm);font-size:9px;color:var(--txm);text-transform:uppercase">Ref</th>
+          <th style="text-align:left;padding:6px 8px;font-family:var(--fm);font-size:9px;color:var(--txm);text-transform:uppercase">Title</th>
+          <th style="text-align:left;padding:6px 8px;font-family:var(--fm);font-size:9px;color:var(--txm);text-transform:uppercase">Disc</th>
+          <th style="text-align:left;padding:6px 8px;font-family:var(--fm);font-size:9px;color:var(--txm);text-transform:uppercase">Type</th>
+          <th style="text-align:right;padding:6px 8px;font-family:var(--fm);font-size:9px;color:var(--txm);text-transform:uppercase">Hrs</th>
+          <th style="text-align:center;padding:6px 8px;font-family:var(--fm);font-size:9px;color:var(--txm);text-transform:uppercase">Priority</th>
+        </tr></thead>
+        <tbody>${tableBody}</tbody>
+      </table>
+    </div>
+    ${versionList}
+  </div>`;
+}
+
+/* ── Edit / Fork / Create operations ────────────────────────────── */
+
+function forkDrwTemplate(tid){
+  if(!canEditTemplate()){ showNotif('Access denied','Principal/Associate/PA only.'); return; }
+  if(!confirm('Fork "'+getTemplate(tid).name+'" to create an editable custom copy?')) return;
+  const newT = forkTemplate(tid);
+  if(newT){
+    scheduleSave({immediate:true});
+    _drwTplExpanded = newT.id;
+    document.getElementById('drw-tpl-list').innerHTML = renderDrwTemplateList();
+    showNotif('Forked','Custom copy created — you can now edit it');
+  }
+}
+
+function editDrwTemplate(tid){
+  if(!canEditTemplate()){ showNotif('Access denied','Principal/Associate/PA only.'); return; }
+  const t = getTemplate(tid); if(!t) return;
+  if(t.builtin){
+    if(!confirm('"'+t.name+'" is built-in and cannot be modified directly.\n\nFork it as a custom template to edit?')) return;
+    forkDrwTemplate(tid);
+    return;
+  }
+  openDrwTemplateEditor(tid);
+}
+
+function createCustomTemplateBlank(){
+  if(!canEditTemplate()){ showNotif('Access denied','Principal/Associate/PA only.'); return; }
+  const name = prompt('Name for the new template:', 'Custom Template');
+  if(!name) return;
+  const me = currentUser();
+  const newId = 'tmpl_custom_'+Date.now();
+  DRW_TEMPLATES.push({
+    id: newId,
+    name: name,
+    description: 'Custom firm template',
+    icon: '📐',
+    builtin: false,
+    appliesTo: [],
+    activeVersion: '1.0.0',
+    versions: [{
+      version: '1.0.0',
+      publishedAt: toISO(new Date()),
+      publishedBy: me ? me.id : '',
+      changeNote: 'Created blank',
+      drawings: []
+    }]
+  });
+  scheduleSave({immediate:true});
+  _drwTplExpanded = newId;
+  document.getElementById('drw-tpl-list').innerHTML = renderDrwTemplateList();
+  openDrwTemplateEditor(newId);
+}
+
+/* Drawing-level editor for a non-built-in template — list with add/edit/remove */
+let _editingTplId = null;
+let _editingDrawings = null;  // working copy
+
+function openDrwTemplateEditor(tid){
+  const t = getTemplate(tid);
+  if(!t) return;
+  const tv = getTemplateVersion(tid);
+  _editingTplId = tid;
+  _editingDrawings = JSON.parse(JSON.stringify(tv.drawings));
+
+  const ex = document.getElementById('tpl-edit-ov');
+  if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'tpl-edit-ov';
+  div.className = 'ov show';
+  div.innerHTML = `<div class="modal" style="max-width:740px;max-height:85vh;display:flex;flex-direction:column">
+    <button class="mclose" onclick="closeModal('tpl-edit-ov')">✕</button>
+    <div class="mtitle">✏ Edit Template — ${t.name}</div>
+    <div class="msub">v${t.activeVersion} · changes will be saved as a new version</div>
+
+    <div style="margin:12px 0">
+      <button class="btn bg bsm" onclick="addTplDrawing()" style="font-size:10px;padding:6px 12px">+ Add Drawing</button>
+    </div>
+
+    <div id="tpl-edit-list" style="overflow-y:auto;flex:1;border:1px solid var(--bd);border-radius:5px;background:var(--sf)">
+      ${renderTplEditList()}
+    </div>
+
+    <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bd2)">
+      <div class="frow"><label class="flbl">Change note (optional)</label>
+        <input class="finp" id="tpl-edit-note" placeholder="What changed in this version" style="font-size:11px"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="commitTplEdits('minor')">💾 Save as new version</button>
+      <button class="btn bg" onclick="closeModal('tpl-edit-ov')" style="padding:10px 14px">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function renderTplEditList(){
+  if(!_editingDrawings || !_editingDrawings.length){
+    return '<div style="padding:30px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No drawings in this template yet. Click + Add Drawing.</div>';
+  }
+  return _editingDrawings.map((d,i)=>`<div style="padding:9px 12px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;gap:10px;font-family:var(--fm);font-size:11px">
+    <span style="color:var(--gold);font-weight:600;min-width:80px">${d.ref}</span>
+    <span style="flex:1;color:var(--tx)">${d.title}</span>
+    <span style="color:var(--txm);min-width:40px;font-size:10px">${d.disc}</span>
+    <span style="color:var(--txm);min-width:35px;font-size:10px">${d.stage}</span>
+    <span style="color:var(--gold);font-weight:600;min-width:40px;text-align:right">${d.estHrs}h</span>
+    <button class="btn bg bsm" onclick="editTplDrawingRow(${i})" style="padding:3px 8px;font-size:9px">✏</button>
+    <button class="btn bg bsm" onclick="removeTplDrawingRow(${i})" style="padding:3px 8px;font-size:9px;color:var(--red)">🗑</button>
+  </div>`).join('');
+}
+
+function addTplDrawing(){ promptTplDrawing(null); }
+function editTplDrawingRow(idx){ promptTplDrawing(idx); }
+function removeTplDrawingRow(idx){
+  if(!confirm('Remove '+_editingDrawings[idx].ref+' from this template?')) return;
+  _editingDrawings.splice(idx,1);
+  document.getElementById('tpl-edit-list').innerHTML = renderTplEditList();
+}
+
+function promptTplDrawing(idx){
+  const existing = idx!==null ? _editingDrawings[idx] : null;
+  const ex = document.getElementById('tpl-row-ov'); if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'tpl-row-ov';
+  div.className = 'ov show';
+  div.style.zIndex = 10001;
+  div.innerHTML = `<div class="modal" style="max-width:480px">
+    <button class="mclose" onclick="closeModal('tpl-row-ov')">✕</button>
+    <div class="mtitle">${existing?'Edit Drawing':'Add Drawing'}</div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Ref ID *</label><input class="finp" id="tr-ref" value="${existing?.ref||''}" placeholder="e.g. A-WD-001"></div>
+      <div class="frow"><label class="flbl">Discipline</label>
+        <select class="fsel" id="tr-disc">
+          ${DISC.map(d=>`<option value="${d.id}" ${(existing?.disc||'ARCH')===d.id?'selected':''}>${d.icon} ${d.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="frow"><label class="flbl">Title *</label><input class="finp" id="tr-title" value="${existing?.title||''}" placeholder="Drawing title"></div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Stage</label>
+        <select class="fsel" id="tr-stage">
+          ${['SD','DD','CD','CA'].map(s=>`<option value="${s}" ${(existing?.stage||'CD')===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="frow"><label class="flbl">Type</label>
+        <select class="fsel" id="tr-type">
+          ${Object.entries(DRW_TYPES).map(([k,v])=>`<option value="${k}" ${(existing?.drwType||'GA')===k?'selected':''}>${k} — ${v}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="fgrid">
+      <div class="frow"><label class="flbl">Est. Hours</label><input class="finp" id="tr-hrs" type="number" min="0" value="${existing?.estHrs||5}"></div>
+      <div class="frow"><label class="flbl">Priority</label>
+        <select class="fsel" id="tr-pri">
+          ${['low','normal','high','critical'].map(p=>`<option value="${p}" ${(existing?.priority||'normal')===p?'selected':''}>${p}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="commitTplRow(${idx===null?'null':idx})">${existing?'Save':'Add'}</button>
+      <button class="btn bg" onclick="closeModal('tpl-row-ov')" style="padding:10px 14px">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function commitTplRow(idx){
+  const ref = (document.getElementById('tr-ref').value||'').trim().toUpperCase();
+  const title = (document.getElementById('tr-title').value||'').trim();
+  if(!ref || !title){ showNotif('Required','Ref and Title are required.'); return; }
+  const row = {
+    ref,
+    title,
+    disc: document.getElementById('tr-disc').value,
+    stage: document.getElementById('tr-stage').value,
+    drwType: document.getElementById('tr-type').value,
+    estHrs: parseInt(document.getElementById('tr-hrs').value) || 5,
+    priority: document.getElementById('tr-pri').value,
+  };
+  if(idx===null){
+    if(_editingDrawings.find(d=>d.ref===ref)){ showNotif('Duplicate ref',ref+' already exists in this template.'); return; }
+    _editingDrawings.push(row);
+  } else {
+    // Check ref uniqueness if changed
+    if(_editingDrawings[idx].ref !== ref && _editingDrawings.find(d=>d.ref===ref)){
+      showNotif('Duplicate ref',ref+' already exists.'); return;
+    }
+    _editingDrawings[idx] = row;
+  }
+  closeModal('tpl-row-ov');
+  document.getElementById('tpl-edit-list').innerHTML = renderTplEditList();
+}
+
+function commitTplEdits(bump){
+  const note = (document.getElementById('tpl-edit-note')?.value||'').trim();
+  const newVer = saveTemplateVersion(_editingTplId, _editingDrawings, note, bump);
+  if(!newVer) return;
+  scheduleSave({immediate:true});
+  closeModal('tpl-edit-ov');
+  document.getElementById('drw-tpl-list').innerHTML = renderDrwTemplateList();
+  showNotif('Saved','New version v'+newVer+' published');
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v99 — APPLY / RE-SYNC TO PROJECT (with CLASH DIALOG)
+═════════════════════════════════════════════════════════════════════ */
+
+function openApplyTemplateModal(projId){
+  if(!canEditTemplate()){ showNotif('Access denied','Principal/Associate/PA only.'); return; }
+  const proj = PROJS.find(p=>p.id===projId);
+  if(!proj) return;
+  const ex = document.getElementById('apply-tpl-ov'); if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'apply-tpl-ov';
+  div.className = 'ov show';
+
+  const isResync = !!proj.templateId;
+  const matchingTemplates = DRW_TEMPLATES.filter(t=>{
+    if(!t.appliesTo || !t.appliesTo.length) return true;  // template applies to any project type
+    return t.appliesTo.includes(proj.type);
+  });
+
+  div.innerHTML = `<div class="modal" style="max-width:560px">
+    <button class="mclose" onclick="closeModal('apply-tpl-ov')">✕</button>
+    <div class="mtitle">${isResync ? '🔄 Re-sync from Template' : '📐 Apply Template to Project'}</div>
+    <div class="msub">${proj.name} · ${proj.type||'no type'}</div>
+
+    ${isResync ? `<div style="background:rgba(82,133,224,.1);border:1px solid rgba(82,133,224,.3);border-radius:5px;padding:10px 14px;margin:14px 0;font-family:var(--fm);font-size:11px;color:var(--blu);line-height:1.55">
+      <strong>Currently bound to:</strong> ${getTemplate(proj.templateId)?.name || proj.templateId} · v${proj.templateVersion}<br>
+      <strong>Active version:</strong> v${getTemplate(proj.templateId)?.activeVersion}
+    </div>` : '<div style="margin:14px 0;font-family:var(--fm);font-size:11px;color:var(--txd);line-height:1.55">Pick a template to seed this project\'s drawing register.</div>'}
+
+    <div style="max-height:340px;overflow-y:auto;margin-bottom:14px">
+      ${matchingTemplates.map(t=>{
+        const tv = getTemplateVersion(t.id);
+        const drwCount = (tv?.drawings||[]).filter(d=>!d.consultant).length;
+        const totalHrs = (tv?.drawings||[]).reduce((s,d)=>s+(d.estHrs||0),0);
+        const isBound = proj.templateId === t.id;
+        return `<div onclick="reviewApplyTemplate('${projId}','${t.id}')" style="padding:11px 14px;background:var(--sf2);border:1px solid ${isBound?'var(--gold)':'var(--bd)'};border-radius:5px;margin-bottom:7px;cursor:pointer;display:flex;align-items:center;gap:12px">
+          <span style="font-size:22px">${t.icon||'📐'}</span>
+          <div style="flex:1">
+            <div style="font-weight:600;color:var(--tx);font-size:12px">${t.name} ${isBound?'<span style="font-family:var(--fm);font-size:9px;color:var(--gold);font-weight:700;margin-left:6px">CURRENT</span>':''}</div>
+            <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">v${t.activeVersion} · ${drwCount} drawings · ~${totalHrs}h</div>
+          </div>
+          <span style="font-size:14px;color:var(--gold)">→</span>
+        </div>`;
+      }).join('')}
+      ${matchingTemplates.length===0?'<div style="padding:24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No templates match this project type. <a href="#" onclick="closeModal(\'apply-tpl-ov\');openDrwTemplatesModal()" style="color:var(--gold)">Manage templates</a></div>':''}
+    </div>
+
+    <div style="display:flex;gap:8px"><button class="btn bg" onclick="closeModal('apply-tpl-ov')" style="padding:10px 14px;flex:1;justify-content:center">Cancel</button></div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+/* Show clash dialog with diff before actually applying. User picks
+   which changes to take. Only then is applyTemplateToProject called. */
+function reviewApplyTemplate(projId, tid){
+  closeModal('apply-tpl-ov');
+  const t = getTemplate(tid);
+  if(!t) return;
+  const proj = PROJS.find(p=>p.id===projId);
+  const diff = diffProjectVsTemplate(projId, tid, t.activeVersion);
+  if(!diff) return;
+
+  const ex = document.getElementById('clash-ov'); if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'clash-ov';
+  div.className = 'ov show';
+
+  // Pre-tick all "new" drawings (additive is safe)
+  const isFirstApply = !proj.templateId;
+
+  div.innerHTML = `<div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column">
+    <button class="mclose" onclick="closeModal('clash-ov')">✕</button>
+    <div class="mtitle">${isFirstApply?'📐 Apply':'🔄 Re-sync'} — ${t.name}</div>
+    <div class="msub">${proj.name} · v${t.activeVersion} · review changes below</div>
+
+    <div style="overflow-y:auto;flex:1;margin:14px 0">
+
+      ${diff.newInTemplate.length ? `<div style="margin-bottom:14px">
+        <div style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--grn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">+ New drawings (${diff.newInTemplate.length}) · will be added</div>
+        ${diff.newInTemplate.map(td=>`<label style="display:flex;align-items:center;gap:10px;padding:7px 12px;background:rgba(82,201,122,.06);border:0.5px solid rgba(82,201,122,.25);border-radius:4px;margin-bottom:4px;cursor:pointer;font-family:var(--fm);font-size:11px">
+          <input type="checkbox" class="clash-new" value="${td.ref}" checked style="width:14px;height:14px;accent-color:var(--grn)">
+          <span style="font-weight:600;color:var(--grn);min-width:90px">${td.ref}</span>
+          <span style="flex:1;color:var(--tx)">${td.title}</span>
+          <span style="color:var(--txm);font-size:10px">${td.disc} · ${td.stage} · ${td.estHrs}h</span>
+        </label>`).join('')}
+      </div>` : ''}
+
+      ${diff.changedInTemplate.length ? `<div style="margin-bottom:14px">
+        <div style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">↻ Modified in template (${diff.changedInTemplate.length}) · existing project drawings will NOT be touched (preserved)</div>
+        ${diff.changedInTemplate.map(c=>`<div style="padding:7px 12px;background:rgba(240,201,122,.06);border:0.5px solid rgba(240,201,122,.25);border-radius:4px;margin-bottom:4px;font-family:var(--fm);font-size:11px">
+          <div style="font-weight:600;color:var(--gold)">${c.template.ref} · ${c.template.title}</div>
+          <div style="font-size:10px;color:var(--txm);margin-top:2px">Project has: <strong>${c.existing.title}</strong> ${c.task?'· '+c.task.estHrs+'h · '+c.task.priority:''}</div>
+          <div style="font-size:10px;color:var(--txm)">Template wants: <strong>${c.template.title}</strong> · ${c.template.estHrs}h · ${c.template.priority}</div>
+        </div>`).join('')}
+        <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:6px;line-height:1.55">
+          We don't auto-update existing drawings — that could overwrite real progress. Edit individually if needed.
+        </div>
+      </div>` : ''}
+
+      ${diff.customInProject.length ? `<div style="margin-bottom:14px">
+        <div style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--blu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">⊙ Project-specific drawings (${diff.customInProject.length}) · always preserved</div>
+        ${diff.customInProject.slice(0,5).map(d=>`<div style="padding:5px 12px;background:rgba(82,133,224,.04);border-radius:3px;font-family:var(--fm);font-size:10px;color:var(--txm)">
+          <strong style="color:var(--blu)">${d.id}</strong> · ${d.title}
+        </div>`).join('')}
+        ${diff.customInProject.length>5?`<div style="font-family:var(--fm);font-size:9px;color:var(--txd);padding:4px 12px">… and ${diff.customInProject.length-5} more</div>`:''}
+      </div>` : ''}
+
+      ${diff.deletedInTemplate.length ? `<div style="margin-bottom:14px">
+        <div style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">⚠ Removed in template (${diff.deletedInTemplate.length}) · still in project, will not be deleted</div>
+        ${diff.deletedInTemplate.map(d=>`<div style="padding:5px 12px;background:rgba(224,82,82,.04);border-radius:3px;font-family:var(--fm);font-size:10px;color:var(--txm)">
+          <strong style="color:var(--red)">${d.id}</strong> · ${d.title}
+        </div>`).join('')}
+      </div>` : ''}
+
+      ${(!diff.newInTemplate.length && !diff.changedInTemplate.length && !diff.customInProject.length && !diff.deletedInTemplate.length) ?
+        '<div style="text-align:center;padding:30px;font-family:var(--fm);font-size:11px;color:var(--grn)">✓ Project is fully in sync with template v'+t.activeVersion+'</div>' : ''}
+
+    </div>
+
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2)">
+      <button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="commitClashApply('${projId}','${tid}')">${isFirstApply?'Apply Template':'Re-sync Project'}</button>
+      <button class="btn bg" onclick="closeModal('clash-ov')" style="padding:10px 14px">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function commitClashApply(projId, tid){
+  // Collect ticked "new" refs only
+  const checks = document.querySelectorAll('.clash-new:checked');
+  const onlyRefs = Array.from(checks).map(c=>c.value);
+  const result = applyTemplateToProject(projId, tid, null, {onlyRefs, skipExisting:true});
+  if(!result){ closeModal('clash-ov'); return; }
+  scheduleSave({immediate:true});
+  closeModal('clash-ov');
+  renderDrawings();
+  renderProjList();
+  renderDashboard();
+  showNotif('Template applied', result.created+' drawing(s) created · '+result.skipped+' skipped');
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v100 Phase 3 — BULK RE-SYNC ACROSS PROJECTS
+   ─────────────────────────────────────────────────────────────────────
+   Lists all projects bound to a given template. User ticks the projects
+   they want to re-sync; system runs applyTemplateToProject sequentially
+   on each. Default state: nothing selected. Already-in-sync projects
+   are shown but greyed out. For 4+ selected projects a 5-second
+   countdown confirmation step protects against accidental clicks.
+
+   Modified-row policy carries over from v99: existing project drawings
+   are NEVER auto-updated by re-sync. Only NEW drawings from the
+   template get added. This protects audit integrity.
+═════════════════════════════════════════════════════════════════════ */
+
+let _bulkResyncSearch = '';
+let _bulkResyncFilter = 'all';  // 'all' | 'newOnly'
+let _bulkResyncExpanded = {};   // projId → boolean
+
+function openBulkResyncModal(tid){
+  if(!canEditTemplate()){ showNotif('Access denied','Principal/Associate/PA only.'); return; }
+  const t = getTemplate(tid);
+  if(!t){ showNotif('Template missing',''); return; }
+  // Reset state
+  _bulkResyncSearch = '';
+  _bulkResyncFilter = 'all';
+  _bulkResyncExpanded = {};
+  // Clear any selection state from previous opens
+  window._bulkSelected = window._bulkSelected || {};
+  window._bulkSelected[tid] = {};
+
+  const ex = document.getElementById('bulk-resync-ov');
+  if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'bulk-resync-ov';
+  div.className = 'ov show';
+
+  const usingProjs = PROJS.filter(p=>p.templateId===tid);
+  const av = t.activeVersion;
+
+  div.innerHTML = `<div class="modal" style="max-width:760px;max-height:88vh;display:flex;flex-direction:column">
+    <button class="mclose" onclick="closeModal('bulk-resync-ov')">✕</button>
+    <div class="mtitle">🔄 Bulk Re-sync · ${t.name}</div>
+    <div class="msub">${usingProjs.length} project${usingProjs.length!==1?'s':''} use this template · template active version v${av} · default selection: none</div>
+
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd2);flex-wrap:wrap;font-size:11px">
+      <button class="btn bg bsm" onclick="bulkResyncSelectAll('${tid}')" style="font-size:10px;padding:4px 10px">☐ Select all</button>
+      <button class="btn bg bsm" onclick="bulkResyncClear('${tid}')" style="font-size:10px;padding:4px 10px">⊘ Clear</button>
+      <button class="btn bg bsm" onclick="bulkResyncSelectNewOnly('${tid}')" style="font-size:10px;padding:4px 10px">+ Only with new</button>
+      <input class="finp" id="bulk-search" placeholder="Search project name or client…" style="flex:1;min-width:140px;font-size:11px;padding:5px 9px" oninput="_bulkResyncSearch=this.value.toLowerCase();renderBulkResyncList('${tid}')">
+      <span id="bulk-count" style="font-family:var(--fm);font-size:10px;color:var(--txm);margin-left:auto"></span>
+    </div>
+
+    <div id="bulk-resync-list" style="overflow-y:auto;flex:1;margin:10px 0;padding-right:6px">
+      ${renderBulkResyncList(tid)}
+    </div>
+
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2);align-items:center">
+      <div id="bulk-foot-summary" style="flex:1;font-family:var(--fm);font-size:11px;color:var(--txd)"></div>
+      <button class="btn bg" onclick="closeModal('bulk-resync-ov')" style="padding:8px 14px">Cancel</button>
+      <button class="btn bp" id="bulk-confirm-btn" disabled onclick="confirmBulkResync('${tid}')" style="padding:8px 16px;opacity:.5">Re-sync 0 projects</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  updateBulkResyncFooter(tid);
+}
+
+function computeBulkDiff(projId, tid){
+  const t = getTemplate(tid);
+  if(!t) return null;
+  const proj = PROJS.find(p=>p.id===projId);
+  if(!proj) return null;
+  const inSync = proj.templateVersion === t.activeVersion;
+  const diff = diffProjectVsTemplate(projId, tid, t.activeVersion);
+  return {
+    proj,
+    inSync,
+    bound: proj.templateId === tid,
+    boundVersion: proj.templateVersion || '?',
+    diff: diff || {newInTemplate:[],changedInTemplate:[],customInProject:[],deletedInTemplate:[]}
+  };
+}
+
+function renderBulkResyncList(tid){
+  const t = getTemplate(tid);
+  if(!t) return '';
+  const usingProjs = PROJS.filter(p=>p.templateId===tid);
+  const search = (_bulkResyncSearch||'').toLowerCase();
+  const filter = _bulkResyncFilter;
+  let filtered = usingProjs.filter(p=>{
+    if(search){
+      if(!(p.name||'').toLowerCase().includes(search) && !(p.client||'').toLowerCase().includes(search)) return false;
+    }
+    return true;
+  });
+  if(filter === 'newOnly'){
+    filtered = filtered.filter(p=>{
+      const d = computeBulkDiff(p.id, tid);
+      return d && d.diff.newInTemplate.length > 0;
+    });
+  }
+  const counter = document.getElementById('bulk-count');
+  if(counter){
+    const sel = window._bulkSelected?.[tid] || {};
+    const selCount = Object.keys(sel).filter(k=>sel[k]).length;
+    counter.textContent = selCount + ' of ' + filtered.length + ' selected';
+  }
+  if(!filtered.length){
+    return '<div style="padding:30px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No projects match. Try clearing the search or filter.</div>';
+  }
+  return filtered.map(p=>{
+    const r = computeBulkDiff(p.id, tid);
+    if(!r) return '';
+    const expanded = !!_bulkResyncExpanded[p.id];
+    const sel = window._bulkSelected?.[tid] || {};
+    const isSelected = !!sel[p.id];
+    const disabled = r.inSync;
+    const newCount = r.diff.newInTemplate.length;
+    const modCount = r.diff.changedInTemplate.length;
+    const cusCount = r.diff.customInProject.length;
+    const delCount = r.diff.deletedInTemplate.length;
+
+    const checkbox = disabled
+      ? '<span style="width:14px;height:14px;border-radius:2px;background:var(--sf3);border:0.5px solid var(--bd);flex-shrink:0;display:inline-block" title="Already in sync"></span>'
+      : `<input type="checkbox" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleBulkResyncSelect('${tid}','${p.id}',this.checked)" style="width:14px;height:14px;accent-color:var(--blu);flex-shrink:0;cursor:pointer">`;
+
+    const pills = [];
+    if(newCount) pills.push(`<span style="font-family:var(--fm);font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(82,201,122,.12);color:var(--grn);font-weight:600">+${newCount}</span>`);
+    if(modCount) pills.push(`<span style="font-family:var(--fm);font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(186,117,23,.12);color:var(--gold);font-weight:600">↻${modCount}</span>`);
+    if(cusCount) pills.push(`<span style="font-family:var(--fm);font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(82,133,224,.12);color:var(--blu);font-weight:600">⊙${cusCount}</span>`);
+    if(delCount) pills.push(`<span style="font-family:var(--fm);font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(224,82,82,.10);color:var(--red);font-weight:600">⚠${delCount}</span>`);
+    if(!pills.length && r.inSync) pills.push('<span style="font-family:var(--fm);font-size:9px;color:var(--grn);font-style:italic">Already in sync</span>');
+
+    let detail = '';
+    if(expanded){
+      detail = '<div style="background:var(--sf3);padding:9px 14px 9px 38px;font-family:var(--fm);font-size:10px;line-height:1.65;border-top:1px solid var(--bd2)">';
+      if(newCount){
+        detail += '<div style="color:var(--grn);font-weight:600;margin-bottom:3px">+ '+newCount+' new drawing'+(newCount!==1?'s':'')+' (will be added)</div>';
+        r.diff.newInTemplate.slice(0,8).forEach(td=>{
+          detail += '<div style="color:var(--txm);padding-left:14px">+ '+td.ref+' · '+td.title+' · '+td.estHrs+'h</div>';
+        });
+        if(newCount>8) detail += '<div style="color:var(--txd);padding-left:14px">… and '+(newCount-8)+' more</div>';
+      }
+      if(modCount){
+        detail += '<div style="color:var(--gold);font-weight:600;margin:6px 0 3px">↻ '+modCount+' modified in template (info-only — existing drawings not updated)</div>';
+        r.diff.changedInTemplate.slice(0,5).forEach(c=>{
+          detail += '<div style="color:var(--txm);padding-left:14px">↻ '+c.template.ref+' · '+c.template.title+'</div>';
+        });
+        if(modCount>5) detail += '<div style="color:var(--txd);padding-left:14px">… and '+(modCount-5)+' more</div>';
+      }
+      if(cusCount){
+        detail += '<div style="color:var(--blu);font-weight:600;margin:6px 0 3px">⊙ '+cusCount+' project-specific drawing'+(cusCount!==1?'s':'')+' (always preserved)</div>';
+      }
+      if(delCount){
+        detail += '<div style="color:var(--red);font-weight:600;margin:6px 0 3px">⚠ '+delCount+' removed in template (kept in project anyway)</div>';
+      }
+      detail += '</div>';
+    }
+
+    return `<div style="background:var(--sf2);border:1px solid ${isSelected?'var(--blu)':'var(--bd)'};border-radius:5px;margin-bottom:6px;overflow:hidden;${disabled?'opacity:.55':''}">
+      <div onclick="toggleBulkExpand('${p.id}','${tid}')" style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:11px;font-family:var(--fm);font-size:11px">
+        ${checkbox}
+        <span style="width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0"></span>
+        <span style="font-weight:600;color:var(--tx);flex:1">${p.name}</span>
+        <span style="color:var(--txm);font-size:10px">${p.client} · ${p.phase} · v${r.boundVersion}</span>
+        ${pills.join(' ')}
+        <span style="color:var(--txd);font-size:12px;transform:rotate(${expanded?'180':'0'}deg);transition:transform .15s">▾</span>
+      </div>
+      ${detail}
+    </div>`;
+  }).join('');
+}
+
+function toggleBulkResyncSelect(tid, projId, checked){
+  window._bulkSelected = window._bulkSelected || {};
+  window._bulkSelected[tid] = window._bulkSelected[tid] || {};
+  window._bulkSelected[tid][projId] = checked;
+  // Re-render to update highlight, then update footer
+  document.getElementById('bulk-resync-list').innerHTML = renderBulkResyncList(tid);
+  updateBulkResyncFooter(tid);
+}
+
+function toggleBulkExpand(projId, tid){
+  _bulkResyncExpanded[projId] = !_bulkResyncExpanded[projId];
+  document.getElementById('bulk-resync-list').innerHTML = renderBulkResyncList(tid);
+}
+
+function bulkResyncSelectAll(tid){
+  window._bulkSelected = window._bulkSelected || {};
+  window._bulkSelected[tid] = window._bulkSelected[tid] || {};
+  PROJS.filter(p=>p.templateId===tid).forEach(p=>{
+    const r = computeBulkDiff(p.id, tid);
+    if(r && !r.inSync){ window._bulkSelected[tid][p.id] = true; }
+  });
+  document.getElementById('bulk-resync-list').innerHTML = renderBulkResyncList(tid);
+  updateBulkResyncFooter(tid);
+}
+
+function bulkResyncClear(tid){
+  window._bulkSelected = window._bulkSelected || {};
+  window._bulkSelected[tid] = {};
+  document.getElementById('bulk-resync-list').innerHTML = renderBulkResyncList(tid);
+  updateBulkResyncFooter(tid);
+}
+
+function bulkResyncSelectNewOnly(tid){
+  window._bulkSelected = window._bulkSelected || {};
+  window._bulkSelected[tid] = {};
+  PROJS.filter(p=>p.templateId===tid).forEach(p=>{
+    const r = computeBulkDiff(p.id, tid);
+    if(r && !r.inSync && r.diff.newInTemplate.length > 0){ window._bulkSelected[tid][p.id] = true; }
+  });
+  document.getElementById('bulk-resync-list').innerHTML = renderBulkResyncList(tid);
+  updateBulkResyncFooter(tid);
+}
+
+function updateBulkResyncFooter(tid){
+  const sel = window._bulkSelected?.[tid] || {};
+  const selectedIds = Object.keys(sel).filter(k=>sel[k]);
+  let totalNew = 0;
+  selectedIds.forEach(pid=>{
+    const r = computeBulkDiff(pid, tid);
+    if(r) totalNew += r.diff.newInTemplate.length;
+  });
+  const summary = document.getElementById('bulk-foot-summary');
+  const btn = document.getElementById('bulk-confirm-btn');
+  if(summary){
+    summary.innerHTML = selectedIds.length === 0
+      ? '<span style="color:var(--txd)">Select projects to re-sync · existing drawings preserved</span>'
+      : '<strong style="color:var(--tx)">'+selectedIds.length+' project'+(selectedIds.length!==1?'s':'')+' selected</strong> · <span style="color:var(--grn)">+'+totalNew+' new drawings will be added</span> · <span style="color:var(--txd)">existing preserved</span>';
+  }
+  if(btn){
+    btn.textContent = 'Re-sync ' + selectedIds.length + ' project' + (selectedIds.length!==1?'s':'');
+    btn.disabled = selectedIds.length === 0;
+    btn.style.opacity = selectedIds.length === 0 ? '.5' : '1';
+  }
+}
+
+/* Confirmation step. For 1-3 projects runs immediately. For 4+ shows a
+   5-second countdown that the user can cancel. */
+function confirmBulkResync(tid){
+  const sel = window._bulkSelected?.[tid] || {};
+  const selectedIds = Object.keys(sel).filter(k=>sel[k]);
+  if(!selectedIds.length){ showNotif('Nothing selected',''); return; }
+  if(selectedIds.length <= 3){
+    runBulkResync(tid, selectedIds);
+    return;
+  }
+  // 5-second countdown
+  const ex = document.getElementById('bulk-confirm-ov'); if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'bulk-confirm-ov';
+  div.className = 'ov show';
+  div.style.zIndex = '10001';
+  div.innerHTML = `<div class="modal" style="max-width:440px;text-align:center">
+    <button class="mclose" onclick="closeModal('bulk-confirm-ov')">✕</button>
+    <div style="font-size:36px;margin:8px 0">🔄</div>
+    <div class="mtitle" style="text-align:center">Confirm bulk re-sync</div>
+    <div style="font-family:var(--fm);font-size:12px;color:var(--txm);margin:14px 0 18px;line-height:1.6">
+      About to re-sync <strong style="color:var(--tx)">${selectedIds.length} projects</strong> from template ${getTemplate(tid)?.name||tid}.
+      <br><br>
+      Existing drawings will be preserved. New template drawings will be added.<br>
+      This will write changes to all selected projects.
+    </div>
+    <div id="bulk-cd" style="font-family:var(--fm);font-size:14px;font-weight:600;color:var(--gold);margin-bottom:12px">Starting in 5…</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn bg" onclick="cancelBulkCountdown()" style="padding:9px 18px">Cancel</button>
+      <button class="btn bp" id="bulk-cd-btn" onclick="executeBulkAfterCountdown('${tid}')" disabled style="padding:9px 18px;opacity:.5">Run now</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  // Start countdown
+  let cd = 5;
+  window._bulkCdTimer = setInterval(()=>{
+    cd--;
+    const cdEl = document.getElementById('bulk-cd');
+    const btn = document.getElementById('bulk-cd-btn');
+    if(cd <= 0){
+      clearInterval(window._bulkCdTimer);
+      if(cdEl) cdEl.innerHTML = '<span style="color:var(--grn)">Ready · click Run now</span>';
+      if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
+    } else {
+      if(cdEl) cdEl.textContent = 'Starting in '+cd+'…';
+    }
+  }, 1000);
+}
+
+function cancelBulkCountdown(){
+  if(window._bulkCdTimer){ clearInterval(window._bulkCdTimer); window._bulkCdTimer = null; }
+  closeModal('bulk-confirm-ov');
+}
+
+function executeBulkAfterCountdown(tid){
+  if(window._bulkCdTimer){ clearInterval(window._bulkCdTimer); window._bulkCdTimer = null; }
+  closeModal('bulk-confirm-ov');
+  const sel = window._bulkSelected?.[tid] || {};
+  const selectedIds = Object.keys(sel).filter(k=>sel[k]);
+  runBulkResync(tid, selectedIds);
+}
+
+/* Sequential runner. On any error stops and reports. */
+function runBulkResync(tid, projIds){
+  const t = getTemplate(tid);
+  if(!t || !projIds.length) return;
+  const me = currentUser();
+  const successes = [];
+  const failures = [];
+  let totalCreated = 0;
+
+  for(const pid of projIds){
+    try {
+      const proj = PROJS.find(p=>p.id===pid);
+      if(!proj){ failures.push({pid, error:'Project missing'}); continue; }
+      // Compute new refs only (we never auto-update existing rows — same as v99 policy)
+      const diff = diffProjectVsTemplate(pid, tid, t.activeVersion);
+      if(!diff){ failures.push({pid, error:'Diff failed'}); continue; }
+      const newRefs = diff.newInTemplate.map(td=>td.ref);
+      if(newRefs.length === 0){
+        // Nothing new — just bump the version binding so project records as in-sync
+        proj.templateVersion = t.activeVersion;
+        proj.templateAppliedAt = toISO(new Date());
+        successes.push({pid, name:proj.name, created:0});
+        addAudit('template-resync', 'Bulk re-sync (no new)', proj.name+' ('+pid+') · template '+t.name+' v'+t.activeVersion);
+        continue;
+      }
+      const result = applyTemplateToProject(pid, tid, null, {onlyRefs:newRefs, skipExisting:true});
+      if(result){
+        successes.push({pid, name:proj.name, created:result.created});
+        totalCreated += result.created;
+        addAudit('template-resync', 'Bulk re-sync', proj.name+' ('+pid+') · template '+t.name+' v'+t.activeVersion+' · '+result.created+' new drawings');
+      } else {
+        failures.push({pid, error:'Apply returned null'});
+      }
+    } catch(e){
+      failures.push({pid, error: e.message || String(e)});
+    }
+  }
+
+  scheduleSave({immediate:true});
+  closeModal('bulk-resync-ov');
+  // Reset selection
+  if(window._bulkSelected) window._bulkSelected[tid] = {};
+  // Re-render relevant views
+  renderDrawings();
+  renderProjList();
+  renderDashboard();
+  updateNavBadges();
+
+  // Summary panel for 4+ projects, or any failures. Toast for 1-3 successes.
+  if(failures.length > 0 || projIds.length >= 4){
+    showBulkResyncSummary(t, successes, failures, totalCreated);
+  } else {
+    const msg = successes.length === 1
+      ? successes[0].name + ' updated · ' + successes[0].created + ' new drawing(s)'
+      : successes.length + ' projects updated · ' + totalCreated + ' new drawings';
+    showNotif('✓ Re-sync complete', msg);
+  }
+}
+
+function showBulkResyncSummary(t, successes, failures, totalCreated){
+  const ex = document.getElementById('bulk-summary-ov'); if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'bulk-summary-ov';
+  div.className = 'ov show';
+  div.innerHTML = `<div class="modal" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
+    <button class="mclose" onclick="closeModal('bulk-summary-ov')">✕</button>
+    <div class="mtitle">${failures.length ? '⚠' : '✓'} Bulk Re-sync Complete</div>
+    <div class="msub">${t.name} v${t.activeVersion} · ${successes.length} succeeded · ${failures.length} failed · ${totalCreated} new drawings total</div>
+
+    <div style="overflow-y:auto;flex:1;margin:14px 0">
+      ${successes.length ? `<div style="margin-bottom:12px">
+        <div style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--grn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">✓ Succeeded (${successes.length})</div>
+        ${successes.map(s=>`<div style="padding:6px 12px;background:rgba(82,201,122,.06);border-radius:4px;margin-bottom:3px;font-family:var(--fm);font-size:11px">
+          <strong style="color:var(--tx)">${s.name}</strong> <span style="color:var(--txm)">— ${s.created} new drawing${s.created!==1?'s':''}</span>
+        </div>`).join('')}
+      </div>` : ''}
+      ${failures.length ? `<div>
+        <div style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">⚠ Failed (${failures.length})</div>
+        ${failures.map(f=>`<div style="padding:6px 12px;background:rgba(224,82,82,.06);border-radius:4px;margin-bottom:3px;font-family:var(--fm);font-size:11px">
+          <strong style="color:var(--red)">${f.pid}</strong> <span style="color:var(--txm)">— ${f.error}</span>
+        </div>`).join('')}
+      </div>` : ''}
+    </div>
+
+    <div style="display:flex;gap:8px"><button class="btn bg" onclick="closeModal('bulk-summary-ov')" style="flex:1;justify-content:center;padding:9px">Close</button></div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v99 — TEMPLATE-AWARE estimateHours()
+═════════════════════════════════════════════════════════════════════ */
+
+const _origEstimateHours = (typeof estimateHours === 'function') ? estimateHours : null;
+function estimateHoursTpl(title, drawingObj){
+  // If drawing has a templateRef, try template lookup
+  if(drawingObj && drawingObj.templateRef){
+    for(const t of DRW_TEMPLATES){
+      const tv = getTemplateVersion(t.id);
+      if(!tv) continue;
+      const td = tv.drawings.find(d=>d.ref === drawingObj.templateRef);
+      if(td) return td.estHrs;
+    }
+  }
+  // Fallback to original heuristic
+  return _origEstimateHours ? _origEstimateHours(title) : 5;
 }
 
 /* ── GST INVOICE GENERATION ────────────────────────────── */
@@ -22038,6 +23626,7 @@ function updateVisBadge(){
     </div>
 
     <!-- Drawing template preview -->
+    <div id="ap-tmpl-card" style="margin-top:12px"></div>
     <div id="ap-template-preview" style="margin-top:16px"></div>
 
     <!-- Discipline toggles -->
