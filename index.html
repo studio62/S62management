@@ -4850,7 +4850,7 @@ let DRW_TEMPLATES = [
     description: 'Single-family residence, villa, or small townhouse. ~25 drawings, ~250 hours typical.',
     icon: '🏠',
     builtin: true,
-    appliesTo: ['RES-NEW','RES-RENO','RES-EXT'],
+    appliesTo: ['RES-NEW','RES-EXT'],
     activeVersion: '1.0.0',
     versions: [{
       version: '1.0.0',
@@ -4956,7 +4956,7 @@ let DRW_TEMPLATES = [
     description: 'Libraries, community centers, schools, government buildings. ~30 drawings, ~380 hours typical.',
     icon: '🏛',
     builtin: true,
-    appliesTo: ['CIV-LIB','CIV-COM','CIV-EDU','CIV-GOV','SPO-CEN'],
+    appliesTo: ['CIV-LIB','CIV-MUS','EDU-SCH','EDU-UNI'],
     activeVersion: '1.0.0',
     versions: [{
       version: '1.0.0',
@@ -5010,7 +5010,7 @@ let DRW_TEMPLATES = [
     description: 'Apartment or residence interior design. ~20 drawings, ~200 hours typical.',
     icon: '🛋',
     builtin: true,
-    appliesTo: ['INT-RES','INT-APT'],
+    appliesTo: ['INT-ONLY','RES-NEW','RES-EXT','RES-MULT'],
     activeVersion: '1.0.0',
     versions: [{
       version: '1.0.0',
@@ -5053,7 +5053,7 @@ let DRW_TEMPLATES = [
     description: 'Office, co-working, retail interior fitout. ~25 drawings, ~280 hours typical.',
     icon: '🏪',
     builtin: true,
-    appliesTo: ['INT-COM','INT-OFF','INT-RET'],
+    appliesTo: ['INT-ONLY','COM-OFF'],
     activeVersion: '1.0.0',
     versions: [{
       version: '1.0.0',
@@ -5726,6 +5726,59 @@ let DRW_TEMPLATES = [
     }]
   },
 ];
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.1 — DIAGNOSTIC HELPER
+   ─────────────────────────────────────────────────────────────────────
+   Run window.s62Diagnose() in the browser console to dump full state.
+   Useful when something looks wrong and you need to confirm what is
+   actually loaded vs what's displayed in the UI.
+═════════════════════════════════════════════════════════════════════ */
+window.s62Diagnose = function(){
+  console.group('S62 Diagnostic — '+(window.appVersion||'unknown version'));
+
+  console.group('Templates ('+DRW_TEMPLATES.length+' loaded)');
+  console.log('Total: '+DRW_TEMPLATES.length+' templates');
+  console.log('Built-in: '+DRW_TEMPLATES.filter(t=>t.builtin).length);
+  console.log('Custom: '+DRW_TEMPLATES.filter(t=>!t.builtin).length);
+  console.log('Template IDs:');
+  DRW_TEMPLATES.forEach((t,i)=>{
+    console.log('  '+(i+1).toString().padStart(2)+'. '+t.id+'  ['+(t.builtin?'builtin':'custom')+']  → '+t.name);
+  });
+  console.groupEnd();
+
+  console.group('Drawings by status');
+  const statusCounts = {};
+  DRAWINGS.forEach(d => { statusCounts[d.status||'(none)'] = (statusCounts[d.status||'(none)']||0)+1; });
+  Object.keys(statusCounts).sort().forEach(s => console.log('  '+s+': '+statusCounts[s]));
+  console.log('Total drawings: '+DRAWINGS.length);
+  console.log('In QA review (status=chk): '+(statusCounts.chk||0));
+  console.groupEnd();
+
+  console.group('QA Review state');
+  console.log('drwSmartView (current view):', typeof drwSmartView !== 'undefined' ? drwSmartView : 'undefined');
+  console.log('activeProjId:', activeProjId);
+  const svQa = document.getElementById('sv-qa');
+  console.log('For Review button exists:', !!svQa);
+  if(svQa) console.log('  badge text:', document.getElementById('sv-qa-ct')?.textContent || '(empty)');
+  const con = document.getElementById('drw-container');
+  console.log('drw-container exists:', !!con, '| display:', con?.style.display || '(default)');
+  const noProj = document.getElementById('drw-no-proj');
+  console.log('drw-no-proj exists:', !!noProj, '| display:', noProj?.style.display || '(default)');
+  console.groupEnd();
+
+  console.group('Project type coverage');
+  const projTypes = PROJS.map(p=>p.type).filter(Boolean);
+  const typeCounts = {};
+  projTypes.forEach(t=>{ typeCounts[t] = (typeCounts[t]||0)+1; });
+  console.log('Active projects by type:');
+  Object.keys(typeCounts).sort().forEach(t=>console.log('  '+t+': '+typeCounts[t]+' project(s)'));
+  console.groupEnd();
+
+  console.groupEnd();
+  return 'Diagnostic complete — see console output above.';
+};
+console.log('S62 v101.1 — type s62Diagnose() to run a full state diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -14286,7 +14339,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101',
+    appVersion: 'S62-v101.1',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -14341,10 +14394,16 @@ function unpackData(data) {
   if(data.notifications!==undefined){ NOTIFICATIONS=data.notifications; }
   if(data.transmittals!==undefined){ TRANSMITTALS=data.transmittals; }
   if(data.drwTemplates!==undefined && Array.isArray(data.drwTemplates) && data.drwTemplates.length){
-    // v99 — merge synced templates with built-in seeds. Built-ins (id starts
-    // with tmpl_arch_ or tmpl_int_) are kept fresh from local seed; custom
-    // templates and any modifications come from cloud.
-    const customIncoming = data.drwTemplates.filter(t => !t.builtin || t.versions.length > 1);
+    // v99 — merge synced templates with built-in seeds.
+    // v101.1 — STRICT filter: exclude ALL builtins from cloud merge.
+    //   Built-in templates are CANONICAL from the local seed and should never
+    //   be overwritten by stale cloud copies. This prevents older saved data
+    //   (e.g. from v99/v100 with broken appliesTo values) from clobbering the
+    //   v101.1 corrections to tmpl_arch_residential, tmpl_arch_civic,
+    //   tmpl_int_residential, tmpl_int_commercial.
+    //   Custom templates (forks, blank-created) ARE merged from cloud since
+    //   they're user-owned data.
+    const customIncoming = data.drwTemplates.filter(t => !t.builtin);
     customIncoming.forEach(incoming=>{
       const existing = DRW_TEMPLATES.find(t=>t.id===incoming.id);
       if(existing){
@@ -15715,11 +15774,27 @@ function maybeAutoSubmitForCheck(drawingId) {
 function renderQaReviewPanel(con) {
   const chkDrawings = DRAWINGS.filter(d => d.status === 'chk');
   if (!chkDrawings.length) {
+    // v101.1 — improved empty state with diagnostic context
+    const totalDrwgs = DRAWINGS.length;
+    const inProgress = DRAWINGS.filter(d=>d.status==='ip').length;
+    const issued = DRAWINGS.filter(d=>d.status==='done').length;
+    const drafts = DRAWINGS.filter(d=>d.status==='draft' || !d.status).length;
     con.innerHTML =
-      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:12px">'
-      + '<div style="font-size:32px">\u2713</div>'
-      + '<div style="font-family:var(--fd);font-size:18px;color:var(--tx)">No drawings pending check</div>'
-      + '<div style="font-family:var(--fm);font-size:11px;color:var(--txd)">Drawings submitted for QA will appear here automatically when they reach 100%</div>'
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:14px">'
+      + '<div style="font-size:42px;color:var(--grn)">\u2713</div>'
+      + '<div style="font-family:var(--fd);font-size:18px;color:var(--tx);font-weight:500">No drawings pending check</div>'
+      + '<div style="font-family:var(--fm);font-size:11px;color:var(--txd);text-align:center;max-width:420px;line-height:1.6">'
+        + 'Drawings appear in this queue when they reach 100% completion and are submitted for review.'
+      + '</div>'
+      + '<div style="margin-top:16px;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:12px 16px;font-family:var(--fm);font-size:11px;display:flex;flex-direction:column;gap:5px;min-width:280px">'
+        + '<div style="font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Drawing register status</div>'
+        + '<div style="display:flex;justify-content:space-between"><span style="color:var(--txd)">Total drawings:</span><strong style="color:var(--tx)">'+totalDrwgs+'</strong></div>'
+        + '<div style="display:flex;justify-content:space-between"><span style="color:var(--txd)">Drafts (unsubmitted):</span><strong style="color:var(--tx)">'+drafts+'</strong></div>'
+        + '<div style="display:flex;justify-content:space-between"><span style="color:var(--txd)">In progress:</span><strong style="color:var(--blu)">'+inProgress+'</strong></div>'
+        + '<div style="display:flex;justify-content:space-between"><span style="color:var(--txd)">Awaiting check (status=chk):</span><strong style="color:var(--pur)">0</strong></div>'
+        + '<div style="display:flex;justify-content:space-between"><span style="color:var(--txd)">Issued:</span><strong style="color:var(--grn)">'+issued+'</strong></div>'
+      + '</div>'
+      + (totalDrwgs>0 && inProgress>0 ? '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);text-align:center;max-width:420px;margin-top:6px">You have <strong style="color:var(--blu)">'+inProgress+'</strong> drawings in progress. They will appear here once they reach 100% and are submitted for QA.</div>' : '')
       + '</div>';
     return;
   }
@@ -22734,17 +22809,37 @@ function openDrwTemplatesModal(){
   const div = document.createElement('div');
   div.id = 'drw-tpl-ov';
   div.className = 'ov show';
+  const totalCount = DRW_TEMPLATES.length;
+  const builtinCount = DRW_TEMPLATES.filter(t=>t.builtin).length;
+  const customCount = totalCount - builtinCount;
   div.innerHTML = `<div class="modal" style="max-width:780px;max-height:85vh;display:flex;flex-direction:column">
     <button class="mclose" onclick="closeModal('drw-tpl-ov')">✕</button>
-    <div class="mtitle">📐 Drawing Templates</div>
-    <div class="msub">${DRW_TEMPLATES.length} templates · IS 962 + COA aligned · ${canEditTemplate() ? 'You can edit' : 'View-only (Principal/Associate/PA can edit)'}</div>
-
-    <div style="overflow-y:auto;flex:1;margin:14px 0;padding-right:6px" id="drw-tpl-list">
-      ${renderDrwTemplateList()}
+    <div class="mtitle">📐 Drawing Templates
+      <span style="font-family:var(--fm);font-size:11px;font-weight:500;background:var(--blu);color:#fff;padding:3px 10px;border-radius:12px;margin-left:10px;letter-spacing:.04em">${totalCount} total</span>
+    </div>
+    <div class="msub" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <span><strong style="color:var(--tx)">${builtinCount}</strong> built-in</span>
+      <span style="color:var(--txd)">·</span>
+      <span><strong style="color:var(--tx)">${customCount}</strong> custom</span>
+      <span style="color:var(--txd)">·</span>
+      <span>IS 962 + COA aligned</span>
+      <span style="color:var(--txd)">·</span>
+      <span>${canEditTemplate() ? 'You can edit' : 'View-only (Principal/Associate/PA can edit)'}</span>
+    </div>
+    <div style="background:rgba(82,133,224,.06);border:1px solid rgba(82,133,224,.25);border-radius:6px;padding:8px 12px;margin-top:10px;font-family:var(--fm);font-size:10px;color:var(--txd);display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px">↕</span>
+      <span>Scroll the list below to see all <strong style="color:var(--tx)">${totalCount}</strong> templates. Click any template to expand its drawing list.</span>
     </div>
 
-    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2)">
+    <div style="overflow-y:auto;flex:1;margin:14px 0;padding-right:6px;position:relative;border:1px solid var(--bd2);border-radius:8px;background:var(--sf)" id="drw-tpl-list-wrap">
+      <div id="drw-tpl-list" style="padding:10px">
+        ${renderDrwTemplateList()}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2);align-items:center">
       ${canEditTemplate() ? '<button class="btn bg" onclick="createCustomTemplateBlank()" style="padding:8px 14px;font-size:11px">+ New Custom Template</button>' : ''}
+      <span style="font-family:var(--fm);font-size:10px;color:var(--txd)">Showing all ${totalCount} templates</span>
       <div style="flex:1"></div>
       <button class="btn bg" onclick="closeModal('drw-tpl-ov')" style="padding:8px 14px">Close</button>
     </div>
