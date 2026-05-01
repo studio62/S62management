@@ -5879,7 +5879,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.8 — type s62Diagnose() to run a full state diagnostic');
+console.log('S62 v101.9 — type s62Diagnose() to run a full state diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -14571,7 +14571,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.8',
+    appVersion: 'S62-v101.9',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -16213,13 +16213,26 @@ function renderQaReviewPanel(con) {
       html += '<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;padding-left:16px;justify-content:center">';
 
       if (isApprover && d.sid !== CURRENT_USER_ID) {
-        // Full approve/reject via modal
-        const oc = 'openQaModal(' + JSON.stringify(d.id) + ')';
+        // v101.9 BUG FIX — "Review drawing" button did nothing on click.
+        // ─────────────────────────────────────────────────────────────
+        // Root cause: `JSON.stringify(d.id)` returns the string with double
+        // quotes embedded (e.g. '"P83595-A-006"'). When concatenated into an
+        // HTML attribute that itself uses double quotes:
+        //   onclick="openQaModal("P83595-A-006")"
+        // the HTML parser sees the inner " as the attribute terminator,
+        // truncating onclick to 'openQaModal(' — incomplete JS that throws
+        // SyntaxError on click. The button rendered but did nothing.
+        //
+        // Fix: use single quotes around the id inside the double-quoted
+        // attribute, with defensive escape for any single quote inside
+        // the id itself (your IDs like P83595-A-006 don't contain them,
+        // but defense-in-depth costs nothing).
+        const safeId = String(d.id).replace(/'/g, "\\'");
+        const oc = "openQaModal('" + safeId + "')";
         html += '<button class="btn" style="background:var(--pur);color:#fff;padding:8px 16px;font-size:11px;white-space:nowrap" onclick="' + oc + '">'
           + '\u25c8 Review drawing</button>';
-
-        // Quick approve direct buttons
-        const oc2 = 'openQaModal(' + JSON.stringify(d.id) + ')';
+        // (v101.9 cleanup — removed dead `const oc2` declaration that was
+        // a leftover from an earlier "quick approve" implementation.)
       } else if (d.sid === CURRENT_USER_ID) {
         html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-align:right;max-width:120px">'
           + 'Awaiting check by Principal / Lead / PA'
