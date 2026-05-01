@@ -2085,7 +2085,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     <button class="drw-sv"    id="sv-mine"        onclick="setDrwView('mine',this)">🎯 Mine</button>
     <button class="drw-sv"    id="sv-overdue"     onclick="setDrwView('overdue',this)"><span id="sv-overdue-ct"></span>⚠ Overdue</button>
     <button class="drw-sv"    id="sv-week"        onclick="setDrwView('week',this)">📅 Due Soon</button>
-    <button class="drw-sv"    id="sv-qa"          onclick="setDrwView('qa',this)" style="border-color:var(--pur);color:var(--pur)">◈ For Review <span id="sv-qa-ct" style="font-family:var(--fm);font-size:9px;background:var(--pur);color:#fff;padding:1px 5px;border-radius:8px;margin-left:2px"></span></button>
+    <button class="drw-sv"    id="sv-qa"          onclick="(function(b){console.log('[s62] For Review clicked. Drawings at chk:',DRAWINGS.filter(d=>d.status==='chk').length);setDrwView('qa',b);const c=document.getElementById('drw-container');if(c){c.scrollIntoView({behavior:'smooth',block:'start'});}})(this)" style="border-color:var(--pur);color:var(--pur)">◈ For Review <span id="sv-qa-ct" style="font-family:var(--fm);font-size:9px;background:var(--pur);color:#fff;padding:1px 5px;border-radius:8px;margin-left:2px"></span></button>
     <button class="drw-sv"    id="sv-returned"    onclick="setDrwView('returned',this)" style="display:none;border-color:var(--red);color:var(--red)">↺ Returned <span id="sv-returned-ct" style="font-family:var(--fm);font-size:9px;background:var(--red);color:#fff;padding:1px 5px;border-radius:8px;margin-left:2px"></span></button>
     <button class="drw-sv"    id="sv-unassigned"  onclick="setDrwView('unassigned',this)">○ Unassigned</button>
     <div style="flex:1"></div>
@@ -5778,7 +5778,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.1 — type s62Diagnose() to run a full state diagnostic');
+console.log('S62 v101.3 — type s62Diagnose() to run a full state diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -10420,10 +10420,22 @@ function renderDrawings(){
     // dashboard "Open Review Queue" with no active project would write QA
     // HTML into a hidden container, leaving the user staring at the empty
     // state with no drawings visible.
+    // v101.2 — also scroll container into view and log diagnostic info.
     const noProjEl = document.getElementById('drw-no-proj');
-    if(con) con.style.display = 'block';
+    if(con){
+      con.style.display = 'block';
+      con.style.minHeight = '200px';  // force layout space even before content
+    }
     if(noProjEl) noProjEl.style.display = 'none';
-    if(con) renderQaReviewPanel(con);
+    const chkCount = DRAWINGS.filter(d=>d.status==='chk').length;
+    console.log('[s62 QA Review] entering — chkCount:',chkCount,'· con exists:',!!con);
+    if(con){
+      renderQaReviewPanel(con);
+      // Force the container into view in case it was scrolled off-screen
+      try{ con.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
+    } else {
+      console.warn('[s62 QA Review] drw-container element missing — cannot render');
+    }
     return;
   }
   const noProj=document.getElementById('drw-no-proj');
@@ -14339,7 +14351,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.1',
+    appVersion: 'S62-v101.3',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -15863,6 +15875,12 @@ function renderQaReviewPanel(con) {
         ? Math.ceil((new Date() - new Date(d.submittedAt)) / 864e5)
         : 0;
       const urgency = daysAgo >= 3 ? 'var(--red)' : daysAgo >= 1 ? 'var(--gold)' : 'var(--txd)';
+      // v101.3 — waitLabel was referenced but never declared, throwing
+      // "Can't find variable: waitLabel" on line 15920 and breaking the
+      // entire QA Review render. Now derived from daysAgo.
+      const waitLabel = daysAgo === 0 ? 'just now'
+        : daysAgo === 1 ? '1 day waiting'
+        : daysAgo + ' days waiting';
       const prevQa = (d.qaHistory || []).filter(q => q.action === 'rejected');
       const tgtDate = d.tgt ? fmtDate(parseDue(d.tgt)) : '\u2014';
       const tgtD = d.tgt ? parseDue(d.tgt) : null;
@@ -22826,25 +22844,74 @@ function openDrwTemplatesModal(){
       <span style="color:var(--txd)">·</span>
       <span>${canEditTemplate() ? 'You can edit' : 'View-only (Principal/Associate/PA can edit)'}</span>
     </div>
-    <div style="background:rgba(82,133,224,.06);border:1px solid rgba(82,133,224,.25);border-radius:6px;padding:8px 12px;margin-top:10px;font-family:var(--fm);font-size:10px;color:var(--txd);display:flex;align-items:center;gap:8px">
-      <span style="font-size:12px">↕</span>
-      <span>Scroll the list below to see all <strong style="color:var(--tx)">${totalCount}</strong> templates. Click any template to expand its drawing list.</span>
+
+    <!-- v101.2 — Filter tabs to separate builtin/custom views -->
+    <div style="display:flex;gap:6px;margin-top:12px;border-bottom:1px solid var(--bd2);padding-bottom:0">
+      <button class="tpl-filter-tab on" data-filter="all" onclick="setTplFilter('all')" style="background:transparent;border:none;border-bottom:2px solid var(--blu);padding:8px 14px;cursor:pointer;font-family:var(--fm);font-size:11px;color:var(--tx);font-weight:500">All <span style="opacity:.6">(${totalCount})</span></button>
+      <button class="tpl-filter-tab" data-filter="builtin" onclick="setTplFilter('builtin')" style="background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;font-family:var(--fm);font-size:11px;color:var(--txm)">Built-in <span style="opacity:.6">(${builtinCount})</span></button>
+      <button class="tpl-filter-tab" data-filter="custom" onclick="setTplFilter('custom')" style="background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;font-family:var(--fm);font-size:11px;color:var(--txm)">Custom <span style="opacity:.6">(${customCount})</span></button>
+      <div style="flex:1"></div>
+      <input type="text" id="tpl-search" placeholder="Search templates…" oninput="renderDrwTemplateListFiltered()" style="background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:5px 10px;color:var(--tx);font-family:var(--fm);font-size:11px;outline:none;align-self:center;margin-bottom:6px" />
     </div>
 
-    <div style="overflow-y:auto;flex:1;margin:14px 0;padding-right:6px;position:relative;border:1px solid var(--bd2);border-radius:8px;background:var(--sf)" id="drw-tpl-list-wrap">
-      <div id="drw-tpl-list" style="padding:10px">
+    <div style="overflow-y:auto;flex:1;margin:0 0 14px 0;padding:10px 6px 0 0;position:relative" id="drw-tpl-list-wrap">
+      <div id="drw-tpl-list">
         ${renderDrwTemplateList()}
       </div>
     </div>
 
     <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2);align-items:center">
       ${canEditTemplate() ? '<button class="btn bg" onclick="createCustomTemplateBlank()" style="padding:8px 14px;font-size:11px">+ New Custom Template</button>' : ''}
-      <span style="font-family:var(--fm);font-size:10px;color:var(--txd)">Showing all ${totalCount} templates</span>
+      <span id="tpl-count-summary" style="font-family:var(--fm);font-size:10px;color:var(--txd)">Showing all ${totalCount} templates</span>
       <div style="flex:1"></div>
       <button class="btn bg" onclick="closeModal('drw-tpl-ov')" style="padding:8px 14px">Close</button>
     </div>
   </div>`;
   document.body.appendChild(div);
+}
+
+/* v101.2 — Filter tab handler */
+let _drwTplFilter = 'all';
+function setTplFilter(f){
+  _drwTplFilter = f;
+  document.querySelectorAll('.tpl-filter-tab').forEach(b=>{
+    if(b.dataset.filter===f){
+      b.style.borderBottom = '2px solid var(--blu)';
+      b.style.color = 'var(--tx)';
+      b.style.fontWeight = '500';
+    } else {
+      b.style.borderBottom = '2px solid transparent';
+      b.style.color = 'var(--txm)';
+      b.style.fontWeight = '400';
+    }
+  });
+  renderDrwTemplateListFiltered();
+}
+
+function renderDrwTemplateListFiltered(){
+  const search = (document.getElementById('tpl-search')?.value || '').toLowerCase();
+  let templates = DRW_TEMPLATES;
+  if(_drwTplFilter==='builtin') templates = templates.filter(t=>t.builtin);
+  else if(_drwTplFilter==='custom') templates = templates.filter(t=>!t.builtin);
+  if(search){
+    templates = templates.filter(t=>(t.name||'').toLowerCase().includes(search) || (t.description||'').toLowerCase().includes(search));
+  }
+  const listEl = document.getElementById('drw-tpl-list');
+  if(!listEl) return;
+  if(!templates.length){
+    listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;font-family:var(--fm);font-size:11px;color:var(--txd)">No templates match this filter.</div>';
+  } else {
+    // Reuse render but on a filtered subset — temporarily mutate by passing filtered list
+    const _orig = window.DRW_TEMPLATES;
+    window.DRW_TEMPLATES = templates;
+    listEl.innerHTML = renderDrwTemplateList();
+    window.DRW_TEMPLATES = _orig;
+  }
+  const summary = document.getElementById('tpl-count-summary');
+  if(summary){
+    summary.textContent = 'Showing '+templates.length+' template'+(templates.length!==1?'s':'')+
+      (_drwTplFilter!=='all'?' ('+_drwTplFilter+')':'')+(search?' matching "'+search+'"':'');
+  }
 }
 
 function renderDrwTemplateList(){
