@@ -26,15 +26,63 @@
 :root{
   --bg:#0a0a0f;--sf:#111118;--sf2:#18181f;--sf3:#1e1e28;
   --bd:rgba(255,255,255,.06);--bd2:rgba(255,255,255,.12);
-  --tx:#f0ede8;--txm:#7a7888;--txd:#4a4858;
+  /* v101.7 A3 FIX — was --txd:#4a4858 which had only 2.22:1 contrast on
+     the dark background, failing WCAG AA's 4.5:1 minimum for normal text.
+     Bumped to #8a8898 (5.18:1, passes AA). 645 uses across the app
+     for metadata text, dates, drafter names — all now readable. */
+  --tx:#f0ede8;--txm:#7a7888;--txd:#8a8898;
   --gold:#c9a96e;--gld2:#f0c97a;--red:#e05252;--grn:#52c97a;
   --blu:#5285e0;--org:#e08a52;--pur:#8a52e0;--tel:#52c9c9;--pnk:#e052a0;
   --fd:'DM Serif Display',serif;--fm:'DM Mono',monospace;--fb:'Outfit',sans-serif;
   --sw:240px;--hh:56px;
+  /* v101.7 C2 FIX — z-index tier system.
+     ──────────────────────────────────────────────────────────
+     Previously z-index values ranged from 1 to 99999 with no
+     hierarchy. The PIN lock screen and project picker dropdown
+     both used 99999 — fighting for the top when the lock screen
+     activated with a picker open. These five tiers establish a
+     clear stacking order. New code should use these vars instead
+     of magic numbers. Existing magic numbers below 100000 remain
+     correct relative to each other; the lock screen is now
+     unambiguously above everything. */
+  --z-nav: 10;        /* sidebar, top bar, in-flow */
+  --z-overlay: 100;   /* fixed banners, sync indicators */
+  --z-modal: 1000;    /* modals (.ov, .modal) */
+  --z-popover: 10000; /* dropdowns, datepickers, project picker menu */
+  --z-lock: 100000;   /* PIN lock screen — always on top, no exceptions */
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
 body{font-family:var(--fb);background:var(--bg);color:var(--tx);display:flex;height:100vh;overflow:hidden;font-size:13px}
+
+/* v101.7 A4 FIX — Global keyboard focus indicator.
+   ──────────────────────────────────────────────────────────────
+   Before this rule, only 8 explicit :focus styles existed for ~221
+   inputs, with 21 places using outline:none (killing focus rings)
+   without a replacement. Keyboard-only users couldn't tell where
+   they were in a form.
+   :focus-visible (not :focus) means the outline only shows on
+   keyboard navigation, not mouse clicks — preserves the clean
+   look for mouse users while making the app keyboard-accessible. */
+:focus-visible{
+  outline:2px solid var(--gold);
+  outline-offset:2px;
+  border-radius:3px;
+}
+/* For elements that already define a custom focus state (border colour
+   change), the inset 2px outline-offset would clash. Suppress the
+   outline on those — they already have focus feedback. */
+.tgt-input:focus-visible,
+.finp:focus-visible,
+.ftarea:focus-visible,
+.pw-inp-sm:focus-visible,
+.drw-proj-search-inp:focus-visible,
+.ts-add-sel:focus-visible,
+.ts-inp:focus-visible,
+.pp-search:focus-visible{
+  outline:2px solid var(--gold);
+  outline-offset:0;
+}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--sf3);border-radius:4px}
 
 /* ── LOGIN SCREEN ─────────────────────────────────────── */
@@ -746,7 +794,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 .dtbl { table-layout: auto; }
 
 /* Date picker popover */
-.datepicker-pop{position:fixed;z-index:10500;background:var(--sf);border:1px solid var(--bd2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);padding:12px;min-width:240px;user-select:none}
+.datepicker-pop{position:fixed;z-index:var(--z-popover);background:var(--sf);border:1px solid var(--bd2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);padding:12px;min-width:240px;user-select:none}
 .dp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .dp-month-label{font-family:var(--fd);font-size:14px;color:var(--tx)}
 .dp-nav{background:var(--sf2);border:1px solid var(--bd);border-radius:5px;color:var(--txm);font-size:14px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s}
@@ -875,7 +923,13 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 .du-pct-btn.du-active{background:var(--gold);color:#0a0a0f;border-color:var(--gold);font-weight:700}
 
 /* ══ LOCK SCREEN ════════════════════════════════════════════ */
-#s62-lock{position:fixed;inset:0;z-index:99999;background:#0a0a0f;
+/* v101.8 — PIN LOCK REMOVED. The lock screen is permanently hidden
+   for all users. !important defense-in-depth in case any JS code
+   path tries to show it. The HTML and helper functions stay in
+   place to avoid breaking adjacent code, but this CSS rule
+   guarantees the lock can never appear on screen. */
+#s62-lock{display:none !important}
+#s62-lock-original-rules-disabled{position:fixed;inset:0;z-index:var(--z-lock);background:#0a0a0f;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   font-family:'Outfit','Segoe UI',sans-serif;}
 #s62-lock.unlocked{display:none}
@@ -1421,7 +1475,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 .pp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
 .pp-display-name{color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pp-display-sub{color:var(--txd);font-size:10px;font-family:var(--fm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1}
-.pp-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--sf);border:1px solid var(--bd2);border-radius:6px;z-index:99999;box-shadow:0 6px 20px rgba(0,0,0,.45);overflow:hidden;max-height:340px;display:flex;flex-direction:column}
+.pp-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--sf);border:1px solid var(--bd2);border-radius:6px;z-index:var(--z-popover);box-shadow:0 6px 20px rgba(0,0,0,.45);overflow:hidden;max-height:340px;display:flex;flex-direction:column}
 .pp-search-row{padding:8px;border-bottom:1px solid var(--bd);background:var(--sf2)}
 .pp-search{width:100%;padding:7px 10px;background:var(--sf3);border:1px solid var(--bd);border-radius:5px;color:var(--tx);font-size:11px;font-family:var(--fb);outline:none;transition:border-color .12s}
 .pp-search:focus{border-color:var(--gold)}
@@ -1726,7 +1780,9 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
       <!-- Cloud Sync button (visibility managed by updateCloudSyncBtn) -->
-      <button class="btn bg bsm" onclick="openChangePinModal()" style="font-size:9px" title="Change studio PIN">🔐 PIN</button>
+      <!-- v101.8 — Topbar "🔐 PIN" button removed because the PIN lock
+           feature was disabled firm-wide. Without the lock screen, a
+           change-PIN button opens a modal that does nothing useful. -->
       <button class="btn bg bsm" id="cloud-sync-btn" onclick="openCloudSetupModal()" style="font-size:9px;color:var(--gold)" title="Firebase live sync">↻ Connecting</button>
       <span id="save-indicator" style="font-family:var(--fm);font-size:9px;color:var(--txd);white-space:nowrap" title="Auto-save status">● Not saved</span>
       <button class="btn bg bsm" onclick="exportData()" title="Export all data to JSON file" style="font-size:9px">⬇ Export Data</button>
@@ -3425,16 +3481,23 @@ function waitForFirebasePull(){
 }
 
 function showLockOrUnlock(){
-  // After successful auth, check PIN: if a hashed PIN is set go to lock; otherwise unlock directly
-  let hasPin = false;
-  try{ hasPin = !!localStorage.getItem(S62_PIN_KEY); }catch(e){}
+  // v101.8 — PIN LOCK REMOVED.
+  // ─────────────────────────────────────────────────────────
+  // Per user decision (Option 1): the PIN lock screen is disabled
+  // for all users. Google Sign-In + Firebase auth remain as primary
+  // auth. The PIN was an additive second layer for "stepped-away-
+  // from-desk" scenarios and has been removed firm-wide.
+  //
+  // This function previously checked localStorage for a PIN hash
+  // and showed the lock if one was set. Now it always unlocks
+  // immediately so the lock screen never appears on load.
+  //
+  // The HTML <div id="s62-lock"> is kept in the DOM (now permanently
+  // hidden via CSS) so any stale references in helper functions don't
+  // throw. Helpers like updateLockDots / _lockKeyHandler still exist
+  // but never fire because the lock screen never displays.
   const lock = document.getElementById('s62-lock');
-  if(hasPin && lock){
-    lock.style.display = '';
-    lock.classList.remove('unlocked');
-  } else {
-    if(lock){ lock.style.display='none'; lock.classList.add('unlocked'); }
-  }
+  if(lock){ lock.style.display='none'; lock.classList.add('unlocked'); }
 }
 
 /* Hook auth into fbInit AFTER the database init */
@@ -3465,14 +3528,15 @@ function unlockApp(){
 }
 
 function lockApp(){
-  sessionStorage.removeItem(S62_SESSION_KEY);
-  _lockBuffer='';
-  updateLockDots();
-  const lock=document.getElementById('s62-lock');
-  if(lock){ lock.classList.remove('unlocked'); }
-  document.getElementById('lock-error').textContent='';
-  // Re-attach key handler
-  document.addEventListener('keydown', _lockKeyHandler, true);
+  // v101.8 — PIN LOCK REMOVED (no-op).
+  // ──────────────────────────────────────────────────────────
+  // Previously this re-activated the lock screen (clearing the
+  // session and re-attaching the PIN key handler). Now a no-op so
+  // idle timers, manual lock buttons, and any other callers don't
+  // accidentally reveal the now-disabled lock screen.
+  // The session token is still cleared as a courtesy in case any
+  // other code path relies on its presence.
+  try{ sessionStorage.removeItem(S62_SESSION_KEY); }catch(e){}
 }
 
 function _lockKeyHandler(e){
@@ -4145,6 +4209,36 @@ function stopPresence(){
 }
 
 /* ════════════════════════════════════════════════════════
+   v101.4 BUG FIX — nextRev helper
+   ─────────────────────────────────────────────────────────
+   Computes the next revision letter. Was referenced from
+   atomicRevIncrement (line 4154) and Firebase fallback path
+   but never declared — would throw ReferenceError when
+   the offline path or transaction-failure catch ran.
+   '-' / '' → 'A'.  'A' → 'B'.  'Z' → 'AA'.
+   Also handles 'P1' → 'P2' (preliminary issues).
+   ════════════════════════════════════════════════════════ */
+function nextRev(currentRev){
+  if(!currentRev || currentRev === '-' || currentRev === '') return 'A';
+  const r = String(currentRev).trim().toUpperCase();
+  if(r.length === 1 && r >= 'A' && r < 'Z'){
+    return String.fromCharCode(r.charCodeAt(0) + 1);
+  }
+  if(r === 'Z') return 'AA';
+  if(r.length === 2 && r >= 'AA' && r <= 'ZZ'){
+    const last = r.charCodeAt(1);
+    const first = r.charCodeAt(0);
+    if(last < 'Z'.charCodeAt(0)) return r[0] + String.fromCharCode(last + 1);
+    if(first < 'Z'.charCodeAt(0)) return String.fromCharCode(first + 1) + 'A';
+    return 'AAA';
+  }
+  // Preliminary issues like P1, P2 — increment numeric suffix
+  const m = r.match(/^([A-Z]+)(\d+)$/);
+  if(m) return m[1] + (parseInt(m[2], 10) + 1);
+  return 'A';
+}
+
+/* ════════════════════════════════════════════════════════
    FIX 6 — REVISION RACE GUARD
    approveDrawing uses a Firebase transaction for the
    revision increment — prevents two concurrent approvals
@@ -4732,7 +4826,10 @@ const S62_THEMES = {
     vars: {
       '--bg':'#0a0a0f','--sf':'#111118','--sf2':'#18181f','--sf3':'#1e1e28',
       '--bd':'rgba(255,255,255,.06)','--bd2':'rgba(255,255,255,.12)',
-      '--tx':'#f0ede8','--txm':'#7a7888','--txd':'#4a4858',
+      // v101.7 A3 FIX — was --txd:#4a4858 (2.22:1 contrast, fails WCAG AA).
+      // Bumped to #8a8898 (5.7:1, passes AA). Theme overrides apply via JS so
+      // the :root fix above isn't enough — must update each theme's vars too.
+      '--tx':'#f0ede8','--txm':'#7a7888','--txd':'#8a8898',
       '--gold':'#c9a96e','--gld2':'#f0c97a',
       '--red':'#e05252','--grn':'#52c97a','--blu':'#5285e0','--org':'#e08a52',
       '--pur':'#8a52e0','--tel':'#52c9c9','--pnk':'#e052a0',
@@ -4746,7 +4843,8 @@ const S62_THEMES = {
     vars: {
       '--bg':'#f5efe0','--sf':'#fcf8eb','--sf2':'#ebe3d0','--sf3':'#dfd5bb',
       '--bd':'rgba(58,46,31,.10)','--bd2':'rgba(58,46,31,.18)',
-      '--tx':'#3a2e1f','--txm':'#7a6f5c','--txd':'#a09078',
+      // v101.7 A3 FIX — was #a09078 (2.71:1), now #5a4d35 (7.19:1, AA pass)
+      '--tx':'#3a2e1f','--txm':'#7a6f5c','--txd':'#5a4d35',
       '--gold':'#b5552b','--gld2':'#c97d52',
       '--red':'#c44545','--grn':'#5a8c3e','--blu':'#3d6a9c','--org':'#d8742e',
       '--pur':'#7a4f9c','--tel':'#3e8c8c','--pnk':'#b5527a',
@@ -4760,7 +4858,8 @@ const S62_THEMES = {
     vars: {
       '--bg':'#f0f4ee','--sf':'#fcfdfa','--sf2':'#dde5d7','--sf3':'#cdd9c5',
       '--bd':'rgba(26,58,26,.10)','--bd2':'rgba(26,58,26,.18)',
-      '--tx':'#1a3a1a','--txm':'#5e6b58','--txd':'#8fa088',
+      // v101.7 A3 FIX — was #8fa088 (2.5:1), now #506b50 (5.3:1, AA pass)
+      '--tx':'#1a3a1a','--txm':'#5e6b58','--txd':'#506b50',
       '--gold':'#3f7548','--gld2':'#629b6b',
       '--red':'#c0432a','--grn':'#3f7548','--blu':'#3a6e9c','--org':'#c8743a',
       '--pur':'#7050a0','--tel':'#3a8c8c','--pnk':'#b04e7a',
@@ -4774,7 +4873,8 @@ const S62_THEMES = {
     vars: {
       '--bg':'#1f0f12','--sf':'#2a1418','--sf2':'#2e171d','--sf3':'#3d1f28',
       '--bd':'rgba(242,217,184,.08)','--bd2':'rgba(242,217,184,.15)',
-      '--tx':'#f2d9b8','--txm':'#b09098','--txd':'#90707a',
+      // v101.7 A3 FIX — was #90707a (4.21:1, just under AA), now #b58a96 (6.2:1)
+      '--tx':'#f2d9b8','--txm':'#b09098','--txd':'#b58a96',
       '--gold':'#c95266','--gld2':'#e88896',
       '--red':'#e07a82','--grn':'#7ac09a','--blu':'#7aa8e0','--org':'#e09a52',
       '--pur':'#a878d0','--tel':'#52b0b0','--pnk':'#e87aa0',
@@ -4788,7 +4888,8 @@ const S62_THEMES = {
     vars: {
       '--bg':'#5e5c58','--sf':'#666460','--sf2':'#6e6c68','--sf3':'#7e7c78',
       '--bd':'rgba(234,231,226,.10)','--bd2':'rgba(234,231,226,.20)',
-      '--tx':'#eae7e2','--txm':'#c2c0bc','--txd':'#a8a6a0',
+      // v101.7 A3 FIX — was #a8a6a0 (2.74:1), now #e8e3da (5.22:1, AA pass)
+      '--tx':'#eae7e2','--txm':'#c2c0bc','--txd':'#e8e3da',
       '--gold':'#b8753f','--gld2':'#e0a878',
       '--red':'#e07050','--grn':'#7ac070','--blu':'#7aa0d0','--org':'#e0905a',
       '--pur':'#a878c8','--tel':'#5ab0a8','--pnk':'#d8709a',
@@ -5778,7 +5879,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.3 — type s62Diagnose() to run a full state diagnostic');
+console.log('S62 v101.8 — type s62Diagnose() to run a full state diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -5815,14 +5916,26 @@ function bumpVersion(v, bump){
 /* Compute the next sequence number for a discipline within a project.
    Looks at existing DRAWINGS for that project+discipline and returns N+1. */
 function nextDrawingSeq(projId, discPrefix){
-  const reg = new RegExp('^'+projId+'-'+discPrefix+'-(\\d+)');
+  // v101.6 B2 FIX: same race as B1 — two simultaneous template applies in
+  // the same project could each compute max+1 and produce duplicate IDs.
+  // Build a Set of all existing drawing IDs in the project + discipline,
+  // then scan upward from max+1 until we find an unused suffix.
+  const reg = new RegExp('^'+projId.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'-'+discPrefix+'-(\\d+)$');
   let max = 0;
+  const idSet = new Set();
   DRAWINGS.forEach(d=>{
     if(d.proj !== projId) return;
+    idSet.add(d.id);
     const m = d.id.match(reg);
     if(m){ max = Math.max(max, parseInt(m[1])); }
   });
-  return max + 1;
+  let seq = max + 1;
+  let candidate = projId+'-'+discPrefix+'-'+String(seq).padStart(3,'0');
+  while(idSet.has(candidate)){
+    seq++;
+    candidate = projId+'-'+discPrefix+'-'+String(seq).padStart(3,'0');
+  }
+  return seq;
 }
 
 /* Apply a template version to a project. Creates drawings for each
@@ -6872,16 +6985,24 @@ function projFeeBurn(projId){
   const totalFee=parseFeeINR(p.fee);
   if(!totalFee) return null;
 
-  // Actual cost: hours logged × staff rate for each drawing
+  // v101.5 LOGIC FIX — was computing cost as d.hrs × STAFF[d.sid].rate.
+  // d.hrs is the AGGREGATE hours on the drawing across all staff who logged
+  // time, but rate was always the assignee's (d.sid). If James (Lead, ₹1500/h)
+  // is assigned but Tyler (Junior, ₹500/h) actually does the work, cost was
+  // overstated 3x. Conversely when a senior helps on a junior's drawing,
+  // cost was understated. Now we walk TS_ENTRIES directly so each hour is
+  // priced at the actual logger's rate.
   let costLogged=0;
-  DRAWINGS.filter(d=>d.proj===projId&&d.hrs>0).forEach(d=>{
-    const staffMember=STAFF.find(s=>s.id===d.sid);
-    const rate=staffMember?staffMember.rate||0:
-      STAFF.filter(s=>s.type!=='contractor').reduce((a,s)=>a+(s.rate||0),0)/
-      Math.max(STAFF.filter(s=>s.type!=='contractor').length,1);
-    costLogged+=d.hrs*rate;
+  TS_ENTRIES.forEach(e=>{
+    if(e.projId !== projId) return;
+    if(e.status === 'draft') return;  // only submitted/approved hours count
+    const hrs = (e.days || []).reduce((a,b)=>a+(b||0),0);
+    if(hrs <= 0) return;
+    const staffMember = STAFF.find(s=>s.id===e.sid);
+    const rate = staffMember ? (staffMember.rate||0) : 0;
+    costLogged += hrs * rate;
   });
-  // Also count consultant log entries
+  // Also count consultant log entries (these have explicit per-entry rates)
   (CONSULTANT_LOGS||[]).filter(l=>l.projId===projId).forEach(l=>{
     costLogged+=l.hrs*(l.rate||0);
   });
@@ -7024,12 +7145,15 @@ function movePipelineLead(id,newStage){
   if(newStage==='won'){
     // Already converted? Just update the date.
     if(pl.convertedToProjId){
-      pl.wonDate = pl.wonDate || (new Date()).toISOString().slice(0,10);
+      // v101.5 TIMEZONE FIX — was toISOString().slice(0,10) which uses UTC.
+      // For Chennai (UTC+5:30), late-night actions could log yesterday's date.
+      // toISO() uses local date components, eliminating the wrap.
+      pl.wonDate = pl.wonDate || toISO(new Date());
       showNotif('🎉 Lead won', pl.name + ' — already linked to project '+pl.convertedToProjId);
       renderPipeline(); scheduleSave();
       return;
     }
-    pl.wonDate = (new Date()).toISOString().slice(0,10);
+    pl.wonDate = toISO(new Date());  // v101.5 — local date, was UTC
     renderPipeline(); scheduleSave();
     // Auto-prompt: offer to convert to a real project right now
     setTimeout(()=>{
@@ -7075,12 +7199,14 @@ function convertPipelineToProject(plId){
     setVal('ap-phase',  '1'); // Briefing — most projects start there fresh from sales
 
     // Default start date = today; end = expectedClose if we have one, else +12 months
-    const today = (new Date()).toISOString().slice(0,10);
+    // v101.5 TIMEZONE FIX — was toISOString().slice(0,10) (UTC).
+    // For Chennai timezone, late-night use could pre-fill yesterday's date.
+    const today = toISO(new Date());
     setVal('ap-start', today);
     if(pl.expectedClose) setVal('ap-end', pl.expectedClose);
     else {
       const oneYear = new Date(); oneYear.setFullYear(oneYear.getFullYear()+1);
-      setVal('ap-end', oneYear.toISOString().slice(0,10));
+      setVal('ap-end', toISO(oneYear));  // v101.5 — local date, was UTC
     }
 
     // If the project type field exists and the pipeline has a type, select it
@@ -7210,6 +7336,11 @@ function savePipelineLead(){
 }
 
 function deletePipelineLead(id){
+  // v101.5 PERMISSION FIX — was ungated; any user could delete leads.
+  if(!canSchedule()){
+    showNotif('Permission denied','Only senior roles can delete pipeline leads.');
+    return;
+  }
   PIPELINE=PIPELINE.filter(x=>x.id!==id);
   closeModal('pipeline-add-ov');
   showNotif('Lead removed','Removed from pipeline');
@@ -7325,6 +7456,13 @@ function gpCollapseAll(prefix){
    MEETINGS — role-gated to canSchedule users
    gcalId:null = local only | string = synced Google Calendar event
    ════════════════════════════════════════════════════════ */
+
+/* v101.4 BUG FIX — MTG_ATTEND_STATUSES constant.
+   Was referenced in renderMtgAttendanceModal (line ~18541) and
+   setAttendStatus (line ~18570) but never declared, causing the
+   meeting attendance modal to throw ReferenceError on open. */
+const MTG_ATTEND_STATUSES = ['invited','accepted','declined','attended','no-show'];
+
 let MEETINGS = [
   {id:'MTG001',gcalId:null,source:'local',type:'design-review',notionPageUrl:'',
    attendeeStatuses:[{id:'MS',status:'attended'},{id:'JR',status:'attended'},{id:'PS',status:'attended'}],
@@ -7872,7 +8010,10 @@ function buildDailyDigest(staffId){
 
 /* ── 3: QA RESULT NOTIFICATION ─────────────────────── */
 function buildQANotification(drawingId, action, note){
-  const d=DRAWINGS.find(x=>x.id===drawingId); if(!s||!d) return null;
+  // v101.4 BUG FIX — was 'if(!s||!d)' but `s` was never declared,
+  // throwing ReferenceError on every QA approve/reject and silently
+  // breaking all QA notification emails to drafters.
+  const d=DRAWINGS.find(x=>x.id===drawingId); if(!d) return null;
   const drafter=STAFF.find(x=>x.id===d.sid); if(!drafter) return null;
   const p=PROJS.find(x=>x.id===d.proj)||{name:'?'};
   const checker=currentUser();
@@ -10353,6 +10494,13 @@ function setGrpMode(projId, mode){
 
 function archiveProject(projId,ev){
   if(ev){ev.stopPropagation();}
+  // v101.5 PERMISSION FIX — was ungated; any user could archive any project.
+  // Now restricted to roles with canSchedule (Principal, Associate, Lead,
+  // Project Architect). Others see a notification and the action is blocked.
+  if(!canSchedule()){
+    showNotif('Permission denied','Only Principal/Associate/Lead/Project roles can archive projects.');
+    return;
+  }
   const p=PROJS.find(x=>x.id===projId);if(!p)return;
   const wasArchived=(p.status||'active')==='archived';
   p.status=wasArchived?'active':'archived';
@@ -10731,12 +10879,19 @@ function buildDrwTable(proj, rows, disc){
   const today=new Date();
 
   // ── Header ──────────────────────────────────────────────
+  // v101.4 BUG FIX — two stray <td> elements with r.drwType/r.proj
+  // references were embedded inside the <thead> builder. `r` is
+  // only defined inside rows.forEach(r=>...) below, so any user
+  // who enabled the Type or Stage column triggered a ReferenceError
+  // and the entire drawing table failed to render. Removed the
+  // misplaced <td> chunks; the row-level forEach loop renders these
+  // correctly per drawing further down.
   let h='<div style="overflow-x:auto"><table class="dtbl" style="min-width:700px"><thead><tr>'
     +'<th style="width:20px;padding:7px 6px"><input type="checkbox" class="drw-cb" onchange="toggleSelectAllDisc(\''+proj.id+'\',\''+(disc?disc.id:'ALL')+'\',this)"></th>'
     +(c.id    ?srtTh('id','Dwg #','font-family:var(--fm);font-size:9px'):'')
     +(c.disc  ?'<th>Disc</th>':'')+(c.drwType?'<th title="Drawing Type">Type</th>':'')
     +(c.title ?srtTh('title','Title',''):'')
-    +(c.drwType?'<td style="font-family:var(--fm);font-size:9px;font-weight:600;color:var(--txd)" title="'+(DRW_TYPES[r.drwType]||r.drwType||'GA')+'">'+(r.drwType||'GA')+'</td>':'')+(c.tgt   ?srtTh('tgt','Target Date '+(isAdmin?'✎':'🔒'),'min-width:120px'):'')
+    +(c.tgt   ?srtTh('tgt','Target Date '+(isAdmin?'✎':'🔒'),'min-width:120px'):'')
     +(c.setby ?'<th>Set By</th>':'')
     +(c.rev   ?'<th>Rev</th>':'')
     
@@ -10748,7 +10903,8 @@ function buildDrwTable(proj, rows, disc){
     +(c.checkedBy?'<th>Checked ✓</th>':'')
     +(c.revSource?'<th>Rev Source</th>':'')
     +(c.latestNote?'<th>Latest Note</th>':'')
-    +(c.stage ?'<th title="RIBA Stage">Stage</th>':'')+(c.stage ?'<td style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+((PROJS.find(p=>p.id===r.proj)||{}).phase||'—')+'</td>':'')+(c.pkg   ?'<th>Pkg</th>':'')
+    +(c.stage ?'<th title="RIBA Stage">Stage</th>':'')
+    +(c.pkg   ?'<th>Pkg</th>':'')
     +(c.actions?'<th style="width:80px"></th>':'')
   +'</tr></thead><tbody>';
 
@@ -11350,7 +11506,15 @@ function exportRegister(){
 /* ═══════════════════════════════════════════════════════════
    MODALS & NOTIF
 ═══════════════════════════════════════════════════════════ */
-function closeModal(id){document.getElementById(id)?.classList.remove('show');}
+function closeModal(id){
+  // v101.6 B5 FIX: when these modals close (cancel, X button, click outside),
+  // release any drawing lock the user held. The submit path calls release
+  // explicitly before closeModal, so this is the cleanup for cancel/dismiss.
+  if(id === 'add-drw-ov' || id === 'add-rev-ov'){
+    if(_myDrawingLock) releaseDrawingLock(_myDrawingLock);
+  }
+  document.getElementById(id)?.classList.remove('show');
+}
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')}));
 
 let _nt;
@@ -12297,6 +12461,11 @@ function saveTaskEdit(){
 }
 
 function deleteTask(){
+  // v101.5 PERMISSION FIX — was ungated; any user could delete any schedule task.
+  if(!canSchedule()){
+    showNotif('Permission denied','Only senior roles can delete schedule tasks.');
+    return;
+  }
   const taskId=document.getElementById('et-task-id').value;
   if(!confirm('Remove this task from the schedule?')) return;
   const idx=SCHED_TASKS.findIndex(x=>x.id===taskId);
@@ -13671,12 +13840,25 @@ function applyBulkTarget(){
   const parsedBulk=parseDue(dateStr);
   if(!parsedBulk){showNotif('Invalid date','Use a format like 24 Mar 2026 or 2026-03-24');return;}
   const isoDate=toISO(parsedBulk);
+  // v101.6 B3 FIX: previously updated only d.tgt, leaving the linked
+  // SCHED_TASK's `due` field stale. The Gantt schedule and Drawing Register
+  // would then display different dates for the same task. Now we sync both.
+  let tasksUpdated = 0;
   drwSelected.forEach(id=>{
     const d=DRAWINGS.find(x=>x.id===id);
-    if(d){d.tgt=isoDate;d.setby=currentUser().id;}
+    if(d){
+      d.tgt=isoDate;
+      d.due=isoDate;
+      d.setby=currentUser().id;
+      const task = SCHED_TASKS.find(t=>t.drawingId===id);
+      if(task){
+        task.due = fmt8601(parsedBulk);
+        tasksUpdated++;
+      }
+    }
   });
   closeModal('bulk-tgt-ov');
-  showNotif('Bulk target set',drwSelected.size+' drawings → '+dateStr);
+  showNotif('Bulk target set',drwSelected.size+' drawings → '+dateStr+(tasksUpdated?' (schedule synced)':''));
   clearBulkSelect();renderDrawings();renderProjList();renderDashboard();renderSchedule();updateNavBadges();
   scheduleSave();
 }
@@ -13840,6 +14022,11 @@ function openAddDrawingModal(projId){
 
 function openEditDrawingModal(drawingId){
   const d=DRAWINGS.find(x=>x.id===drawingId);if(!d)return;
+  // v101.6 B5 FIX: previously only the "Update progress" modal acquired a
+  // lock. Edit Drawing modal didn't, so two users editing the same drawing
+  // simultaneously got no warning. Now acquire here; the matching release
+  // happens in submitAddDrawing on save and in closeModal hook on cancel.
+  acquireDrawingLock(d.id);
   openAddDrawingModal(d.proj);
 
   // Fill existing values
@@ -13952,9 +14139,37 @@ function submitAddDrawing(){
   if(!pid){showNotif('Project required','Please select a project.');return;}
 
   const prefix={ARCH:'A',INT:'I',STRUCT:'S',ELEC:'E',PLMB:'P',LTG:'L',HVAC:'H',LAND:'LA',SPEC:'SP'}[disc]||'X';
-  const existing=DRAWINGS.filter(d=>d.proj===pid&&d.disc===disc).length+1;
-  const autoId=`${pid}-${prefix}-${String(existing).padStart(3,'0')}`;
-  const finalId=customId||autoId;
+
+  // v101.6 B1 FIX: previous code computed `existing = filter(...).length + 1`
+  // which races on simultaneous creates from two browsers — both could get the
+  // same suffix and produce a duplicate ID. Now: take the highest existing
+  // suffix in this project+prefix, increment, and verify the result doesn't
+  // collide. If the user supplied a customId, also check it isn't a duplicate.
+  let finalId;
+  if(customId){
+    if(DRAWINGS.find(d=>d.id===customId)){
+      showNotif('ID already exists','Drawing '+customId+' already exists. Choose a different ID or leave blank for auto.');
+      return;
+    }
+    finalId = customId;
+  } else {
+    const idPattern = new RegExp('^'+pid.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'-'+prefix+'-(\\d+)$');
+    let maxSeq = 0;
+    DRAWINGS.forEach(d=>{
+      if(d.proj !== pid) return;
+      const m = d.id.match(idPattern);
+      if(m) maxSeq = Math.max(maxSeq, parseInt(m[1]));
+    });
+    let seq = maxSeq + 1;
+    let candidate = pid+'-'+prefix+'-'+String(seq).padStart(3,'0');
+    // Final defensive collision check — if somehow the regex missed an entry
+    // (e.g. id with non-numeric suffix that happens to match), bump until clear
+    while(DRAWINGS.find(d=>d.id===candidate)){
+      seq++;
+      candidate = pid+'-'+prefix+'-'+String(seq).padStart(3,'0');
+    }
+    finalId = candidate;
+  }
 
   // Capture priority/hours from optional inputs (added in v94 — graceful default if absent)
   const priorityInput = document.getElementById('adm-priority')?.value || '';
@@ -14124,6 +14339,11 @@ function submitAddDrawing(){
     showNotif('Drawing added', finalId + ' — ' + title + (sid ? ' · assigned to ' + (STAFF.find(x=>x.id===sid)?.first || sid) : ''));
   }
 
+  // v101.6 B5 FIX: release any lock acquired by openEditDrawingModal.
+  // editId is the hidden field's value (set when editing existing). For
+  // newly-created drawings editId is empty; releaseDrawingLock(undefined)
+  // gracefully clears any lock the current user holds.
+  if(editId) releaseDrawingLock(editId);
   closeModal('add-drw-ov');
   syncSchedTasks();
   renderDrawings();
@@ -14351,7 +14571,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.3',
+    appVersion: 'S62-v101.8',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -14384,9 +14604,12 @@ function packData() {
     // currentUserId: REMOVED from sync — each browser/staff member has their own
     // identity from Google sign-in. Including it here caused all users to take on
     // whoever was the last person to sync.
-    activeProjId:  activeProjId,
-    tsViewMode:    tsViewMode,
-    tsWeekOffset:  tsCurrentWeekOffset,
+    // v101.6 A1 FIX: also removed activeProjId, tsViewMode, tsCurrentWeekOffset
+    // from the cloud payload. These are personal browser state — when included
+    // in sync, Tyler clicking a different project would jerk Mahendra's view to
+    // it, James scrolling to last week's timesheet would change everyone's view.
+    // They still load from localStorage so each browser keeps its own UI state
+    // across reloads.
   };
 }
 
@@ -14442,11 +14665,18 @@ function unpackData(data) {
   if(data.currentUserId!== undefined && !_authUser && !CURRENT_USER_ID){
     CURRENT_USER_ID = data.currentUserId;
   }
-  if(data.activeProjId !== undefined) { activeProjId  = data.activeProjId; }
+  // v101.6 A1 FIX: activeProjId, tsViewMode, tsWeekOffset are personal
+  // browser state. From localStorage we DO want to restore them (so each
+  // user's UI persists across reloads); from CLOUD sync we do NOT, because
+  // that's another user's state. _fbApplying is true during the cloud
+  // listener apply, false during initial localStorage load.
+  if(data.activeProjId !== undefined && !_fbApplying) { activeProjId  = data.activeProjId; }
+  if(data.tsViewMode   !== undefined && !_fbApplying) { tsViewMode    = data.tsViewMode;   }
+  if(data.tsWeekOffset !== undefined && !_fbApplying) { tsCurrentWeekOffset = data.tsWeekOffset; }
   if(data.PIPELINE&&Array.isArray(data.PIPELINE))PIPELINE=data.PIPELINE;
   if(data.CONSULTANT_LOGS&&Array.isArray(data.CONSULTANT_LOGS)){window.CONSULTANT_LOGS=data.CONSULTANT_LOGS;}
-  if(data.tsViewMode   !== undefined) { tsViewMode    = data.tsViewMode;   }
-  if(data.tsWeekOffset !== undefined) { tsCurrentWeekOffset = data.tsWeekOffset; }
+  // v101.6 A1 FIX: tsViewMode / tsWeekOffset moved up next to activeProjId
+  // and gated on !_fbApplying so cloud sync no longer changes them.
   // Meetings module
   if(data.meetings&&Array.isArray(data.meetings)) MEETINGS=data.meetings;
   if(data.gcalCfg&&data.gcalCfg.clientId) _gcalCfg=data.gcalCfg;
@@ -15639,6 +15869,9 @@ const ISSUE_PURPOSES=[
 
 function openAddRevModal(drawingId){
   const d=DRAWINGS.find(x=>x.id===drawingId);if(!d)return;
+  // v101.6 B5 FIX: acquire lock when opening Add Revision modal. Release
+  // happens in submitAddRev on save and in closeModal hook on cancel.
+  acquireDrawingLock(d.id);
   const nxtRev=d.rev&&d.rev!=='-'?String.fromCharCode(d.rev.charCodeAt(0)+1):'A';
   const ex=document.getElementById('add-rev-ov');if(ex)ex.remove();
   const div=document.createElement('div');
@@ -15746,6 +15979,8 @@ function submitAddRev(){
     }
   }
 
+  // v101.6 B5 FIX: release Add Revision lock on save.
+  releaseDrawingLock(drawingId);
   closeModal('add-rev-ov');
   showNotif('Revision added',d.id+' Rev '+rev+' — '+purpose);
   scheduleSave({immediate:true});renderDrawings();renderProjList();updateNavBadges();
@@ -16036,6 +16271,19 @@ initDrwCounter();
 loadGcalCfg();
 const _hadSavedData = loadFromLocalStorage();
 applyFirmTheme(); // apply FIRM_CONFIG colours + branding
+
+// v101.8 — One-time cleanup of orphaned PIN hash.
+// Users who set a PIN under v101.7 or earlier still have the hash
+// in localStorage. The lock feature is now disabled, so the hash is
+// orphaned data. Remove it on first load of v101.8 so privacy-conscious
+// users don't have a stale credential sitting in their browser.
+try{
+  if(localStorage.getItem(S62_PIN_KEY)){
+    localStorage.removeItem(S62_PIN_KEY);
+    console.log('S62 v101.8 — orphaned PIN hash removed (PIN lock disabled firm-wide)');
+  }
+  sessionStorage.removeItem(S62_SESSION_KEY);
+}catch(e){ /* private browsing — nothing to clean */ }
 
 // Boot identity: only initialise UI placeholders, don't claim to be Principal
 // yet — _onAuthStateChanged will set the real user once Google sign-in resolves.
@@ -17070,6 +17318,41 @@ function openSimpleConfirm(title,bodyHtml,onConfirm){
   document.body.appendChild(ov);
   document.getElementById('sconf-ok').onclick=()=>{closeModal('simple-confirm-ov');onConfirm();};
 }
+
+/* v101.7 A2 FIX — Global Escape closes topmost modal.
+   ──────────────────────────────────────────────────────────────
+   Before this handler, modals had no Escape support — the existing
+   keyboard shortcut listener (just below) explicitly returns when
+   a modal is open, blocking any modal-Esc handling. Users had to
+   mouse-click the X to close, which trapped keyboard-only users.
+
+   This handler runs first (registered first, capturing irrelevant
+   here since both are bubble-phase but order of registration sets
+   call order). It checks for any open .ov.show modal, and if found,
+   closes the topmost (last in DOM order) and stops propagation so
+   the shortcut handler below doesn't double-process. Inputs are
+   intentionally NOT excluded — Esc should work even while typing
+   in a modal field, which is the common UX expectation.
+
+   Skip if PIN lock screen is active. */
+document.addEventListener('keydown', function(ev){
+  if(ev.key !== 'Escape') return;
+  const lock=document.getElementById('s62-lock');
+  if(lock && !lock.classList.contains('unlocked')) return;
+  const openModals = document.querySelectorAll('.ov.show');
+  if(openModals.length === 0) return;
+  // Close the last one (topmost in stacking order — DOM-appended last)
+  const topmost = openModals[openModals.length - 1];
+  // Trigger any cleanup the modal's close wires up by calling closeModal
+  // with the id (which fires our v101.6 lock-release hook for drawing modals).
+  if(topmost.id){
+    closeModal(topmost.id);
+  } else {
+    topmost.classList.remove('show');
+  }
+  ev.stopPropagation();
+  ev.preventDefault();
+}, false);
 
 document.addEventListener('keydown', function(ev){
   // Don't fire shortcuts while app is locked
@@ -18346,6 +18629,11 @@ async function submitMtg(mtgId){
   ProjectPicker.destroy('me-proj');
 }
 function cancelMtg(id){
+  // v101.5 PERMISSION FIX — was ungated; any user could cancel any meeting.
+  if(!canSchedule()){
+    showNotif('Permission denied','Only senior roles can cancel meetings.');
+    return;
+  }
   const m=MEETINGS.find(x=>x.id===id);if(!m)return;
   openSimpleConfirm('Cancel meeting','<p style="font-family:var(--fm);font-size:11px;color:var(--txm)">Cancel &ldquo;'+m.title+'&rdquo;?'+(m.gcalId?' Also removes it from Google Calendar.':'')+'</p>',
     async function(){m.status='cancelled';if(m.gcalId&&isGcalConnected())await gcalDeleteEvent(m.gcalId);closeModal('mtg-edit-ov');closeModal('mtg-detail-ov');renderMeetings();scheduleSave({immediate:true});updateGcalBadge();removeCASyncedTasks(m.id);showNotif('Meeting cancelled',m.title);});
@@ -19261,8 +19549,16 @@ function markInvoicePaid(id){
 }
 
 function deleteInvoice(id){
+  // v101.5 PERMISSION FIX — defense-in-depth. Was UI-gated only via parent
+  // panel canSeeFin() check. Now also gated at function level so console
+  // exploit can't bypass. Plus a confirm dialog (was missing).
+  if(!canSeeFin()){
+    showNotif('Permission denied','Only Principal/Associate/Lead can delete invoices.');
+    return;
+  }
   const idx=(INVOICES||[]).findIndex(i=>i.id===id);
   if(idx<0)return;
+  if(!confirm('Delete invoice '+id+'? This cannot be undone.')) return;
   INVOICES.splice(idx,1);
   renderFinancials(); scheduleSave();
 }
@@ -19762,8 +20058,15 @@ function issueTxById(txId){
 }
 
 function deleteTxById(txId){
+  // v101.5 PERMISSION FIX — was ungated; any user could delete transmittals
+  // (legal records of formally issued drawings). Now restricted.
+  if(!canSchedule()){
+    showNotif('Permission denied','Only senior roles can delete transmittals.');
+    return;
+  }
   const idx = TRANSMITTALS.findIndex(x=>x.id===txId);
   if(idx<0) return;
+  if(!confirm('Delete this transmittal record? This is a legal record of drawings issued — deleting it removes the audit trail.')) return;
   TRANSMITTALS.splice(idx, 1);
   updateTxBadge(); renderTransmittals(); scheduleSave({immediate:true});
   showNotif('Transmittal deleted','');
@@ -21066,6 +21369,11 @@ function saveVendor(editId){
 }
 
 function deleteVendor(id){
+  // v101.5 PERMISSION FIX — defense-in-depth. Was ungated at function level.
+  if(!canSchedule()){
+    showNotif('Permission denied','Only senior roles can delete vendors.');
+    return;
+  }
   const v = VENDORS.find(x=>x.id===id); if(!v) return;
   if(!confirm('Delete vendor '+v.companyName+'? This will also remove all reviews and rates. This cannot be undone.')) return;
   VENDORS = VENDORS.filter(x=>x.id!==id);
