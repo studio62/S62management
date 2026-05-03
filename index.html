@@ -5973,7 +5973,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.14 — type s62Diagnose() to run a full state diagnostic');
+console.log('S62 v101.18 — type s62Diagnose() to run a full state diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -6112,11 +6112,20 @@ function applyTemplateToProject(projId, tid, vstr, options){
   // past windows push forward to today + (index × 5 days) so newly-applied
   // drawings don't appear pre-overdue on day one.
   const stageWindows = computeStageWindows(proj);
+  // v101.17 — expand per-floor drawings before counting / creating. For
+  // projects with bldgConfig set, drawings flagged perFloor (or auto-
+  // detected as per-floor by title pattern at CD/CA stage) become one
+  // drawing per floor, with typical-floor groups collapsing to a single
+  // drawing covering the range. Projects WITHOUT bldgConfig go through
+  // unchanged.
+  const _processedDrawings = (typeof s62ProcessTemplateDrawings === 'function')
+    ? s62ProcessTemplateDrawings(tv.drawings, proj.bldgConfig)
+    : tv.drawings;
   // Count drawings per stage (ignoring consultant rows and non-selected refs)
   // so each row knows its position within its stage's window
   const stageCounts = {};
   const stageIndices = {};
-  tv.drawings.forEach(td=>{
+  _processedDrawings.forEach(td=>{
     if(td.consultant) return;
     if(onlyRefs && !onlyRefs.includes(td.ref)) return;
     const existing = DRAWINGS.find(d=>d.proj===projId && d.templateRef===td.ref);
@@ -6125,7 +6134,7 @@ function applyTemplateToProject(projId, tid, vstr, options){
     stageCounts[s] = (stageCounts[s] || 0) + 1;
   });
 
-  tv.drawings.forEach(td=>{
+  _processedDrawings.forEach(td=>{
     // Skip consultant rows entirely (they're placeholders)
     if(td.consultant) return;
     // Filter by explicit selection if provided
@@ -11288,6 +11297,15 @@ function openAddProjectModal(){
   document.getElementById('ap-phase').value='2';
   buildProjTypeSelect();buildProjColorPicker();onProjTypeChange();
   clearStageDates();
+  // v101.16 — reset building config and refresh notation/banner
+  s62WriteBldgConfigToModal(null);
+  if (typeof s62OnBldgConfigChange === 'function') s62OnBldgConfigChange();
+  // Keep building config collapsed by default on Add (most simple
+  // residential won't need it; user opens it explicitly when relevant).
+  const bcBody = document.getElementById('ap-bldg-body');
+  if (bcBody) bcBody.style.display = 'none';
+  const bcChev = document.getElementById('ap-bldg-chevron');
+  if (bcChev) bcChev.style.transform = '';
   document.getElementById('add-proj-ov').classList.add('show');
 }
 
@@ -11314,6 +11332,19 @@ function openEditProjectModal(projId){
   });
   const stSel=document.getElementById('ap-status');if(stSel)stSel.value=p.status||'active';
   const ctSel=document.getElementById('ap-contract');if(ctSel)ctSel.value=p.contract||'Lump Sum';
+  // v101.16 — populate building config from the project being edited
+  s62WriteBldgConfigToModal(p.bldgConfig || null);
+  if (typeof s62OnBldgConfigChange === 'function') s62OnBldgConfigChange();
+  // Auto-open the building-config section when the project has one set
+  const _bcBody = document.getElementById('ap-bldg-body');
+  const _bcChev = document.getElementById('ap-bldg-chevron');
+  if (_bcBody && p.bldgConfig){
+    _bcBody.style.display = '';
+    if (_bcChev) _bcChev.style.transform = 'rotate(180deg)';
+  } else if (_bcBody){
+    _bcBody.style.display = 'none';
+    if (_bcChev) _bcChev.style.transform = '';
+  }
   // Populate stage date fields
   ['SD','DD','CD','CA','Handover'].forEach(stg=>{
     const sd=p.stages?.[stg]||{};
@@ -11458,11 +11489,15 @@ function submitProject(){
   const pt=PROJECT_TYPES.find(t=>t.id===type);
   if(eid){
     const idx=PROJS.findIndex(x=>x.id===eid);
-    if(idx>=0)PROJS[idx]={...PROJS[idx],name,client,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{}};
+    // v101.16 — persist building configuration on edit
+    const _bldgCfg = (typeof s62ReadBldgConfigFromModal === 'function') ? s62ReadBldgConfigFromModal() : null;
+    if(idx>=0)PROJS[idx]={...PROJS[idx],name,client,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg};
     showNotif('Project updated',`${name} updated.`);
   } else {
     const pid='P'+Date.now().toString().slice(-5);
-    PROJS.push({id:pid,name,client,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages});
+    // v101.16 — persist building configuration on create
+    const _bldgCfg = (typeof s62ReadBldgConfigFromModal === 'function') ? s62ReadBldgConfigFromModal() : null;
+    PROJS.push({id:pid,name,client,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages,bldgConfig:_bldgCfg});
     addAudit('project','Project created',name+' ('+pid+') · '+client);
 
     // Pipeline → Project back-link: if this project was created from a Won pipeline lead,
@@ -13675,6 +13710,10 @@ function renderProjCtxBar(){
       +(typeof canEditTemplate==='function'&&canEditTemplate()
         ?'<button class="btn bg bsm" style="font-size:9px" onclick="openMultiApplyTemplateModal(\''+p.id+'\')" title="Apply one or more drawing templates">'
           +'📐 Templates</button>'
+          +(p.bldgConfig && typeof s62IsHighRise==='function' && s62IsHighRise(p.bldgConfig) && !p.nbcDrawingsAdded
+            ?'<button class="btn bg bsm" style="font-size:9px;color:var(--red);border-color:rgba(224,82,82,.4)" onclick="s62OpenNBCModal(\''+p.id+'\')" title="Add NBC fire-safety drawings (high-rise project)">'
+              +'🔥 NBC</button>'
+            :'')
         :'')
       +'<button class="btn bg bsm" onclick="openEditProjectModal(\''+p.id+'\')" title="Edit project" style="font-size:10px">✏</button>'
       +'<button class="btn bd2 bsm" onclick="confirmRemoveProject(\''+p.id+'\')" title="Remove project" style="font-size:10px">✕</button>'
@@ -14019,6 +14058,19 @@ const DRW_TYPES={GA:'General Arrangement',SEC:'Section',ELV:'Elevation',DET:'Det
 
 
 /* ── Stage date accordion ────────────────────────────── */
+
+function toggleBldgConfig(){
+  // v101.16 — accordion toggle for the building-config section. Mirrors
+  // toggleStageDates' open/close pattern.
+  const body = document.getElementById('ap-bldg-body');
+  const chev = document.getElementById('ap-bldg-chevron');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if (chev) chev.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+
 function toggleStageDates(){
   const body=document.getElementById('ap-stage-body');
   const chev=document.getElementById('ap-stage-chevron');
@@ -14668,7 +14720,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.14',
+    appVersion: 'S62-v101.18',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -23856,6 +23908,524 @@ function commitClashApply(projId, tid){
 }
 
 /* ═════════════════════════════════════════════════════════════════════
+   v101.16 / v101.17 / v101.18 — BUILDING CONFIGURATION + FLOOR-AWARE
+   DRAWING EXPANSION + HIGH-RISE NBC COMPLIANCE
+   ─────────────────────────────────────────────────────────────────────
+   Data model added to project: proj.bldgConfig = {
+     basements:       0..5     levels below ground (B1 = upper-most)
+     hasStilt:        bool     pillar-supported parking floor (no FAR count)
+     hasGround:       bool     built ground floor (default true)
+     upperFloors:     0..50    typical upper floors above ground/stilt
+     hasPenthouse:    bool     top floor is a penthouse (treated as distinct)
+     basementHeight:  m        default 3.0
+     stiltHeight:     m        default 2.7  (NBC 2.4–2.7 range)
+     groundHeight:    m        default 3.6  (lobby/entrance heights)
+     floorToFloor:    m        default 3.2  (residential typical)
+     typicalEnabled:  bool     when upperFloors > 5, middle floors collapse
+                                 to a single "typical floor" drawing
+   }
+   Total height (m) = sum of basements above ground line (none — basements
+   are below ground) + stiltHeight + groundHeight + upperFloors × f2f +
+   1.2 m parapet allowance. NBC ≥ 15 m → high-rise.
+═════════════════════════════════════════════════════════════════════ */
+
+/* ── Floor list generator ──────────────────────────────────────────── */
+function s62GenerateFloors(cfg){
+  if (!cfg) return [];
+  const floors = [];
+  // Basements top-to-bottom (B1 is upper, B2 lower, etc.)
+  const basements = Math.max(0, Math.min(5, cfg.basements|0));
+  for (let i = basements; i >= 1; i--){
+    floors.push({
+      code: 'B' + i,
+      name: basements > 1 ? ('Basement Level ' + i) : 'Basement',
+      type: 'basement',
+      height: cfg.basementHeight || 3.0,
+      idx: -i,
+      typical: false
+    });
+  }
+  // Stilt (only one) — placed before ground if both exist
+  if (cfg.hasStilt){
+    floors.push({
+      code: 'S',
+      name: 'Stilt (Parking)',
+      type: 'stilt',
+      height: cfg.stiltHeight || 2.7,
+      idx: 0,
+      typical: false
+    });
+  }
+  // Ground floor (default true unless explicitly disabled)
+  if (cfg.hasGround !== false){
+    floors.push({
+      code: 'G',
+      name: 'Ground Floor',
+      type: 'ground',
+      height: cfg.groundHeight || 3.6,
+      idx: cfg.hasStilt ? 0.5 : 0,
+      typical: false
+    });
+  }
+  // Upper floors
+  const upperCount = Math.max(0, Math.min(50, cfg.upperFloors|0));
+  const hasPH = !!cfg.hasPenthouse;
+  const f2f = cfg.floorToFloor || 3.2;
+  // Typical floor pattern — kicks in when there are > 5 upper floors,
+  // unless explicitly disabled. The penthouse (if any) is always
+  // separate; floors 1..(N-1) collapse into one "Typical" drawing.
+  const useTypical = (cfg.typicalEnabled !== false) && (upperCount > 5);
+  let typStart = null, typEnd = null;
+  if (useTypical){
+    typStart = 1;
+    typEnd = hasPH ? (upperCount - 1) : upperCount;
+  }
+  const ord = (n) => {
+    const r10 = n % 10, r100 = n % 100;
+    if (r10 === 1 && r100 !== 11) return n + 'st';
+    if (r10 === 2 && r100 !== 12) return n + 'nd';
+    if (r10 === 3 && r100 !== 13) return n + 'rd';
+    return n + 'th';
+  };
+  for (let i = 1; i <= upperCount; i++){
+    const isPH  = hasPH && i === upperCount;
+    const isTyp = !isPH && (typStart !== null) && (i >= typStart) && (i <= typEnd);
+    floors.push({
+      code: isPH ? 'PH' : ('F' + i),
+      name: isPH ? 'Penthouse' : (ord(i) + ' Floor'),
+      type: isPH ? 'penthouse' : 'upper',
+      height: f2f,
+      idx: i,
+      typical: isTyp,
+      typicalGroup: isTyp ? ('TYP-' + typStart + '-' + typEnd) : null
+    });
+  }
+  // Roof / Terrace
+  if (upperCount > 0 || cfg.hasGround !== false || cfg.hasStilt){
+    floors.push({
+      code: 'TR',
+      name: 'Terrace / Roof',
+      type: 'roof',
+      height: 1.2,
+      idx: upperCount + 1,
+      typical: false
+    });
+  }
+  return floors;
+}
+
+/* ── Building notation: "B+S+G+5+PH" ───────────────────────────────── */
+function s62BldgNotation(cfg){
+  if (!cfg) return '';
+  const parts = [];
+  const b = cfg.basements|0;
+  if (b > 0) parts.push((b > 1 ? b : '') + 'B');
+  if (cfg.hasStilt) parts.push('S');
+  if (cfg.hasGround !== false) parts.push('G');
+  const u = cfg.upperFloors|0;
+  if (u > 0){
+    if (cfg.hasPenthouse){
+      const typ = u - 1;
+      parts.push(typ > 0 ? (typ + '+PH') : 'PH');
+    } else {
+      parts.push('' + u);
+    }
+  }
+  return parts.join('+') || '—';
+}
+
+/* ── Above-ground building height (m) ──────────────────────────────── */
+function s62BldgTotalHeight(cfg){
+  if (!cfg) return 0;
+  let h = 0;
+  if (cfg.hasStilt) h += (cfg.stiltHeight || 2.7);
+  if (cfg.hasGround !== false) h += (cfg.groundHeight || 3.6);
+  h += (cfg.upperFloors|0) * (cfg.floorToFloor || 3.2);
+  h += 1.2;  // parapet allowance
+  return Math.round(h * 10) / 10;
+}
+
+/* ── NBC 2016 high-rise threshold ──────────────────────────────────── */
+function s62IsHighRise(cfg){
+  return s62BldgTotalHeight(cfg) >= 15;
+}
+
+/* ── Compact summary string for project cards ──────────────────────── */
+function s62BldgSummary(cfg){
+  if (!cfg) return '';
+  const notation = s62BldgNotation(cfg);
+  if (notation === '—') return '';
+  const height = s62BldgTotalHeight(cfg);
+  const hr = s62IsHighRise(cfg);
+  return notation + ' · ' + height + 'm' + (hr ? ' · high-rise' : '');
+}
+
+/* ── Read bldgConfig from the Add/Edit Project modal fields ────────── */
+function s62ReadBldgConfigFromModal(){
+  const $ = (id) => document.getElementById(id);
+  const cfg = {
+    basements:    parseInt($('bc-basements')?.value || '0', 10),
+    hasStilt:     $('bc-stilt')?.checked || false,
+    hasGround:    $('bc-ground')?.checked !== false,
+    upperFloors:  parseInt($('bc-upper-floors')?.value || '0', 10),
+    hasPenthouse: $('bc-penthouse')?.checked || false,
+    floorToFloor: parseFloat($('bc-f2f')?.value || '3.2') || 3.2,
+    typicalEnabled: $('bc-typical')?.checked !== false
+  };
+  // Treat "all zeros / nothing set" as no config at all
+  if (!cfg.basements && !cfg.hasStilt && cfg.hasGround && !cfg.upperFloors && !cfg.hasPenthouse){
+    return null;
+  }
+  return cfg;
+}
+
+/* ── Populate Add/Edit Project modal fields from a bldgConfig ──────── */
+function s62WriteBldgConfigToModal(cfg){
+  const $ = (id) => document.getElementById(id);
+  cfg = cfg || {};
+  if ($('bc-basements'))    $('bc-basements').value    = cfg.basements || 0;
+  if ($('bc-stilt'))        $('bc-stilt').checked      = !!cfg.hasStilt;
+  if ($('bc-ground'))       $('bc-ground').checked     = cfg.hasGround !== false;
+  if ($('bc-upper-floors')) $('bc-upper-floors').value = cfg.upperFloors || 0;
+  if ($('bc-penthouse'))    $('bc-penthouse').checked  = !!cfg.hasPenthouse;
+  if ($('bc-f2f'))          $('bc-f2f').value          = cfg.floorToFloor || 3.2;
+  if ($('bc-typical'))      $('bc-typical').checked    = cfg.typicalEnabled !== false;
+}
+
+/* ── Live-update notation/height/high-rise banner as user changes
+       building config fields. Also updates the floor-list preview. ── */
+function s62OnBldgConfigChange(){
+  const cfg = s62ReadBldgConfigFromModal();
+  const notEl = document.getElementById('bc-notation');
+  const sumEl = document.getElementById('bc-summary');
+  const banEl = document.getElementById('bc-hr-banner');
+  const flEl  = document.getElementById('bc-floors-preview');
+  const typWrap = document.getElementById('bc-typical-wrap');
+  if (notEl) notEl.textContent = cfg ? s62BldgNotation(cfg) : '—';
+  if (sumEl){
+    if (cfg){
+      const h = s62BldgTotalHeight(cfg);
+      sumEl.textContent = 'Total height: ' + h + ' m';
+    } else {
+      sumEl.textContent = '';
+    }
+  }
+  if (banEl){
+    if (cfg && s62IsHighRise(cfg)){
+      banEl.style.display = '';
+      banEl.innerHTML = '⚠ <strong>High-rise (NBC 2016):</strong> exceeds 15 m. Refuge area, fireman\'s lift, pressurised staircase and wet-riser drawings will be required for statutory submission.';
+    } else {
+      banEl.style.display = 'none';
+    }
+  }
+  // Show typical-floor toggle only when upperFloors > 5
+  if (typWrap){
+    const u = cfg ? (cfg.upperFloors|0) : 0;
+    typWrap.style.display = u > 5 ? '' : 'none';
+  }
+  // Render floor preview
+  if (flEl){
+    if (!cfg){ flEl.innerHTML = ''; return; }
+    const floors = s62GenerateFloors(cfg);
+    if (!floors.length){ flEl.innerHTML = ''; return; }
+    // Group typical floors so they show as one row "Typical (1st–7th)"
+    const rows = [];
+    let current = null;
+    floors.forEach(f => {
+      if (f.typical && f.typicalGroup){
+        if (current && current.typicalGroup === f.typicalGroup){
+          current.floors.push(f);
+        } else {
+          current = { typicalGroup: f.typicalGroup, floors: [f] };
+          rows.push(current);
+        }
+      } else {
+        rows.push({ floors: [f] });
+        current = null;
+      }
+    });
+    flEl.innerHTML = '<div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em;font-weight:600">Floor list ('+floors.length+' floors)</div>'
+      + '<div style="display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto;border:1px solid var(--bd2);border-radius:5px;padding:6px 8px;background:var(--sf)">'
+      + rows.map(r => {
+          const fs = r.floors;
+          const code = fs.length > 1 ? ('TYP') : fs[0].code;
+          const name = fs.length > 1 ? ('Typical Floor (' + fs[0].name + '–' + fs[fs.length-1].name + ')') : fs[0].name;
+          const tag = fs[0].type;
+          const tagColors = {basement:'#7a7886',stilt:'#5285e0',ground:'#52c97a',upper:'var(--gold)',penthouse:'#e08a52',roof:'#8a52e0'};
+          return '<div style="display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:10.5px;padding:2px 0">'
+            + '<span style="min-width:36px;font-weight:700;color:'+(tagColors[tag]||'var(--tx)')+'">' + code + '</span>'
+            + '<span style="flex:1;color:var(--tx)">' + name + '</span>'
+            + (fs.length > 1 ? ('<span style="font-size:9px;color:var(--txd)">'+ fs.length + ' floors → 1 drawing</span>') : '')
+            + '</div>';
+        }).join('')
+      + '</div>';
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.17 — FLOOR-AWARE DRAWING EXPANSION
+   ─────────────────────────────────────────────────────────────────────
+   When applying a template to a project that has bldgConfig set, certain
+   drawings (floor plans, RCPs, slab plans, plumbing layouts) get expanded
+   into one drawing per floor — except where the typical-floor pattern
+   collapses N upper floors into a single "Typical" drawing.
+
+   Two ways a template drawing becomes per-floor:
+     1. Explicit:   td.perFloor === 'plans' | 'ceiling' | 'mep' | true
+     2. Auto-detect: title pattern at CD/CA stage (working drawings only;
+                     statutory/concept drawings keep showing all floors on
+                     a single sheet, which is industry convention).
+═════════════════════════════════════════════════════════════════════ */
+
+/* Auto-detect per-floor mode from title and stage. Returns the mode
+   string ('plans' / 'ceiling' / 'mep') or null when the drawing should
+   stay as-is. */
+function s62GetPerFloorMode(td){
+  if (td.perFloor) return (td.perFloor === true) ? 'plans' : td.perFloor;
+  const title = (td.title || '').toLowerCase();
+  const stage = td.stage || '';
+  // Only auto-expand for working / GFC / construction-stage drawings.
+  // Earlier-stage drawings (concept, statutory submission) typically
+  // show all floors on one sheet at smaller scale.
+  if (stage !== 'CD' && stage !== 'CA') return null;
+  // Strong "this is a per-floor working drawing" signals
+  if (/\bworking\b/.test(title) && /\bfloor plan/.test(title)) return 'plans';
+  if (/\bgfc\b/.test(title)    && /\bfloor plan/.test(title)) return 'plans';
+  if (/\breflected ceiling/.test(title)) return 'ceiling';
+  if (/\bslab plan|\bframing plan/.test(title)) return 'plans';
+  // Conservative default: don't auto-expand
+  return null;
+}
+
+/* Build the floor list relevant to a per-floor mode. Floor plans don't
+   apply to roof; roof gets its own dedicated drawing line. */
+function s62FloorsForMode(floors, mode){
+  if (mode === 'roof') return floors.filter(f => f.type === 'roof');
+  // 'plans', 'ceiling', 'mep' all apply to occupiable floors only
+  // (basements / stilt / ground / upper / penthouse) — exclude roof.
+  return floors.filter(f => f.type !== 'roof');
+}
+
+/* Expand a per-floor template drawing into a list of drawings. Typical
+   groups produce a single drawing covering the range. Each expanded
+   drawing's estHrs is the template hours divided by the number of
+   resulting drawings (rounded up to whole hours). */
+function s62ExpandPerFloor(td, floors, mode){
+  const relevant = s62FloorsForMode(floors, mode);
+  if (!relevant.length) return [td];
+
+  // Group typical floors together so they collapse to a single drawing
+  const groups = [];
+  let cur = null;
+  relevant.forEach(f => {
+    if (f.typical && f.typicalGroup){
+      if (cur && cur.typicalGroup === f.typicalGroup){
+        cur.floors.push(f);
+      } else {
+        cur = { typicalGroup: f.typicalGroup, floors: [f], typical: true };
+        groups.push(cur);
+      }
+    } else {
+      groups.push({ floors: [f], typical: false });
+      cur = null;
+    }
+  });
+
+  const expandedCount = groups.length;
+  const splitHrs = expandedCount > 1
+    ? Math.max(1, Math.ceil((td.estHrs || 0) / expandedCount))
+    : (td.estHrs || 0);
+
+  const out = groups.map((g, gi) => {
+    const isTyp = g.typical && g.floors.length > 1;
+    const first = g.floors[0];
+    const last  = g.floors[g.floors.length - 1];
+    const suffix = isTyp ? ('TYP-' + first.idx + '-' + last.idx) : first.code;
+    // Strip plural "s" off "Floor Plans" so the suffix reads cleanly
+    const baseTitle = (td.title || '').replace(/Floor Plans\b/i, 'Floor Plan');
+    const titleSuffix = isTyp
+      ? ' — Typical (' + first.name + '–' + last.name + ')'
+      : ' — ' + first.name;
+    return Object.assign({}, td, {
+      ref: td.ref + '-' + suffix,
+      title: baseTitle + titleSuffix,
+      estHrs: splitHrs,
+      _floorCode: suffix,
+      _floorScope: isTyp ? ('Typical: ' + first.name + '–' + last.name) : first.name,
+      _floorIndices: g.floors.map(f => f.idx),
+      _expandedFromRef: td.ref
+    });
+  });
+  return out;
+}
+
+/* Process a template's drawings into the actual create list, applying
+   floor-aware expansion where bldgConfig + perFloor align. Used by
+   applyTemplateToProject AND by previewMultiTemplateApply (for an
+   accurate preview that matches what will actually be created). */
+function s62ProcessTemplateDrawings(tvDrawings, bldgConfig){
+  const floors = bldgConfig ? s62GenerateFloors(bldgConfig) : [];
+  const out = [];
+  (tvDrawings || []).forEach(td => {
+    if (td.consultant){ out.push(td); return; }
+    const mode = floors.length ? s62GetPerFloorMode(td) : null;
+    if (mode){
+      const expanded = s62ExpandPerFloor(td, floors, mode);
+      expanded.forEach(e => out.push(e));
+    } else {
+      out.push(td);
+    }
+  });
+  return out;
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.18 — NBC HIGH-RISE FIRE-SAFETY DRAWINGS
+   ─────────────────────────────────────────────────────────────────────
+   Curated list of architect-authored drawings that NBC 2016 mandates
+   for any building ≥ 15 m total height (high-rise per NBC). Offered to
+   the user as a one-click add when bldgConfig flags the project as
+   high-rise. Consultant/MEP drawings are deliberately excluded — those
+   are the consultants' deliverables and live on their drawing register.
+═════════════════════════════════════════════════════════════════════ */
+const S62_NBC_DRAWINGS = [
+  {ref:'A-FS-001', title:'Fire Escape & Evacuation Routes', disc:'ARCH', stage:'DD', drwType:'GA',  estHrs:12, priority:'high', perFloor:'plans'},
+  {ref:'A-FS-002', title:'Refuge Area Layout (NBC 4.4)',     disc:'ARCH', stage:'DD', drwType:'GA',  estHrs:8,  priority:'high'},
+  {ref:'A-FS-003', title:'Fire Compartmentation Plan',       disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:10, priority:'high', perFloor:'plans'},
+  {ref:'A-FS-004', title:'Fire Door Schedule',               disc:'ARCH', stage:'CD', drwType:'SCH', estHrs:6,  priority:'high'},
+  {ref:'A-FS-005', title:"Fireman's Lift Lobby Detail",      disc:'ARCH', stage:'CD', drwType:'DET', estHrs:6,  priority:'high'},
+  {ref:'A-FS-006', title:'Pressurised Staircase Detail',     disc:'ARCH', stage:'CD', drwType:'DET', estHrs:6,  priority:'high'},
+  {ref:'A-FS-007', title:'Smoke Lobby & Mumty Detail',       disc:'ARCH', stage:'CD', drwType:'DET', estHrs:5,  priority:'high'},
+  {ref:'A-FS-008', title:'Wet Riser & Hose Reel Locations',  disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:5,  priority:'high', perFloor:'plans'},
+  {ref:'A-FS-009', title:'NBC Compliance Schedule',          disc:'ARCH', stage:'DD', drwType:'SCH', estHrs:8,  priority:'high'}
+];
+
+/* Return the NBC drawings list expanded for a given bldgConfig. Each
+   drawing whose perFloor flag is set will have been multiplied across
+   the project's floor list (with typical-floor collapse where it
+   applies). */
+function s62GetNBCDrawingsExpanded(bldgConfig){
+  return s62ProcessTemplateDrawings(S62_NBC_DRAWINGS, bldgConfig);
+}
+
+/* Open the high-rise NBC drawings preview / approval modal */
+function s62OpenNBCModal(projId){
+  if (typeof canEditTemplate === 'function' && !canEditTemplate()){
+    showNotif('Access denied', 'Principal/Associate/PA only.'); return;
+  }
+  const proj = PROJS.find(p => p.id === projId); if (!proj) return;
+  if (!proj.bldgConfig){ showNotif('Building config missing', 'Please set the building configuration on this project first.'); return; }
+  if (!s62IsHighRise(proj.bldgConfig)){
+    if (!confirm('This project is not flagged as high-rise (< 15 m). Add NBC fire-safety drawings anyway?')) return;
+  }
+  const expanded = s62GetNBCDrawingsExpanded(proj.bldgConfig);
+  // Skip drawings already in the project (by templateRef)
+  const existingRefs = new Set(DRAWINGS.filter(d => d.proj === projId)
+    .map(d => d.templateRef).filter(Boolean));
+  const toCreate = expanded.filter(d => !existingRefs.has(d.ref));
+  const skipped  = expanded.length - toCreate.length;
+
+  const ex = document.getElementById('nbc-preview-ov'); if (ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'nbc-preview-ov';
+  div.className = 'ov show';
+  div.setAttribute('role','dialog');
+  div.setAttribute('aria-modal','true');
+  div.setAttribute('aria-labelledby','nbc-preview-title');
+
+  const totalHrs = toCreate.reduce((s, d) => s + (d.estHrs||0), 0);
+
+  div.innerHTML = `<div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column">
+    <button class="mclose" onclick="closeModal('nbc-preview-ov')" aria-label="Close">✕</button>
+    <div class="mtitle" id="nbc-preview-title">🔥 NBC High-Rise Fire-Safety Drawings</div>
+    <div class="msub">${proj.name} · ${s62BldgSummary(proj.bldgConfig)} · NBC 2016 Part 4 compliance</div>
+
+    <div style="background:rgba(224,82,82,.06);border:1px solid rgba(224,82,82,.3);border-radius:5px;padding:11px 14px;margin:14px 0;font-family:var(--fm);font-size:11px;color:var(--red);line-height:1.55">
+      <strong>Why these drawings:</strong> NBC 2016 Part 4 (Fire & Life Safety) mandates these for any building ≥ 15 m. They're typically required at Stage 3 statutory submission and form part of the Stage 4 working drawing set for tender.
+      <br><br><strong>Note:</strong> MEP fire-safety drawings (sprinkler, fire alarm, smoke management) are consultant deliverables and are not included — request those from your fire-safety consultant.
+    </div>
+
+    <div style="overflow-y:auto;flex:1;margin-bottom:14px;border:1px solid var(--bd2);border-radius:5px;padding:10px 12px;background:var(--sf)">
+      <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;font-weight:700">${toCreate.length} drawing${toCreate.length!==1?'s':''} will be added · ~${totalHrs}h total${skipped?' · '+skipped+' already exist':''}</div>
+      ${toCreate.map(d => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-family:var(--fm);font-size:10.5px;border-bottom:0.5px solid var(--bd2)">
+        <span style="color:var(--red);font-weight:600;min-width:120px">${d.ref}</span>
+        <span style="flex:1;color:var(--tx)">${d.title}</span>
+        <span style="color:var(--txm);min-width:35px">${d.disc}</span>
+        <span style="color:var(--txm);min-width:30px">${d.stage}</span>
+        <span style="color:var(--gold);font-weight:600;min-width:30px;text-align:right">${d.estHrs}h</span>
+      </div>`).join('') || '<div style="text-align:center;padding:20px;font-family:var(--fm);font-size:11px;color:var(--txd)">All NBC drawings already in project — nothing to add.</div>'}
+    </div>
+
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2)">
+      <button class="btn bg" onclick="closeModal('nbc-preview-ov')" style="padding:10px 14px">Cancel</button>
+      <div style="flex:1"></div>
+      ${toCreate.length > 0 ? `<button class="btn bp" onclick="s62CommitNBCDrawings('${projId}')" style="padding:10px 18px;font-weight:600">Add ${toCreate.length} NBC Drawing${toCreate.length!==1?'s':''}</button>` : ''}
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+/* Commit the NBC drawings into the project — uses the same code path
+   as applyTemplateToProject by stuffing S62_NBC_DRAWINGS into a synthetic
+   template and calling apply with skipExisting:true. */
+function s62CommitNBCDrawings(projId){
+  const proj = PROJS.find(p => p.id === projId); if (!proj) return;
+  // Build a synthetic in-memory template, apply, then drop the template.
+  // This re-uses every battle-tested code path: floor expansion, stage
+  // window date computation, schedule-task creation, audit logging.
+  const synthId = 'tmpl_nbc_synth';
+  const synth = {
+    id: synthId,
+    name: 'NBC High-Rise Fire-Safety',
+    description: 'NBC 2016 Part 4 compliance drawings',
+    icon: '🔥',
+    builtin: false,
+    appliesTo: [],
+    activeVersion: '1.0.0',
+    versions: [{
+      version: '1.0.0',
+      publishedAt: toISO(new Date()),
+      publishedBy: 'system',
+      changeNote: 'NBC high-rise drawings',
+      drawings: JSON.parse(JSON.stringify(S62_NBC_DRAWINGS))
+    }]
+  };
+  // Push, apply, then surgically remove (don't pollute the template list)
+  DRW_TEMPLATES.push(synth);
+  let result = null;
+  try {
+    result = applyTemplateToProject(projId, synthId, '1.0.0', {skipExisting:true});
+  } finally {
+    const i = DRW_TEMPLATES.findIndex(t => t.id === synthId);
+    if (i >= 0) DRW_TEMPLATES.splice(i, 1);
+  }
+  // The apply also stamped proj.templateId / templateIds with the synth id.
+  // Clean those up so they don't break the manage-templates UI.
+  if (proj.templateId === synthId){
+    proj.templateId = null;
+    proj.templateVersion = null;
+  }
+  if (Array.isArray(proj.templateIds)){
+    proj.templateIds = proj.templateIds.filter(t => t !== synthId);
+  }
+  proj.nbcDrawingsAdded = true;
+  proj.nbcAddedAt = toISO(new Date());
+
+  scheduleSave({immediate:true});
+  if (typeof addAudit === 'function'){
+    addAudit('template-apply', 'NBC high-rise drawings added',
+      proj.name + ' (' + projId + ') · ' + (result ? result.created : 0) + ' drawings');
+  }
+  closeModal('nbc-preview-ov');
+  if (typeof renderDrawings   === 'function') renderDrawings();
+  if (typeof renderProjList   === 'function') renderProjList();
+  if (typeof renderDashboard  === 'function') renderDashboard();
+  if (typeof updateNavBadges  === 'function') updateNavBadges();
+  showNotif('NBC drawings added',
+    (result ? result.created : 0) + ' fire-safety drawing(s) added to ' + proj.name);
+}
+
+/* ═════════════════════════════════════════════════════════════════════
    v101.14 — MULTI-TEMPLATE APPLY SUITE
    ─────────────────────────────────────────────────────────────────────
    Lets a user pick multiple templates and apply them in one action.
@@ -24002,8 +24572,14 @@ function previewMultiTemplateApply(){
   const perTpl = tids.map(tid=>{
     const t = getTemplate(tid);
     const tv = getTemplateVersion(tid);
+    // v101.17 — preview against the floor-expanded drawing list so what
+    // the user sees here matches exactly what commitMultiTemplateApply
+    // will create. For projects without bldgConfig this is a no-op.
+    const processed = (typeof s62ProcessTemplateDrawings === 'function')
+      ? s62ProcessTemplateDrawings(tv?.drawings || [], proj.bldgConfig)
+      : (tv?.drawings || []);
     const adds = [], existingDup = [], crossDup = [];
-    (tv?.drawings||[]).forEach(td=>{
+    processed.forEach(td=>{
       if (td.consultant) return;
       if (existingRefs.has(td.ref)){
         existingDup.push(td);
@@ -24053,6 +24629,10 @@ function previewMultiTemplateApply(){
           • Schedule task assignments cleared<br>
           • Status, revision history, and progress preserved
         </div>
+      </div>` : ''}
+
+      ${proj.bldgConfig ? `<div style="background:rgba(82,133,224,.06);border:1px solid rgba(82,133,224,.3);border-radius:5px;padding:10px 14px;margin-bottom:14px;font-family:var(--fm);font-size:10.5px;color:var(--blu);line-height:1.55">
+        <strong>🏢 Floor-aware expansion:</strong> ${s62BldgSummary(proj.bldgConfig)}. Working floor plans, RCPs and slab plans below have been expanded into one drawing per floor (typical floors collapsed where applicable).
       </div>` : ''}
 
       ${perTpl.map((p,i)=>{
@@ -25225,6 +25805,72 @@ function updateVisBadge(){
     </div>
 
     <div id="ap-type-desc" style="margin-top:-8px;margin-bottom:14px;padding:10px 14px;background:var(--sf2);border-radius:7px;font-size:11px;color:var(--txm);line-height:1.55;display:none"></div>
+
+    <!-- v101.16 — Building Configuration -->
+    <div id="ap-bldg-wrap" class="frow" style="margin-top:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:8px 12px;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;user-select:none"
+           onclick="toggleBldgConfig()">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg style="width:13px;height:13px;stroke:var(--gold);fill:none;stroke-width:1.5" viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-8h6v8M9 9h.01M12 9h.01M15 9h.01"/></svg>
+          <span style="font-family:var(--fm);font-size:10.5px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">Building Configuration</span>
+          <span id="bc-notation" style="font-family:var(--fm);font-size:11px;color:var(--tx);font-weight:600;margin-left:6px">—</span>
+          <span id="bc-summary" style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-left:4px"></span>
+        </div>
+        <svg id="ap-bldg-chevron" style="width:11px;height:11px;stroke:var(--txd);fill:none;stroke-width:2;transition:transform .15s" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div id="ap-bldg-body" style="display:none;padding:12px 4px 4px">
+        <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);line-height:1.6;margin-bottom:10px">
+          Captures basement / stilt / floor counts so the system can generate floor-aware drawings (one per floor, with typical-floor collapse on buildings &gt; 5 upper floors). Total height triggers NBC 2016 high-rise classification at ≥ 15 m.
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+          <div>
+            <label class="flbl" for="bc-basements">Basement levels</label>
+            <select class="fsel" id="bc-basements" onchange="s62OnBldgConfigChange()">
+              <option value="0">None</option>
+              <option value="1">1 basement</option>
+              <option value="2">2 basements</option>
+              <option value="3">3 basements</option>
+              <option value="4">4 basements</option>
+              <option value="5">5 basements</option>
+            </select>
+          </div>
+          <div>
+            <label class="flbl" for="bc-upper-floors">Upper floors (above ground)</label>
+            <input class="finp" id="bc-upper-floors" type="number" min="0" max="50" step="1" value="0" oninput="s62OnBldgConfigChange()" placeholder="0 = single-storey">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+          <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:5px;cursor:pointer;font-family:var(--fm);font-size:11px">
+            <input type="checkbox" id="bc-stilt" onchange="s62OnBldgConfigChange()" style="width:14px;height:14px;accent-color:var(--gold)"> Stilt floor
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:5px;cursor:pointer;font-family:var(--fm);font-size:11px">
+            <input type="checkbox" id="bc-ground" checked onchange="s62OnBldgConfigChange()" style="width:14px;height:14px;accent-color:var(--gold)"> Built ground floor
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:5px;cursor:pointer;font-family:var(--fm);font-size:11px">
+            <input type="checkbox" id="bc-penthouse" onchange="s62OnBldgConfigChange()" style="width:14px;height:14px;accent-color:var(--gold)"> Penthouse on top
+          </label>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+          <div>
+            <label class="flbl" for="bc-f2f">Floor-to-floor height (m)</label>
+            <input class="finp" id="bc-f2f" type="number" min="2.4" max="6" step="0.1" value="3.2" oninput="s62OnBldgConfigChange()">
+          </div>
+          <div id="bc-typical-wrap" style="display:none">
+            <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--sf2);border:1px solid var(--gold);border-radius:5px;cursor:pointer;font-family:var(--fm);font-size:11px;margin-top:18px">
+              <input type="checkbox" id="bc-typical" checked onchange="s62OnBldgConfigChange()" style="width:14px;height:14px;accent-color:var(--gold)">
+              <span>Use typical floor plan<br><span style="font-size:9px;color:var(--txd)">collapses identical floors into one drawing</span></span>
+            </label>
+          </div>
+        </div>
+
+        <div id="bc-hr-banner" style="display:none;background:rgba(224,138,82,.10);border:1px solid rgba(224,138,82,.45);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:var(--fm);font-size:10.5px;color:var(--txm);line-height:1.55"></div>
+
+        <div id="bc-floors-preview" style="margin-top:12px"></div>
+      </div>
+    </div>
 
     <div class="fgrid">
       <div class="frow"><label class="flbl" for="ap-phase">RIBA Phase</label>
