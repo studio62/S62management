@@ -5973,7 +5973,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.18 — type s62Diagnose() to run a full state diagnostic');
+console.log('S62 v101.21 — type s62Diagnose() to run a full state diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -11297,8 +11297,9 @@ function openAddProjectModal(){
   document.getElementById('ap-phase').value='2';
   buildProjTypeSelect();buildProjColorPicker();onProjTypeChange();
   clearStageDates();
-  // v101.16 — reset building config and refresh notation/banner
+  // v101.16 / v101.20 — reset building config + zones
   s62WriteBldgConfigToModal(null);
+  window._s62PendingZones = null;
   if (typeof s62OnBldgConfigChange === 'function') s62OnBldgConfigChange();
   // Keep building config collapsed by default on Add (most simple
   // residential won't need it; user opens it explicitly when relevant).
@@ -11332,8 +11333,11 @@ function openEditProjectModal(projId){
   });
   const stSel=document.getElementById('ap-status');if(stSel)stSel.value=p.status||'active';
   const ctSel=document.getElementById('ap-contract');if(ctSel)ctSel.value=p.contract||'Lump Sum';
-  // v101.16 — populate building config from the project being edited
+  // v101.16 / v101.20 — populate building config + zones from project
   s62WriteBldgConfigToModal(p.bldgConfig || null);
+  window._s62PendingZones = (p.bldgConfig && Array.isArray(p.bldgConfig.zones))
+    ? JSON.parse(JSON.stringify(p.bldgConfig.zones))
+    : null;
   if (typeof s62OnBldgConfigChange === 'function') s62OnBldgConfigChange();
   // Auto-open the building-config section when the project has one set
   const _bcBody = document.getElementById('ap-bldg-body');
@@ -11454,6 +11458,12 @@ function onProjTypeChange(){
   }).join('');
   renderRecommendedTemplate(pt.id);
   renderTemplatePreview(pt);
+
+  // v101.19 — apply typology default building config when type changes.
+  if (typeof s62ApplyTypologyDefaults === "function"){
+    const _typeId = document.getElementById("ap-type")?.value;
+    if (_typeId) s62ApplyTypologyDefaults(_typeId);
+  }
 }
 
 function toggleDiscSel(discId,checked){
@@ -11489,14 +11499,22 @@ function submitProject(){
   const pt=PROJECT_TYPES.find(t=>t.id===type);
   if(eid){
     const idx=PROJS.findIndex(x=>x.id===eid);
-    // v101.16 — persist building configuration on edit
+    // v101.16 / v101.20 — persist building configuration + zones on edit
     const _bldgCfg = (typeof s62ReadBldgConfigFromModal === 'function') ? s62ReadBldgConfigFromModal() : null;
+    if (_bldgCfg){
+      const _z = (typeof s62ReadZonesFromModal === 'function') ? s62ReadZonesFromModal() : null;
+      if (_z) _bldgCfg.zones = _z;
+    }
     if(idx>=0)PROJS[idx]={...PROJS[idx],name,client,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg};
     showNotif('Project updated',`${name} updated.`);
   } else {
     const pid='P'+Date.now().toString().slice(-5);
-    // v101.16 — persist building configuration on create
+    // v101.16 / v101.20 — persist building configuration + zones on create
     const _bldgCfg = (typeof s62ReadBldgConfigFromModal === 'function') ? s62ReadBldgConfigFromModal() : null;
+    if (_bldgCfg){
+      const _z = (typeof s62ReadZonesFromModal === 'function') ? s62ReadZonesFromModal() : null;
+      if (_z) _bldgCfg.zones = _z;
+    }
     PROJS.push({id:pid,name,client,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages,bldgConfig:_bldgCfg});
     addAudit('project','Project created',name+' ('+pid+') · '+client);
 
@@ -14720,7 +14738,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.18',
+    appVersion: 'S62-v101.21',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -23663,15 +23681,25 @@ function renderTplEditList(){
   if(!_editingDrawings || !_editingDrawings.length){
     return '<div style="padding:30px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No drawings in this template yet. Click + Add Drawing.</div>';
   }
-  return _editingDrawings.map((d,i)=>`<div style="padding:9px 12px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;gap:10px;font-family:var(--fm);font-size:11px">
-    <span style="color:var(--gold);font-weight:600;min-width:80px">${d.ref}</span>
-    <span style="flex:1;color:var(--tx)">${d.title}</span>
-    <span style="color:var(--txm);min-width:40px;font-size:10px">${d.disc}</span>
-    <span style="color:var(--txm);min-width:35px;font-size:10px">${d.stage}</span>
-    <span style="color:var(--gold);font-weight:600;min-width:40px;text-align:right">${d.estHrs}h</span>
-    <button class="btn bg bsm" onclick="editTplDrawingRow(${i})" style="padding:3px 8px;font-size:9px">✏</button>
-    <button class="btn bg bsm" onclick="removeTplDrawingRow(${i})" style="padding:3px 8px;font-size:9px;color:var(--red)">🗑</button>
-  </div>`).join('');
+  return _editingDrawings.map((d,i)=>{
+    // v101.21 — show zone target + per-floor flags as small chips
+    const zoneTag = (d.zoneType && d.zoneType !== 'all')
+      ? '<span title="Zone target" style="font-family:var(--fm);font-size:8px;font-weight:700;color:#5285e0;background:rgba(82,133,224,.15);padding:1px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em">'+d.zoneType+'</span>'
+      : '';
+    const pfTag = (d.perFloor === 'plans' || d.perFloor === 'ceiling')
+      ? '<span title="Per-floor expansion" style="font-family:var(--fm);font-size:8px;font-weight:700;color:var(--gold);background:rgba(201,169,110,.15);padding:1px 5px;border-radius:3px">⇊ floor</span>'
+      : '';
+    return '<div style="padding:9px 12px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;gap:10px;font-family:var(--fm);font-size:11px">'
+      + '<span style="color:var(--gold);font-weight:600;min-width:80px">'+d.ref+'</span>'
+      + '<span style="flex:1;color:var(--tx)">'+d.title+'</span>'
+      + zoneTag + pfTag
+      + '<span style="color:var(--txm);min-width:40px;font-size:10px">'+d.disc+'</span>'
+      + '<span style="color:var(--txm);min-width:35px;font-size:10px">'+d.stage+'</span>'
+      + '<span style="color:var(--gold);font-weight:600;min-width:40px;text-align:right">'+d.estHrs+'h</span>'
+      + '<button class="btn bg bsm" onclick="editTplDrawingRow('+i+')" style="padding:3px 8px;font-size:9px">✏</button>'
+      + '<button class="btn bg bsm" onclick="removeTplDrawingRow('+i+')" style="padding:3px 8px;font-size:9px;color:var(--red)">🗑</button>'
+      + '</div>';
+  }).join('');
 }
 
 function addTplDrawing(){ promptTplDrawing(null); }
@@ -23721,6 +23749,26 @@ function promptTplDrawing(idx){
         </select>
       </div>
     </div>
+    <!-- v101.21 — zone targeting + per-floor expansion -->
+    <div class="fgrid">
+      <div class="frow"><label class="flbl" for="tr-zone">Zone Target</label>
+        <select class="fsel" id="tr-zone" title="Which floor zones this drawing applies to. Leave at All for backward-compatible behaviour.">
+          <option value="all" ${(existing?.zoneType||'all')==='all'?'selected':''}>All floors / no zone targeting</option>
+          <option value="podium" ${existing?.zoneType==='podium'?'selected':''}>Podium only (lobby, retail, amenity)</option>
+          <option value="tower" ${existing?.zoneType==='tower'?'selected':''}>Tower only (typical guest, office, residential)</option>
+          <option value="special" ${existing?.zoneType==='special'?'selected':''}>Special only (mechanical, sky lobby)</option>
+          <option value="roof" ${existing?.zoneType==='roof'?'selected':''}>Roof / Terrace only</option>
+        </select>
+      </div>
+      <div class="frow"><label class="flbl" for="tr-perfloor">Per-Floor Expansion</label>
+        <select class="fsel" id="tr-perfloor" title="Force this drawing to be expanded one-per-floor. Leave at Auto to use stage / title detection.">
+          <option value="" ${!existing?.perFloor?'selected':''}>Auto (detect by title + stage)</option>
+          <option value="plans" ${existing?.perFloor==='plans'?'selected':''}>Force per-floor (plans)</option>
+          <option value="ceiling" ${existing?.perFloor==='ceiling'?'selected':''}>Force per-floor (ceiling)</option>
+          <option value="false" ${existing?.perFloor===false?'selected':''}>Never expand (single drawing)</option>
+        </select>
+      </div>
+    </div>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="commitTplRow(${idx===null?'null':idx})">${existing?'Save':'Add'}</button>
       <button class="btn bg" onclick="closeModal('tpl-row-ov')" style="padding:10px 14px">Cancel</button>
@@ -23733,6 +23781,9 @@ function commitTplRow(idx){
   const ref = (document.getElementById('tr-ref').value||'').trim().toUpperCase();
   const title = (document.getElementById('tr-title').value||'').trim();
   if(!ref || !title){ showNotif('Required','Ref and Title are required.'); return; }
+  // v101.21 — read zoneType + perFloor (optional)
+  const _zoneVal = document.getElementById('tr-zone')?.value || 'all';
+  const _pfVal = document.getElementById('tr-perfloor')?.value;
   const row = {
     ref,
     title,
@@ -23742,6 +23793,10 @@ function commitTplRow(idx){
     estHrs: parseInt(document.getElementById('tr-hrs').value) || 5,
     priority: document.getElementById('tr-pri').value,
   };
+  // Only persist non-default values to keep templates lean
+  if (_zoneVal && _zoneVal !== 'all') row.zoneType = _zoneVal;
+  if (_pfVal === 'plans' || _pfVal === 'ceiling') row.perFloor = _pfVal;
+  if (_pfVal === 'false') row.perFloor = false;
   if(idx===null){
     if(_editingDrawings.find(d=>d.ref===ref)){ showNotif('Duplicate ref',ref+' already exists in this template.'); return; }
     _editingDrawings.push(row);
@@ -23905,6 +23960,121 @@ function commitClashApply(projId, tid){
   renderProjList();
   renderDashboard();
   showNotif('Template applied', result.created+' drawing(s) created · '+result.skipped+' skipped');
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.19 — TYPOLOGY DEFAULTS
+   Pre-fill building configuration from project type. Each entry mirrors
+   the bldgConfig schema and may include `zones` for typologies that
+   have multiple floor bands (hotels, mixed-use, offices with podium).
+   The user can override every value before saving the project.
+═════════════════════════════════════════════════════════════════════ */
+const S62_TYPOLOGY_DEFAULTS = {
+  /* Single villa — most common Studio 62 work. G+1 default. */
+  'RES-NEW': {
+    basements: 0, hasStilt: false, hasGround: true, upperFloors: 1,
+    hasPenthouse: false, floorToFloor: 3.2, typicalEnabled: true
+  },
+  /* Extensions — leave blank because they're alterations to existing. */
+  'RES-EXT': null,
+  /* Apartment block — stilt parking + 5 typical residential. */
+  'RES-MULT': {
+    basements: 1, hasStilt: true, hasGround: true, upperFloors: 5,
+    hasPenthouse: false, floorToFloor: 3.2, typicalEnabled: true,
+    zones: [
+      {id:'z-podium',  kind:'podium', label:'Stilt + Lobby',          startIdx: 0, endIdx: 0},
+      {id:'z-tower',   kind:'tower',  label:'Typical Residential',     startIdx: 1, endIdx: 5}
+    ]
+  },
+  /* Mid-rise office — 1 basement parking + ground lobby + 8 typical. */
+  'COM-OFF': {
+    basements: 1, hasStilt: false, hasGround: true, upperFloors: 8,
+    hasPenthouse: false, floorToFloor: 3.6, typicalEnabled: true,
+    zones: [
+      {id:'z-podium',  kind:'podium', label:'Lobby & Reception',       startIdx: 0, endIdx: 0},
+      {id:'z-tower',   kind:'tower',  label:'Typical Office Floor',    startIdx: 1, endIdx: 8}
+    ]
+  },
+  /* Retail — single floor, possibly with mezzanine handled as upper=1. */
+  'COM-RET': {
+    basements: 0, hasStilt: false, hasGround: true, upperFloors: 0,
+    hasPenthouse: false, floorToFloor: 4.0, typicalEnabled: true
+  },
+  /* Mixed-use — basement parking + retail podium + office band + residential band + PH. */
+  'COM-MIX': {
+    basements: 2, hasStilt: false, hasGround: true, upperFloors: 12,
+    hasPenthouse: true, floorToFloor: 3.4, typicalEnabled: true,
+    zones: [
+      {id:'z-retail',  kind:'podium', label:'Retail Podium',           startIdx: 0, endIdx: 2},
+      {id:'z-office',  kind:'tower',  label:'Office Band',             startIdx: 3, endIdx: 8},
+      {id:'z-resi',    kind:'tower',  label:'Residential Band',        startIdx: 9, endIdx: 12}
+    ]
+  },
+  /* Hotel — podium with public spaces + tower of guest rooms. */
+  'HOS-HTL': {
+    basements: 1, hasStilt: false, hasGround: true, upperFloors: 10,
+    hasPenthouse: false, floorToFloor: 3.4, typicalEnabled: true,
+    zones: [
+      {id:'z-podium',  kind:'podium', label:'Lobby + F&B + Banquet',   startIdx: 0, endIdx: 2},
+      {id:'z-tower',   kind:'tower',  label:'Typical Guest Floor',     startIdx: 3, endIdx: 9},
+      {id:'z-exec',    kind:'tower',  label:'Executive / Suite Floor', startIdx: 10, endIdx: 10}
+    ]
+  },
+  /* Restaurant — single floor with service. */
+  'HOS-RES': {
+    basements: 0, hasStilt: false, hasGround: true, upperFloors: 0,
+    hasPenthouse: false, floorToFloor: 3.6, typicalEnabled: true
+  },
+  /* School — G+2 spread blocks. */
+  'EDU-SCH': {
+    basements: 0, hasStilt: false, hasGround: true, upperFloors: 2,
+    hasPenthouse: false, floorToFloor: 3.4, typicalEnabled: true
+  },
+  /* University building — G+4 mid-rise. */
+  'EDU-UNI': {
+    basements: 0, hasStilt: false, hasGround: true, upperFloors: 4,
+    hasPenthouse: false, floorToFloor: 3.6, typicalEnabled: true
+  },
+  /* Warehouse — single huge volume + small office mezzanine. */
+  'IND-WAR': {
+    basements: 0, hasStilt: false, hasGround: true, upperFloors: 1,
+    hasPenthouse: false, floorToFloor: 4.5, typicalEnabled: false
+  },
+  /* Heritage — leave blank (config matches existing). */
+  'HER-CON': null,
+  /* Sport & leisure — single big-volume + mezzanine. */
+  'SPO-CEN': {
+    basements: 0, hasStilt: false, hasGround: true, upperFloors: 1,
+    hasPenthouse: false, floorToFloor: 5.0, typicalEnabled: false
+  }
+};
+
+/* Apply a typology default to the modal. Called from onProjTypeChange.
+   ONLY fires if the user hasn't already entered building config (don't
+   overwrite manual edits). The user can always re-pick the type to
+   refresh the defaults. */
+function s62ApplyTypologyDefaults(typeId, opts){
+  opts = opts || {};
+  const cfg = S62_TYPOLOGY_DEFAULTS[typeId];
+  // Special "force" mode used by a "Reset to typology default" button
+  if (!opts.force){
+    // If the user has already populated any non-zero/non-default field,
+    // skip the auto-fill — respect their input.
+    const cur = (typeof s62ReadBldgConfigFromModal === 'function') ? s62ReadBldgConfigFromModal() : null;
+    if (cur) return false;  // user already entered something; don't clobber
+  }
+  if (cfg === null){
+    // Typology says "no default" (extensions, heritage). Clear the modal.
+    if (typeof s62WriteBldgConfigToModal === 'function') s62WriteBldgConfigToModal(null);
+    if (typeof s62OnBldgConfigChange === 'function') s62OnBldgConfigChange();
+    return true;
+  }
+  if (!cfg) return false;  // unknown typology — leave alone
+  if (typeof s62WriteBldgConfigToModal === 'function') s62WriteBldgConfigToModal(cfg);
+  // Persist zones into a hidden state so the zone editor can pick them up
+  window._s62PendingZones = cfg.zones ? JSON.parse(JSON.stringify(cfg.zones)) : null;
+  if (typeof s62OnBldgConfigChange === 'function') s62OnBldgConfigChange();
+  return true;
 }
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -24123,42 +24293,49 @@ function s62OnBldgConfigChange(){
     const u = cfg ? (cfg.upperFloors|0) : 0;
     typWrap.style.display = u > 5 ? '' : 'none';
   }
-  // Render floor preview
+  // Render floor preview — v101.20 zone-aware
   if (flEl){
     if (!cfg){ flEl.innerHTML = ''; return; }
-    const floors = s62GenerateFloors(cfg);
-    if (!floors.length){ flEl.innerHTML = ''; return; }
-    // Group typical floors so they show as one row "Typical (1st–7th)"
-    const rows = [];
-    let current = null;
-    floors.forEach(f => {
-      if (f.typical && f.typicalGroup){
-        if (current && current.typicalGroup === f.typicalGroup){
-          current.floors.push(f);
-        } else {
-          current = { typicalGroup: f.typicalGroup, floors: [f] };
-          rows.push(current);
-        }
-      } else {
-        rows.push({ floors: [f] });
-        current = null;
-      }
-    });
-    flEl.innerHTML = '<div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em;font-weight:600">Floor list ('+floors.length+' floors)</div>'
-      + '<div style="display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto;border:1px solid var(--bd2);border-radius:5px;padding:6px 8px;background:var(--sf)">'
-      + rows.map(r => {
-          const fs = r.floors;
-          const code = fs.length > 1 ? ('TYP') : fs[0].code;
-          const name = fs.length > 1 ? ('Typical Floor (' + fs[0].name + '–' + fs[fs.length-1].name + ')') : fs[0].name;
-          const tag = fs[0].type;
-          const tagColors = {basement:'#7a7886',stilt:'#5285e0',ground:'#52c97a',upper:'var(--gold)',penthouse:'#e08a52',roof:'#8a52e0'};
-          return '<div style="display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:10.5px;padding:2px 0">'
-            + '<span style="min-width:36px;font-weight:700;color:'+(tagColors[tag]||'var(--tx)')+'">' + code + '</span>'
-            + '<span style="flex:1;color:var(--tx)">' + name + '</span>'
-            + (fs.length > 1 ? ('<span style="font-size:9px;color:var(--txd)">'+ fs.length + ' floors → 1 drawing</span>') : '')
-            + '</div>';
+    // Make sure cfg.zones reflects pending zones from the modal state
+    cfg.zones = window._s62PendingZones || null;
+    const buckets = s62FloorsByZone(cfg);
+    const totalFloors = buckets.reduce((s, b) => s + b.floors.length, 0);
+    if (!totalFloors){ flEl.innerHTML = ''; return; }
+    const hasZones = !!(window._s62PendingZones && window._s62PendingZones.length);
+    const headerLabel = hasZones
+      ? 'Floor zones (' + buckets.length + ' zone' + (buckets.length !== 1 ? 's' : '') + ' · ' + totalFloors + ' floors)'
+      : 'Floor list (' + totalFloors + ' floors)';
+    const tagColors = {basement:'#7a7886',stilt:'#5285e0',ground:'#52c97a',upper:'var(--gold)',penthouse:'#e08a52',roof:'#8a52e0'};
+    const zoneColors = {podium:'#5285e0', tower:'var(--gold)', special:'#e08a52', all:'var(--txd)', roof:'#8a52e0'};
+    const html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">'
+      + '<span style="font-family:var(--fm);font-size:9.5px;color:var(--txd);text-transform:uppercase;letter-spacing:.05em;font-weight:600">' + headerLabel + '</span>'
+      + '<button class="btn bg bsm" onclick="s62OpenZoneEditor()" style="font-size:9px;padding:3px 8px">' + (hasZones ? 'Edit zones' : '+ Add zones') + '</button>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;border:1px solid var(--bd2);border-radius:5px;padding:6px 8px;background:var(--sf)">'
+      + buckets.map(bucket => {
+          const z = bucket.zone;
+          const zc = zoneColors[z.kind] || 'var(--gold)';
+          const zoneHeader = hasZones
+            ? ('<div style="display:flex;align-items:center;gap:6px;margin-top:4px;padding:3px 0;border-top:0.5px dashed var(--bd2)">'
+                + '<span style="font-family:var(--fm);font-size:8.5px;font-weight:700;color:' + zc + ';background:' + zc + '1f;padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em">' + z.kind + '</span>'
+                + '<span style="font-family:var(--fm);font-size:10px;color:' + zc + ';font-weight:600">' + z.label + '</span>'
+                + '</div>')
+            : '';
+          return zoneHeader + bucket.typicalGroups.map(g => {
+            const fs = g.floors;
+            const isTyp = g.typical && fs.length > 1;
+            const code = isTyp ? 'TYP' : fs[0].code;
+            const name = isTyp ? ('Typical Floor (' + fs[0].name + '–' + fs[fs.length-1].name + ')') : fs[0].name;
+            const tag = fs[0].type;
+            return '<div style="display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:10.5px;padding:2px 0' + (hasZones ? ';padding-left:8px' : '') + '">'
+              + '<span style="min-width:36px;font-weight:700;color:'+(tagColors[tag]||'var(--tx)')+'">' + code + '</span>'
+              + '<span style="flex:1;color:var(--tx)">' + name + '</span>'
+              + (isTyp ? ('<span style="font-size:9px;color:var(--txd)">'+ fs.length + ' floors → 1 drawing</span>') : '')
+              + '</div>';
+          }).join('');
         }).join('')
       + '</div>';
+    flEl.innerHTML = html;
   }
 }
 
@@ -24264,19 +24441,98 @@ function s62ExpandPerFloor(td, floors, mode){
    applyTemplateToProject AND by previewMultiTemplateApply (for an
    accurate preview that matches what will actually be created). */
 function s62ProcessTemplateDrawings(tvDrawings, bldgConfig){
-  const floors = bldgConfig ? s62GenerateFloors(bldgConfig) : [];
+  // v101.20 — zone-aware expansion. When the project has zones, each
+  // drawing's zoneType determines which zones it expands into.
+  // Backward compat: if zones aren't set OR drawing has no zoneType,
+  // it falls through to the v101.17 single-band path.
+  if (!bldgConfig){
+    // No building config — pass through unchanged (matches v101.16)
+    return (tvDrawings || []).slice();
+  }
+  const zoneBuckets = s62FloorsByZone(bldgConfig);
+  const hasExplicitZones = Array.isArray(bldgConfig.zones) && bldgConfig.zones.length > 0;
   const out = [];
   (tvDrawings || []).forEach(td => {
     if (td.consultant){ out.push(td); return; }
-    const mode = floors.length ? s62GetPerFloorMode(td) : null;
-    if (mode){
-      const expanded = s62ExpandPerFloor(td, floors, mode);
-      expanded.forEach(e => out.push(e));
-    } else {
+    const mode = s62GetPerFloorMode(td);
+    if (!mode){
+      // Drawing isn't a per-floor type — just copy through
       out.push(td);
+      return;
+    }
+    const zoneType = td.zoneType || 'all';
+    if (!hasExplicitZones || zoneType === 'all'){
+      // Legacy / unzoned: expand against all non-roof floors as v101.17
+      const allFloors = s62GenerateFloors(bldgConfig);
+      const expanded = s62ExpandPerFloor(td, allFloors, mode);
+      expanded.forEach(e => out.push(e));
+      return;
+    }
+    // Zoned expansion — match buckets by zone.kind
+    let matched = 0;
+    zoneBuckets.forEach(bucket => {
+      if (bucket.zone.kind === 'roof') return;  // roof handled separately
+      if (zoneType === 'roof' && bucket.zone.kind !== 'roof') return;
+      if (zoneType !== 'all' && zoneType !== bucket.zone.kind) return;
+      if (zoneType === 'roof' && bucket.zone.kind !== 'roof') return;
+      matched++;
+      // Expand within this zone using its typical groups
+      bucket.typicalGroups.forEach(group => {
+        const exp = s62ExpandTemplateForGroup(td, group, bucket.zone, mode);
+        if (exp) out.push(exp);
+      });
+    });
+    // Special handling for zoneType === 'roof'
+    if (zoneType === 'roof'){
+      const roofBucket = zoneBuckets.find(b => b.zone.kind === 'roof');
+      if (roofBucket && roofBucket.floors.length){
+        out.push(Object.assign({}, td, {
+          ref: td.ref,
+          title: td.title,
+          _floorScope: 'Roof / Terrace',
+          _zone: 'roof'
+        }));
+      }
+    }
+    // If nothing matched (e.g. zoneType='podium' on a tower-only project),
+    // emit one un-expanded copy so the drawing isn't silently lost
+    if (matched === 0 && zoneType !== 'roof'){
+      out.push(Object.assign({}, td, {
+        _floorScope: '(no matching zone)',
+        _orphan: true
+      }));
     }
   });
   return out;
+}
+
+/* Expand a template drawing for one typical group within a zone.
+   Returns a single drawing with the appropriate floor-range title. */
+function s62ExpandTemplateForGroup(td, group, zone, mode){
+  if (!group || !group.floors || !group.floors.length) return null;
+  const isTyp = group.typical && group.floors.length > 1;
+  const first = group.floors[0];
+  const last = group.floors[group.floors.length - 1];
+  const suffix = isTyp ? ('TYP-' + first.idx + '-' + last.idx) : first.code;
+  const baseTitle = (td.title || '').replace(/Floor Plans/i, 'Floor Plan');
+  const titleSuffix = isTyp
+    ? ' — Typical (' + first.name + '–' + last.name + ', ' + zone.label + ')'
+    : ' — ' + first.name + ' (' + zone.label + ')';
+  // Hours scale: divide template hours by total drawings produced for
+  // this template across all zones; v101.17 used count(groups) — we
+  // approximate the same here per-group.
+  const hrs = Math.max(1, Math.ceil((td.estHrs || 0) / Math.max(1, group.floors.length)));
+  return Object.assign({}, td, {
+    ref: td.ref + '-' + suffix,
+    title: baseTitle + titleSuffix,
+    estHrs: hrs,
+    _floorCode: suffix,
+    _floorScope: isTyp ? ('Typical: ' + first.name + '–' + last.name) : first.name,
+    _zone: zone.id,
+    _zoneKind: zone.kind,
+    _floorIndices: group.floors.map(f => f.idx),
+    _expandedFromRef: td.ref
+  });
 }
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -24423,6 +24679,322 @@ function s62CommitNBCDrawings(projId){
   if (typeof updateNavBadges  === 'function') updateNavBadges();
   showNotif('NBC drawings added',
     (result ? result.created : 0) + ' fire-safety drawing(s) added to ' + proj.name);
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.20 — FLOOR ZONES
+   Extends bldgConfig with optional zones[] for buildings that have
+   multiple typical bands (hotels, mixed-use, offices with podium).
+   Zones live ON the project — different projects of the same type can
+   have completely different zone layouts. When zones aren't set, the
+   v101.16 single-band behaviour runs unchanged.
+═════════════════════════════════════════════════════════════════════ */
+
+/* Read zones from the modal. Returns array or null if no zones defined.
+   Zones live in window._s62PendingZones during modal lifetime so the
+   zone editor doesn't have to round-trip through DOM widgets for
+   every keystroke. */
+function s62ReadZonesFromModal(){
+  const zones = window._s62PendingZones;
+  if (!Array.isArray(zones) || !zones.length) return null;
+  // Validate / dedupe — any malformed entry is dropped silently
+  return zones.filter(z =>
+    z && z.id && z.kind &&
+    typeof z.startIdx === 'number' && typeof z.endIdx === 'number' &&
+    z.endIdx >= z.startIdx
+  );
+}
+
+/* Get the zone that contains a given floor (by upper-index, 0 = ground).
+   Falls back to a synthetic 'all'-zone when the project has none. */
+function s62FloorZone(floor, zones){
+  if (!Array.isArray(zones) || !zones.length){
+    return {id:'_default', kind:'all', label:'All floors', startIdx:0, endIdx:99};
+  }
+  // Roof gets implicit 'roof' zone
+  if (floor.type === 'roof'){
+    return {id:'_roof', kind:'roof', label:'Roof', startIdx:99, endIdx:99};
+  }
+  // Basement / stilt always treated as podium-equivalent unless explicit
+  if (floor.type === 'basement' || floor.type === 'stilt'){
+    const explicit = zones.find(z => z.startIdx <= 0 && z.kind === 'podium');
+    if (explicit) return explicit;
+    return {id:'_below', kind:'podium', label:'Below ground / stilt', startIdx:-99, endIdx:0};
+  }
+  // Ground = idx 0 (or 0.5 with stilt — treat as 0 for zone matching)
+  const idx = (floor.type === 'ground') ? 0 : Math.floor(floor.idx);
+  const z = zones.find(z => idx >= z.startIdx && idx <= z.endIdx);
+  return z || {id:'_unmatched', kind:'all', label:'Unzoned', startIdx:idx, endIdx:idx};
+}
+
+/* Re-bucketed floor list grouped by zone. Returns:
+   [{zone, floors:[], typicalGroups:[{startIdx,endIdx,floors[]}]}, ...]
+   Used by both the floor-list preview and the per-floor expansion. */
+function s62FloorsByZone(cfg){
+  const floors = s62GenerateFloors(cfg);
+  const zones = (cfg && Array.isArray(cfg.zones)) ? cfg.zones : null;
+  if (!zones || !zones.length){
+    // Single implicit zone covering everything except roof
+    const all = floors.filter(f => f.type !== 'roof');
+    const roof = floors.filter(f => f.type === 'roof');
+    const groups = [{
+      zone: {id:'_default', kind:'all', label:'All floors'},
+      floors: all,
+      typicalGroups: s62ComputeTypicalGroups(all, cfg)
+    }];
+    if (roof.length){
+      groups.push({
+        zone: {id:'_roof', kind:'roof', label:'Roof'},
+        floors: roof,
+        typicalGroups: [{floors: roof}]
+      });
+    }
+    return groups;
+  }
+  // With zones — bucket each floor into its zone, preserving order
+  const buckets = new Map();
+  zones.forEach(z => buckets.set(z.id, {zone: z, floors: []}));
+  buckets.set('_below', {zone:{id:'_below', kind:'podium', label:'Below ground / stilt'}, floors: []});
+  buckets.set('_roof',  {zone:{id:'_roof',  kind:'roof',   label:'Roof'},   floors: []});
+  buckets.set('_unmatched', {zone:{id:'_unmatched', kind:'all', label:'Unzoned'}, floors: []});
+  floors.forEach(f => {
+    const z = s62FloorZone(f, zones);
+    const b = buckets.get(z.id) || buckets.get('_unmatched');
+    b.floors.push(f);
+  });
+  // Drop empty buckets, compute typical groups per zone
+  const out = [];
+  // Below-ground first
+  if (buckets.get('_below').floors.length) out.push(buckets.get('_below'));
+  // User-defined zones in order
+  zones.forEach(z => {
+    const b = buckets.get(z.id);
+    if (b && b.floors.length){
+      // Typical-floor logic: per-zone overrides global
+      const enabled = (z.typicalEnabled !== false) && (cfg.typicalEnabled !== false);
+      // A zone of 6+ upper floors collapses to typical (excluding any
+      // penthouse, which always stays separate). Same threshold as v101.17.
+      b.typicalGroups = enabled ? s62ComputeTypicalGroups(b.floors, cfg) : [{floors:b.floors}];
+      out.push(b);
+    }
+  });
+  // Unmatched (shouldn't happen in well-formed config) and roof at end
+  if (buckets.get('_unmatched').floors.length){
+    const u = buckets.get('_unmatched');
+    u.typicalGroups = [{floors: u.floors}];
+    out.push(u);
+  }
+  if (buckets.get('_roof').floors.length){
+    const r = buckets.get('_roof');
+    r.typicalGroups = [{floors: r.floors}];
+    out.push(r);
+  }
+  return out;
+}
+
+/* Compute typical-floor groups within a list of floors. Returns
+   [{floors:[]}, {floors:[]}, ...] — each entry produces ONE drawing.
+   Penthouse floors and floors marked typical:false stay singletons. */
+function s62ComputeTypicalGroups(floors, cfg){
+  if (!floors || !floors.length) return [];
+  const groups = [];
+  let cur = null;
+  // Determine threshold for typical-collapse: 5+ uniform "upper" floors
+  // (industry default — v101.17 used 6+ for the global case; we drop
+  // to 5 here because zones express user intent more precisely)
+  const upperCount = floors.filter(f => f.type === 'upper').length;
+  const enableTyp = upperCount >= 5;
+  floors.forEach(f => {
+    // Penthouse / ground / stilt / basement / roof always singleton
+    if (f.type !== 'upper' || !enableTyp){
+      groups.push({floors:[f], typical:false});
+      cur = null;
+      return;
+    }
+    if (cur && cur.typical){
+      cur.floors.push(f);
+    } else {
+      cur = {floors:[f], typical:true};
+      groups.push(cur);
+    }
+  });
+  return groups;
+}
+
+/* Open the zone editor modal. Lets the user add/remove/edit zones. */
+function s62OpenZoneEditor(){
+  const upperFloors = parseInt(document.getElementById('bc-upper-floors')?.value || '0', 10);
+  if (upperFloors < 2){
+    showNotif('Zones not needed', 'Zones are useful for buildings with multiple distinct floor bands. With ' + upperFloors + ' upper floor(s), the single-zone default works fine.');
+    return;
+  }
+  const zones = window._s62PendingZones || [];
+  const ex = document.getElementById('zone-edit-ov'); if (ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'zone-edit-ov';
+  div.className = 'ov show';
+  div.setAttribute('role','dialog');
+  div.setAttribute('aria-modal','true');
+  div.style.zIndex = 10001;
+
+  const ord = (n) => {
+    const r10 = n % 10, r100 = n % 100;
+    if (r10 === 1 && r100 !== 11) return n + 'st';
+    if (r10 === 2 && r100 !== 12) return n + 'nd';
+    if (r10 === 3 && r100 !== 13) return n + 'rd';
+    return n + 'th';
+  };
+
+  div.innerHTML = `<div class="modal" style="max-width:640px;max-height:85vh;display:flex;flex-direction:column">
+    <button class="mclose" onclick="closeModal('zone-edit-ov')" aria-label="Close">✕</button>
+    <div class="mtitle">🏢 Floor Zones</div>
+    <div class="msub">Define floor bands for buildings with multiple typical patterns (hotels, mixed-use, offices with podium)</div>
+
+    <div style="background:rgba(82,133,224,.06);border:1px solid rgba(82,133,224,.3);border-radius:5px;padding:10px 14px;margin:14px 0;font-family:var(--fm);font-size:10.5px;color:var(--blu);line-height:1.55">
+      <strong>How zones work:</strong> Each zone covers a contiguous range of floors with a shared programme.
+      Templates can target specific zone kinds (podium, tower) so a "Typical Guest Floor" drawing only generates within tower zones, not podium.
+      Floors above 5 in a tower zone collapse into a single "typical" drawing. Single-zone projects (most villas, single-floor work) don't need this — leave it empty.
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-family:var(--fm);font-size:10px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;font-weight:700">${zones.length} zone${zones.length!==1?'s':''} · ${upperFloors} upper floors</div>
+      <button class="btn bg bsm" onclick="s62AddZoneRow()" style="font-size:10px;padding:5px 12px">+ Add Zone</button>
+    </div>
+
+    <div id="zone-edit-list" style="overflow-y:auto;flex:1;border:1px solid var(--bd2);border-radius:5px;background:var(--sf);padding:6px">
+      ${s62RenderZoneList(zones, upperFloors)}
+    </div>
+
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2);margin-top:12px">
+      <button class="btn bg" onclick="s62ClearAllZones()" style="padding:8px 12px;font-size:10px;color:var(--red)">🗑 Clear all zones</button>
+      <div style="flex:1"></div>
+      <button class="btn bp" onclick="s62SaveZones()" style="padding:9px 16px;font-weight:600">Done</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function s62RenderZoneList(zones, upperFloors){
+  if (!zones || !zones.length){
+    return '<div style="padding:30px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No zones defined. The whole building is treated as a single zone — fine for villas and simple multi-storey.</div>';
+  }
+  return zones.map((z, i) => {
+    const kindColors = {podium:'#5285e0', tower:'var(--gold)', special:'#e08a52', all:'var(--txd)'};
+    const c = kindColors[z.kind] || 'var(--gold)';
+    return `<div style="padding:8px 10px;border-bottom:0.5px solid var(--bd2);display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:11px">
+      <span style="font-family:var(--fm);font-size:9px;font-weight:700;color:${c};background:${c}1f;padding:2px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em;min-width:55px;text-align:center">${z.kind}</span>
+      <span style="flex:1;color:var(--tx);font-weight:600">${z.label}</span>
+      <span style="color:var(--txd);font-size:10px">Floors ${z.startIdx}–${z.endIdx}</span>
+      <button class="btn bg bsm" onclick="s62EditZoneRow(${i})" style="padding:3px 8px;font-size:9px">✏</button>
+      <button class="btn bg bsm" onclick="s62RemoveZoneRow(${i})" style="padding:3px 8px;font-size:9px;color:var(--red)">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function s62AddZoneRow(){ s62PromptZoneRow(null); }
+function s62EditZoneRow(idx){ s62PromptZoneRow(idx); }
+function s62RemoveZoneRow(idx){
+  const zones = window._s62PendingZones || [];
+  if (!zones[idx]) return;
+  if (!confirm('Remove zone "' + zones[idx].label + '"?')) return;
+  zones.splice(idx, 1);
+  document.getElementById('zone-edit-list').innerHTML = s62RenderZoneList(zones, parseInt(document.getElementById('bc-upper-floors')?.value || '0', 10));
+}
+function s62ClearAllZones(){
+  if (!confirm('Remove all zones? The building will be treated as a single zone.')) return;
+  window._s62PendingZones = null;
+  closeModal('zone-edit-ov');
+  s62OnBldgConfigChange();
+}
+
+function s62PromptZoneRow(idx){
+  const zones = window._s62PendingZones || [];
+  const existing = (idx !== null && idx !== undefined) ? zones[idx] : null;
+  const upper = parseInt(document.getElementById('bc-upper-floors')?.value || '0', 10);
+  const ex = document.getElementById('zone-row-ov'); if (ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'zone-row-ov';
+  div.className = 'ov show';
+  div.style.zIndex = 10002;
+  div.innerHTML = `<div class="modal" style="max-width:480px">
+    <button class="mclose" onclick="closeModal('zone-row-ov')" aria-label="Close">✕</button>
+    <div class="mtitle">${existing ? 'Edit Zone' : 'Add Zone'}</div>
+
+    <div class="frow"><label class="flbl" for="zr-label">Label *</label>
+      <input class="finp" id="zr-label" value="${existing?.label || ''}" placeholder="e.g. Typical Guest Floor"></div>
+
+    <div class="fgrid">
+      <div class="frow"><label class="flbl" for="zr-kind">Kind</label>
+        <select class="fsel" id="zr-kind">
+          <option value="podium" ${existing?.kind==='podium'?'selected':''}>Podium (lobby, retail, amenity)</option>
+          <option value="tower" ${(existing?.kind||'tower')==='tower'?'selected':''}>Tower (typical guest, office, residential)</option>
+          <option value="special" ${existing?.kind==='special'?'selected':''}>Special (mechanical, sky lobby)</option>
+        </select>
+      </div>
+      <div class="frow">
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--sf2);border:1px solid var(--bd);border-radius:5px;cursor:pointer;font-family:var(--fm);font-size:11px;margin-top:18px">
+          <input type="checkbox" id="zr-typical" ${existing?.typicalEnabled !== false ? 'checked' : ''} style="width:14px;height:14px;accent-color:var(--gold)">
+          Allow typical-floor collapse
+        </label>
+      </div>
+    </div>
+
+    <div class="fgrid">
+      <div class="frow"><label class="flbl" for="zr-start">Start floor (0 = ground, 1 = 1st)</label>
+        <input class="finp" id="zr-start" type="number" min="0" max="${upper}" value="${existing?.startIdx ?? 1}"></div>
+      <div class="frow"><label class="flbl" for="zr-end">End floor (inclusive)</label>
+        <input class="finp" id="zr-end" type="number" min="0" max="${upper}" value="${existing?.endIdx ?? upper}"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="s62CommitZoneRow(${idx === null || idx === undefined ? 'null' : idx})">${existing ? 'Save' : 'Add'}</button>
+      <button class="btn bg" onclick="closeModal('zone-row-ov')" style="padding:10px 14px">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+function s62CommitZoneRow(idx){
+  const label = (document.getElementById('zr-label').value || '').trim();
+  const kind = document.getElementById('zr-kind').value;
+  const startIdx = parseInt(document.getElementById('zr-start').value, 10);
+  const endIdx = parseInt(document.getElementById('zr-end').value, 10);
+  const typicalEnabled = document.getElementById('zr-typical').checked;
+  if (!label){ showNotif('Label required', 'Please give the zone a label.'); return; }
+  if (isNaN(startIdx) || isNaN(endIdx) || endIdx < startIdx){
+    showNotif('Invalid range', 'End floor must be ≥ start floor.'); return;
+  }
+  const zones = window._s62PendingZones || [];
+  // Check overlap with other zones
+  for (let i = 0; i < zones.length; i++){
+    if (idx !== null && idx !== undefined && i === idx) continue;
+    const z = zones[i];
+    if (!(endIdx < z.startIdx || startIdx > z.endIdx)){
+      if (!confirm('This range overlaps zone "' + z.label + '" (' + z.startIdx + '-' + z.endIdx + '). Continue anyway?')) return;
+      break;
+    }
+  }
+  const newZone = {
+    id: (idx !== null && idx !== undefined) ? zones[idx].id : ('z-' + Date.now().toString(36)),
+    kind, label, startIdx, endIdx, typicalEnabled
+  };
+  if (idx === null || idx === undefined){
+    zones.push(newZone);
+  } else {
+    zones[idx] = newZone;
+  }
+  // Sort by startIdx so the list reads top-down
+  zones.sort((a, b) => a.startIdx - b.startIdx);
+  window._s62PendingZones = zones;
+  closeModal('zone-row-ov');
+  document.getElementById('zone-edit-list').innerHTML = s62RenderZoneList(zones, parseInt(document.getElementById('bc-upper-floors')?.value || '0', 10));
+}
+
+function s62SaveZones(){
+  // Zones live in window._s62PendingZones; submitProject will read them
+  // and stash on bldgConfig.zones. Just close + refresh preview.
+  closeModal('zone-edit-ov');
+  s62OnBldgConfigChange();
 }
 
 /* ═════════════════════════════════════════════════════════════════════
