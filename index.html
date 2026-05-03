@@ -1575,10 +1575,10 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 
 
 <!-- ══ PASSWORD REVEAL MODAL ═══════════════════════════════ -->
-<div class="ov" id="pw-reveal-ov">
+<div class="ov" id="pw-reveal-ov" role="dialog" aria-modal="true" aria-labelledby="pw-reveal-title" aria-hidden="true">
   <div class="modal" style="max-width:440px">
-    <button class="mclose" onclick="closeModal('pw-reveal-ov')">✕</button>
-    <div class="mtitle">Staff Account Created</div>
+    <button class="mclose" onclick="closeModal('pw-reveal-ov')" aria-label="Close">✕</button>
+    <div class="mtitle" id="pw-reveal-title">Staff Account Created</div>
     <div class="msub" id="pwr-sub">Send these credentials to the new team member</div>
     <div class="pw-reveal">
       <div style="font-family:var(--fm);font-size:10px;color:var(--txd);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Login Email</div>
@@ -1607,7 +1607,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     </div>
   </div>
 
-  <nav class="nav">
+  <nav class="nav" aria-label="Main">
     <div class="nsec">
       <div class="nlbl">Overview</div>
       <div class="ni on" onclick="go('dashboard',this)">
@@ -1927,9 +1927,9 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   <div id="email-outbox"><div id="email-sent-list"></div></div>
   <div id="email-compose" style="display:none">
     <div class="card"><div class="cbd">
-      <div class="frow"><label class="flbl">To</label><input class="finp" id="email-to" placeholder="staff email or All Staff"></div>
-      <div class="frow"><label class="flbl">Subject</label><input class="finp" id="email-subject" placeholder="e.g. Weekly Review Report — Week of Mar 17"></div>
-      <div class="frow"><label class="flbl">Message</label><textarea class="ftarea" id="email-msg" rows="6" placeholder="Write your message…"></textarea></div>
+      <div class="frow"><label class="flbl" for="email-to">To</label><input class="finp" id="email-to" placeholder="staff email or All Staff"></div>
+      <div class="frow"><label class="flbl" for="email-subject">Subject</label><input class="finp" id="email-subject" placeholder="e.g. Weekly Review Report — Week of Mar 17"></div>
+      <div class="frow"><label class="flbl" for="email-msg">Message</label><textarea class="ftarea" id="email-msg" rows="6" placeholder="Write your message…"></textarea></div>
       <button class="btn bp" onclick="sendCustomEmail()">Send Email</button>
     </div></div>
   </div>
@@ -2282,7 +2282,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     <div id="drw-detail-panel" class="drw-detail-panel" style="display:none">
       <div class="drw-dp-hd">
         <div class="drw-dp-title" id="ddp-title">Drawing Detail</div>
-        <button class="mclose" style="position:static;margin-left:auto" onclick="closeDrwDetail()">✕</button>
+        <button class="mclose" style="position:static;margin-left:auto" onclick="closeDrwDetail()" aria-label="Close">✕</button>
       </div>
       <div id="ddp-body" class="drw-dp-body"></div>
     </div>
@@ -2679,12 +2679,12 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
         <div class="fin-section-hd"><span class="fin-section-title">Transmittal Details</span></div>
         <div class="fin-section-body">
           <div class="fgrid">
-            <div class="frow"><label class="flbl">Project <span style="color:var(--red)">*</span></label>
+            <div class="frow"><label class="flbl" for="tc-proj">Project <span style="color:var(--red)">*</span></label>
               <select class="fsel" id="tc-proj" onchange="onTcProjChange()"></select></div>
-            <div class="frow"><label class="flbl">Transmittal Ref</label>
+            <div class="frow"><label class="flbl" for="tc-ref">Transmittal Ref</label>
               <input class="finp" id="tc-ref" placeholder="Auto-generated" style="font-family:var(--fm);font-size:11px" readonly></div>
           </div>
-          <div class="frow"><label class="flbl">Issue Purpose <span style="color:var(--red)">*</span></label>
+          <div class="frow"><label class="flbl" for="tc-purpose">Issue Purpose <span style="color:var(--red)">*</span></label>
             <select class="fsel" id="tc-purpose">
               <option value="IFR">IFR — Issued for Review</option>
               <option value="IFC" selected>IFC — Issued for Construction</option>
@@ -2696,18 +2696,18 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
               <option value="REV">REV — Client Revision</option>
             </select></div>
           <div class="fgrid">
-            <div class="frow"><label class="flbl">Issued By</label>
+            <div class="frow"><label class="flbl" for="tc-from">Issued By</label>
               <select class="fsel" id="tc-from"></select></div>
-            <div class="frow"><label class="flbl">Issued To (Recipient)</label>
+            <div class="frow"><label class="flbl" for="tc-to">Issued To (Recipient)</label>
               <input class="finp" id="tc-to" placeholder="e.g. Main Contractor Ltd."></div>
           </div>
           <div class="fgrid">
-            <div class="frow"><label class="flbl">Issue Date</label>
+            <div class="frow"><label class="flbl" for="tc-date">Issue Date</label>
               <input class="finp" id="tc-date" type="date"></div>
-            <div class="frow"><label class="flbl">Response Required By</label>
+            <div class="frow"><label class="flbl" for="tc-response-date">Response Required By</label>
               <input class="finp" id="tc-response-date" type="date" placeholder="Optional"></div>
           </div>
-          <div class="frow"><label class="flbl">Remarks / Cover Note</label>
+          <div class="frow"><label class="flbl" for="tc-remarks">Remarks / Cover Note</label>
             <textarea class="ftarea" id="tc-remarks" placeholder="e.g. Please review and return comments by the date above. Drawings issued for construction." style="min-height:64px"></textarea></div>
           <div class="frow">
             <label style="display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:11px;cursor:pointer">
@@ -2825,17 +2825,17 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 <!-- ══ MODALS ════════════════════════════════════════════ -->
 
 <!-- Add/Edit Staff Modal -->
-<div class="ov" id="add-staff-ov">
+<div class="ov" id="add-staff-ov" role="dialog" aria-modal="true" aria-labelledby="as-title" aria-hidden="true">
   <div class="modal">
-    <button class="mclose" onclick="closeModal('add-staff-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('add-staff-ov')" aria-label="Close">✕</button>
     <div class="mtitle" id="as-title">Add Team Member</div>
     <div class="msub">Complete profile including email for notifications</div>
     <input type="hidden" id="as-edit-id">
     <div class="fgrid">
-      <div class="frow"><label class="flbl">First Name</label><input class="finp" id="as-first" placeholder="e.g. David"></div>
-      <div class="frow"><label class="flbl">Last Name</label><input class="finp" id="as-last" placeholder="e.g. Chen"></div>
+      <div class="frow"><label class="flbl" for="as-first">First Name</label><input class="finp" id="as-first" placeholder="e.g. David"></div>
+      <div class="frow"><label class="flbl" for="as-last">Last Name</label><input class="finp" id="as-last" placeholder="e.g. Chen"></div>
     </div>
-    <div class="frow"><label class="flbl">Role / Position</label>
+    <div class="frow"><label class="flbl" for="as-role">Role / Position</label>
       <select class="fsel" id="as-role">
         <option>Principal Architect</option>
         <option>Associate Principal</option>
@@ -2853,19 +2853,19 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       </select>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Email Address ✉ <span style="color:var(--red)">*</span></label><input class="finp" id="as-email" type="email" placeholder="e.g. d.chen@studio62.com"></div>
-      <div class="frow"><label class="flbl">Phone</label><input class="finp" id="as-phone" placeholder="+91 98400 00000"></div>
+      <div class="frow"><label class="flbl" for="as-email">Email Address ✉ <span style="color:var(--red)">*</span></label><input class="finp" id="as-email" type="email" placeholder="e.g. d.chen@studio62.com"></div>
+      <div class="frow"><label class="flbl" for="as-phone">Phone</label><input class="finp" id="as-phone" placeholder="+91 98400 00000"></div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Hourly Rate (₹/hr) <span style="font-weight:400;color:var(--txd)">— internal cost</span></label><input class="finp" id="as-rate" type="number" placeholder="e.g. 2500" oninput="document.getElementById('as-charge-preview').textContent='≈ ₹'+(Math.round((parseFloat(this.value)||0)*2.3/5)*5).toLocaleString('en-IN')+'/hr client billing'"></div><div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:-8px;margin-bottom:8px" id="as-charge-preview">Charge rate auto-calculated at 2.3× for invoicing</div>
-      <div class="frow"><label class="flbl">Employment Type</label>
+      <div class="frow"><label class="flbl" for="as-rate">Hourly Rate (₹/hr) <span style="font-weight:400;color:var(--txd)">— internal cost</span></label><input class="finp" id="as-rate" type="number" placeholder="e.g. 2500" oninput="document.getElementById('as-charge-preview').textContent='≈ ₹'+(Math.round((parseFloat(this.value)||0)*2.3/5)*5).toLocaleString('en-IN')+'/hr client billing'"></div><div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:-8px;margin-bottom:8px" id="as-charge-preview">Charge rate auto-calculated at 2.3× for invoicing</div>
+      <div class="frow"><label class="flbl" for="as-type">Employment Type</label>
         <select class="fsel" id="as-type"><option value="active">Full-Time</option><option value="parttime">Part-Time</option><option value="onleave">On Leave</option><option value="contractor">Contractor</option></select>
       </div>
     </div>
-    <div class="frow"><label class="flbl">Email Notification Preference</label>
+    <div class="frow"><label class="flbl" for="as-notif">Email Notification Preference</label>
       <select class="fsel" id="as-notif"><option value="daily">Daily + Weekly</option><option value="weekly">Weekly only</option><option value="none">No automatic emails</option></select>
     </div>
-    <div class="frow"><label class="flbl">Avatar Color</label>
+    <div class="frow"><label class="flbl" for="dq-drawing">Avatar Color</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="as-colors"></div>
     </div>
     <button class="btn bp" style="width:100%;justify-content:center;padding:11px;margin-top:4px" id="as-btn" onclick="submitStaff()">Add to Roster</button>
@@ -2873,9 +2873,9 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 </div>
 
 <!-- Email Preview Modal -->
-<div class="ov" id="email-preview-ov">
+<div class="ov" id="email-preview-ov" role="dialog" aria-modal="true" aria-labelledby="ep-title" aria-hidden="true">
   <div class="modal modal-xl">
-    <button class="mclose" onclick="closeModal('email-preview-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('email-preview-ov')" aria-label="Close">✕</button>
     <div class="mtitle" id="ep-title">Weekly Review Report</div>
     <div class="msub" id="ep-sub">Preview before sending</div>
     <div id="ep-body"></div>
@@ -2887,16 +2887,16 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 </div>
 
 <!-- Drawing Quality Modal -->
-<div class="ov" id="dq-modal-ov">
+<div class="ov" id="dq-modal-ov" role="dialog" aria-modal="true" aria-labelledby="dq-modal-title" aria-hidden="true">
   <div class="modal">
-    <button class="mclose" onclick="closeModal('dq-modal-ov')">✕</button>
-    <div class="mtitle">Drawing Quality Assessment</div>
+    <button class="mclose" onclick="closeModal('dq-modal-ov')" aria-label="Close">✕</button>
+    <div class="mtitle" id="dq-modal-title">Drawing Quality Assessment</div>
     <div class="msub">Rate this drawing across all quality dimensions (1–5)</div>
     <div class="frow"><label class="flbl">Drawing</label>
       <select class="fsel" id="dq-drawing"></select>
     </div>
     <div id="dq-markers-form"></div>
-    <div class="frow"><label class="flbl">Lead Architect Notes (private)</label>
+    <div class="frow"><label class="flbl" for="dq-notes">Lead Architect Notes (private)</label>
       <textarea class="ftarea" id="dq-notes" placeholder="Private feedback notes…"></textarea>
     </div>
     <button class="btn bp" style="width:100%;justify-content:center;padding:11px" onclick="saveDqAssessment()">Save Assessment</button>
@@ -3671,12 +3671,12 @@ function openChangePinModal(){
   const div=document.createElement('div');
   div.id='change-pin-ov';div.className='ov show';
   div.innerHTML='<div class="modal" style="max-width:380px">'
-    +'<button class="mclose" onclick="closeModal(\'change-pin-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'change-pin-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Change Studio PIN</div>'
     +'<div class="msub" style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:16px">'
       +'This PIN is shared by everyone who accesses '+( FIRM_CONFIG.name||'Studio OS')+'. Only share it with your team.'
     +'</div>'
-    +'<div class="frow"><label class="flbl">Current PIN</label>'
+    +'<div class="frow"><label class="flbl" for="fb-db-url">Current PIN</label>'
       +'<input class="finp" id="cp-current" type="password" inputmode="numeric" maxlength="4" placeholder="Current 4-digit PIN" autocomplete="off"></div>'
     +'<div class="frow"><label class="flbl">New PIN</label>'
       +'<input class="finp" id="cp-new" type="password" inputmode="numeric" maxlength="4" placeholder="New 4-digit PIN" autocomplete="off"></div>'
@@ -3819,6 +3819,8 @@ let _myDrawingLock  = null;  // drawingId currently locked by me
 // FIX 3 — Offline queue
 let _offlineQueue   = [];    // { fn, args, ts } pending changes while offline
 let _wasOffline     = false;
+let _pendingResave  = false;  // v101.13 — set when cloudSave fails; cleared on successful retry
+let _resaveTimer    = null;   // v101.13 — periodic retry while online but error state
 
 // FIX 4 — Presence
 let _fbPresenceRef  = null;
@@ -3837,9 +3839,24 @@ function loadCloudCfg(){
       const p=JSON.parse(raw);
       // Only use stored config if it has a valid (possibly custom) URL
       if(p.dbUrl && p.dbUrl.trim()) _fbCfg = p;
-      // Backfill missing auth fields (for users who saved config before authDomain existed)
+      // v101.12 — Hardcoded auth credentials ALWAYS win over stored values.
+      // ─────────────────────────────────────────────────────────────────
+      // Previously, the backfill at this point only ran if a field was
+      // FALSY in the stored config — meaning a STALE apiKey (e.g. from a
+      // rotated key, an old test config, or a corrupted localStorage)
+      // would silently override the correct hardcoded default, producing
+      // "Firebase: auth/api-key-not-valid" errors that users couldn't
+      // diagnose without DevTools. Now we always overwrite these auth
+      // fields from S62_FB_DEFAULT regardless of what was stored.
+      //
+      // dbUrl is intentionally NOT in this list — that's the one field
+      // a power user might legitimately customize (different Firebase
+      // project, different region) via the Cloud Setup modal. If they
+      // change dbUrl, they should also change apiKey via the setup
+      // modal in the same operation; the next call to saveCloudCfg
+      // persists the new pair together.
       ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k=>{
-        if(!_fbCfg[k] && S62_FB_DEFAULT[k]) _fbCfg[k] = S62_FB_DEFAULT[k];
+        if(S62_FB_DEFAULT[k]) _fbCfg[k] = S62_FB_DEFAULT[k];
       });
       // Always ensure the hardcoded credentials are present as fallback
       if(!_fbCfg.dbUrl) _fbCfg = Object.assign({}, S62_FB_DEFAULT);
@@ -3924,10 +3941,17 @@ async function fbStartListener(){
       _wasOffline = true;
       updateOfflineIndicator();
     } else if(_wasOffline && connected){
-      // Just reconnected — replay queued changes
+      // Just reconnected — replay queued changes + retry any failed resave.
+      // v101.13 — added _pendingResave path. cloudSave() failures (whether
+      // network-driven or transaction-driven) flip _pendingResave; on
+      // reconnect we re-run cloudSave() because local in-memory state IS
+      // the latest payload that needs to land on the server.
       _wasOffline = false;
       if(_offlineQueue.length > 0){
         replayOfflineQueue();
+      } else if(_pendingResave){
+        _pendingResave = false;
+        cloudSave().catch(e=>console.warn('S62 reconnect resave:', e));
       }
     }
   });
@@ -4403,6 +4427,21 @@ function updateVersionIndicator(){
 
 
 
+/* v101.13 — periodic retry for failed saves. Runs every 30s while
+   _pendingResave && _fbConnected. Self-cancels on success or disconnect.
+   This catches non-network failures (transaction exhaustion, transient auth
+   blips) that the .info/connected reconnect path won't catch on its own. */
+function s62SchedulePendingRetry(){
+  if(_resaveTimer) return;  // already scheduled
+  _resaveTimer = setInterval(()=>{
+    if(!_pendingResave){
+      clearInterval(_resaveTimer); _resaveTimer = null; return;
+    }
+    if(!_fbConnected) return;  // wait for reconnect path
+    cloudSave().catch(e=>console.warn('S62 retry resave:', e));
+  }, 30000);
+}
+
 /* ── SAVE TO FIREBASE — versioned transaction ──────────── */
 /*
    ARCHITECTURE:
@@ -4482,19 +4521,24 @@ async function cloudSave(){
       // Also persist to localStorage as offline fallback
       s62SaveLocalSnapshot();  // v101.11 — uses compression
       _saveState = 'cloud-saved';   // v96
+      _pendingResave = false;       // v101.13 — clear retry flag
       updateSaveIndicator('cloud-saved');
       updateSyncStatusBar();
     } else {
       console.warn('S62: save failed after 3 attempts');
       _saveState = 'error';   // v96
+      _pendingResave = true;  // v101.13 — flag for reconnect/periodic retry
       updateSaveIndicator('cloud-error');
+      s62SchedulePendingRetry();  // v101.13
     }
 
   }catch(err){
     _saveState = 'error';   // v96
+    _pendingResave = true;  // v101.13 — re-save when we reconnect / next retry tick
     updateSaveIndicator('cloud-error');
     console.error('S62 Firebase save:', err);
     showNotif('Sync failed', err.message+' — saved locally only');
+    s62SchedulePendingRetry();  // v101.13
   }
 }
 
@@ -4606,7 +4650,7 @@ function openCloudSetupModal(){
   const configured = isCloudConfigured();
 
   div.innerHTML=`<div class="modal" style="max-width:540px">
-  <button class="mclose" onclick="closeModal('cloud-setup-ov')">✕</button>
+  <button class="mclose" onclick="closeModal('cloud-setup-ov')" aria-label="Close">✕</button>
 
   <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
     <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#F57C00,#FFCA28);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px">⚡</div>
@@ -4629,7 +4673,7 @@ function openCloudSetupModal(){
     <input class="finp" id="fb-db-url" value="${_fbCfg.dbUrl||S62_FB_DEFAULT.dbUrl}" style="font-family:var(--fm);font-size:11px">
   </div>
   <div class="frow">
-    <label class="flbl">Web API Key</label>
+    <label class="flbl" for="fb-api-key">Web API Key</label>
     <input class="finp" id="fb-api-key" value="${_fbCfg.apiKey||S62_FB_DEFAULT.apiKey}" style="font-family:var(--fm);font-size:11px">
   </div>
   <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin:-6px 0 14px;line-height:1.6">
@@ -5929,7 +5973,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.11 — type s62Diagnose() to run a full state diagnostic');
+console.log('S62 v101.14 — type s62Diagnose() to run a full state diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -6161,10 +6205,14 @@ function applyTemplateToProject(projId, tid, vstr, options){
     created++;
   });
 
-  // Mark project with template binding
+  // Mark project with template binding. v101.14 — also append to
+  // proj.templateIds[] so multi-template applies are tracked. The legacy
+  // single-template fields are retained as the "most recent" pointers.
   proj.templateId = tid;
   proj.templateVersion = tv.version;
   proj.templateAppliedAt = toISO(new Date());
+  proj.templateIds = Array.isArray(proj.templateIds) ? proj.templateIds : [];
+  if (!proj.templateIds.includes(tid)) proj.templateIds.push(tid);
 
   return {created, skipped, conflicted};
 }
@@ -6765,7 +6813,7 @@ function showSentEmailBody(idx){
   const ex=document.getElementById('sent-body-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='sent-body-ov';div.className='ov show';
   div.innerHTML='<div class="modal" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">'
-    +'<button class="mclose" onclick="closeModal(\'sent-body-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'sent-body-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle" style="font-size:13px">'+e.subject+'</div>'
     +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:10px">To: '+e.to+' · '+e.date+'</div>'
     +'<pre style="flex:1;overflow-y:auto;font-family:var(--fm);font-size:9.5px;color:var(--txm);white-space:pre-wrap;background:var(--sf2);border-radius:8px;padding:12px 14px;max-height:400px;min-height:100px">'+( e.body||'(no body)').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>'
@@ -6944,10 +6992,10 @@ function openConsultantLogModal(consultantId, projId){
   ).join('');
 
   div.innerHTML='<div class="modal" style="max-width:420px">'
-    +'<button class="mclose" onclick="closeModal(\'consultant-log-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'consultant-log-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Log Consultant Time</div>'
     +'<div class="msub" style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:14px">Record hours for external consultants — feeds into project fee burn</div>'
-    +'<div class="frow"><label class="flbl">Consultant</label>'
+    +'<div class="frow"><label class="flbl" for="pl-name">Consultant</label>'
       +'<select class="fsel" id="cl-consultant">'+conOpts+'</select></div>'
     +'<div class="frow"><label class="flbl">Project</label>'
       +'<select class="fsel" id="cl-project">'+projOpts+'</select></div>'
@@ -7296,23 +7344,23 @@ function openAddPipelineModal(defaultStage){
   const staffOpts=STAFF.filter(s=>s.type!=='contractor')
     .map(s=>'<option value="'+s.id+'">'+s.first+' '+s.last+'</option>').join('');
   div.innerHTML='<div class="modal" style="max-width:480px">'
-    +'<button class="mclose" onclick="closeModal(\'pipeline-add-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'pipeline-add-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">New Lead</div>'
     +'<div class="frow"><label class="flbl">Project name</label><input class="finp" id="pl-name" placeholder="e.g. Heritage School Renovation"></div>'
-    +'<div class="frow"><label class="flbl">Client</label><input class="finp" id="pl-client" placeholder="e.g. Greenfield Education Trust"></div>'
+    +'<div class="frow"><label class="flbl" for="pl-client">Client</label><input class="finp" id="pl-client" placeholder="e.g. Greenfield Education Trust"></div>'
     +'<div class="fgrid">'
-      +'<div class="frow"><label class="flbl">Est. fee</label><input class="finp" id="pl-fee" placeholder="e.g. ₹3.2Cr"></div>'
-      +'<div class="frow"><label class="flbl">Probability %</label><input class="finp" id="pl-prob" type="number" min="0" max="100" value="50"></div>'
+      +'<div class="frow"><label class="flbl" for="pl-fee">Est. fee</label><input class="finp" id="pl-fee" placeholder="e.g. ₹3.2Cr"></div>'
+      +'<div class="frow"><label class="flbl" for="pl-prob">Probability %</label><input class="finp" id="pl-prob" type="number" min="0" max="100" value="50"></div>'
     +'</div>'
     +'<div class="fgrid">'
-      +'<div class="frow"><label class="flbl">Stage</label><select class="fsel" id="pl-stage">'+stageOpts+'</select></div>'
-      +'<div class="frow"><label class="flbl">Assigned to</label><select class="fsel" id="pl-assign">'+staffOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl" for="pl-stage">Stage</label><select class="fsel" id="pl-stage">'+stageOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl" for="pl-assign">Assigned to</label><select class="fsel" id="pl-assign">'+staffOpts+'</select></div>'
     +'</div>'
     +'<div class="fgrid">'
-      +'<div class="frow"><label class="flbl">Contact name</label><input class="finp" id="pl-contact" placeholder="Client contact"></div>'
-      +'<div class="frow"><label class="flbl">Expected close</label><input class="finp" id="pl-close" type="date"></div>'
+      +'<div class="frow"><label class="flbl" for="pl-contact">Contact name</label><input class="finp" id="pl-contact" placeholder="Client contact"></div>'
+      +'<div class="frow"><label class="flbl" for="pl-close">Expected close</label><input class="finp" id="pl-close" type="date"></div>'
     +'</div>'
-    +'<div class="frow"><label class="flbl">Notes</label><input class="finp" id="pl-notes" placeholder="e.g. Intro meeting booked, awaiting brief"></div>'
+    +'<div class="frow"><label class="flbl" for="pl-notes">Notes</label><input class="finp" id="pl-notes" placeholder="e.g. Intro meeting booked, awaiting brief"></div>'
     +'<div style="display:flex;gap:8px;margin-top:4px">'
       +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="savePipelineLead()">Add Lead</button>'
       +'<button class="btn bg" style="padding:11px 16px" onclick="closeModal(\'pipeline-add-ov\')">Cancel</button>'
@@ -7329,24 +7377,24 @@ function openEditPipelineModal(plId){
   const staffOpts=STAFF.filter(s=>s.type!=='contractor')
     .map(s=>'<option value="'+s.id+'"'+(s.id===pl.assignedTo?' selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
   div.innerHTML='<div class="modal" style="max-width:480px">'
-    +'<button class="mclose" onclick="closeModal(\'pipeline-add-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'pipeline-add-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Edit Lead</div>'
     +'<input type="hidden" id="pl-edit-id" value="'+plId+'">'
-    +'<div class="frow"><label class="flbl">Project name</label><input class="finp" id="pl-name" value="'+pl.name+'"></div>'
-    +'<div class="frow"><label class="flbl">Client</label><input class="finp" id="pl-client" value="'+pl.client+'"></div>'
+    +'<div class="frow"><label class="flbl" for="pl-name">Project name</label><input class="finp" id="pl-name" value="'+pl.name+'"></div>'
+    +'<div class="frow"><label class="flbl" for="pl-client">Client</label><input class="finp" id="pl-client" value="'+pl.client+'"></div>'
     +'<div class="fgrid">'
-      +'<div class="frow"><label class="flbl">Est. fee</label><input class="finp" id="pl-fee" value="'+(pl.estFee||'')+'"></div>'
-      +'<div class="frow"><label class="flbl">Probability %</label><input class="finp" id="pl-prob" type="number" min="0" max="100" value="'+pl.probability+'"></div>'
+      +'<div class="frow"><label class="flbl" for="pl-fee">Est. fee</label><input class="finp" id="pl-fee" value="'+(pl.estFee||'')+'"></div>'
+      +'<div class="frow"><label class="flbl" for="pl-prob">Probability %</label><input class="finp" id="pl-prob" type="number" min="0" max="100" value="'+pl.probability+'"></div>'
     +'</div>'
     +'<div class="fgrid">'
-      +'<div class="frow"><label class="flbl">Stage</label><select class="fsel" id="pl-stage">'+stageOpts+'</select></div>'
-      +'<div class="frow"><label class="flbl">Assigned to</label><select class="fsel" id="pl-assign">'+staffOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl" for="pl-stage">Stage</label><select class="fsel" id="pl-stage">'+stageOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl" for="pl-assign">Assigned to</label><select class="fsel" id="pl-assign">'+staffOpts+'</select></div>'
     +'</div>'
     +'<div class="fgrid">'
-      +'<div class="frow"><label class="flbl">Contact name</label><input class="finp" id="pl-contact" value="'+(pl.contact||'')+'"></div>'
-      +'<div class="frow"><label class="flbl">Expected close</label><input class="finp" id="pl-close" type="date" value="'+(pl.expectedClose||'')+'"></div>'
+      +'<div class="frow"><label class="flbl" for="pl-contact">Contact name</label><input class="finp" id="pl-contact" value="'+(pl.contact||'')+'"></div>'
+      +'<div class="frow"><label class="flbl" for="pl-close">Expected close</label><input class="finp" id="pl-close" type="date" value="'+(pl.expectedClose||'')+'"></div>'
     +'</div>'
-    +'<div class="frow"><label class="flbl">Notes</label><input class="finp" id="pl-notes" value="'+(pl.notes||'')+'"></div>'
+    +'<div class="frow"><label class="flbl" for="pl-notes">Notes</label><input class="finp" id="pl-notes" value="'+(pl.notes||'')+'"></div>'
     +'<div style="display:flex;gap:8px;margin-top:4px">'
       +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="savePipelineLead()">Save Changes</button>'
       +'<button class="btn bd2 bsm" style="color:var(--red)" onclick="deletePipelineLead(\''+plId+'\')">Delete</button>'
@@ -8320,7 +8368,7 @@ function openBulkEmailPreview(type){
   }).join('');
 
   div.innerHTML='<div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto">'
-    +'<button class="mclose" onclick="closeModal(\'bulk-email-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'bulk-email-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">'+title+' ('+emails.length+')</div>'
     +'<div class="msub" style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:14px">Review each email before sending. Click Send to open in your email client.</div>'
     +(emails.length?rows:'<div style="font-family:var(--fm);font-size:11px;color:var(--txd);text-align:center;padding:20px">No emails to send for this type right now.</div>')
@@ -8425,7 +8473,7 @@ function previewGeneratedEmail(type, id){
   const div=document.createElement('div');
   div.id='email-preview-ov';div.className='ov show';
   div.innerHTML='<div class="modal" style="max-width:580px;max-height:80vh;display:flex;flex-direction:column">'
-    +'<button class="mclose" onclick="closeModal(\'email-preview-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'email-preview-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Email Preview</div>'
     +'<div style="background:var(--sf2);border-radius:8px;padding:10px 14px;margin-bottom:12px">'
       +'<div style="font-family:var(--fm);font-size:10px;margin-bottom:3px"><strong>To:</strong> '+emailData.to+'</div>'
@@ -9492,7 +9540,7 @@ function confirmRemove(id){
   const reassignOpts=others.map(o=>'<option value="'+o.id+'">'+o.first+' '+o.last+'</option>').join('');
 
   div.innerHTML='<div class="modal" style="max-width:440px">'
-    +'<button class="mclose" onclick="closeModal(\'remove-staff-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'remove-staff-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Remove Staff Member</div>'
     +'<div style="background:rgba(224,82,82,.06);border:1px solid rgba(224,82,82,.2);border-radius:8px;padding:12px 14px;margin-bottom:14px">'
       +'<div style="font-size:13px;font-weight:600;margin-bottom:4px">'+s.first+' '+s.last+'</div>'
@@ -9508,7 +9556,7 @@ function confirmRemove(id){
         :'<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:12px">No drawings assigned.</div>'
     )
     +(activeDrawings.length&&others.length
-      ?'<div class="frow"><label class="flbl">Reassign active drawings to</label>'
+      ?'<div class="frow"><label class="flbl" for="ai-text">Reassign active drawings to</label>'
         +'<select class="fsel" id="rs-reassign-to">'
           +'<option value="">— Leave unassigned —</option>'
           +reassignOpts
@@ -11133,7 +11181,7 @@ function openCreatePackageModal(projId){
   const div=document.createElement('div');
   div.id='pkg-create-ov'; div.className='ov show';
   div.innerHTML='<div class="modal" style="max-width:420px">'
-    +'<button class="mclose" onclick="closeModal(\'pkg-create-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'pkg-create-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">Create Drawing Package</div>'
     +'<div class="msub">'+(proj?.name||'Project')+'</div>'
     +'<div class="frow"><label class="flbl">Package Name</label>'
@@ -11330,42 +11378,23 @@ function renderTemplatePreview(pt){
    drawing list at project-create time. When unticked, the legacy preview
    reappears as a fallback. */
 function renderRecommendedTemplate(projType){
-  const el = document.getElementById('ap-tmpl-card');
-  if(!el) return;
-  if(!projType){ el.innerHTML=''; return; }
-  // Find DRW_TEMPLATE whose appliesTo includes this project type
-  const matching = DRW_TEMPLATES.find(t => Array.isArray(t.appliesTo) && t.appliesTo.includes(projType));
-  if(!matching){ el.innerHTML=''; return; }  // no template match → legacy fallback runs
-  const tv = getTemplateVersion(matching.id);
-  if(!tv){ el.innerHTML=''; return; }
-  const drwCount = (tv.drawings||[]).filter(d=>!d.consultant).length;
-  const totalHrs = (tv.drawings||[]).filter(d=>!d.consultant).reduce((s,d)=>s+(d.estHrs||0),0);
-
-  el.innerHTML = '<div style="background:rgba(186,117,23,.08);border:1px solid var(--gold);border-radius:8px;padding:12px 14px;margin-bottom:14px">'
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
-      +'<span style="font-size:24px">'+(matching.icon||'📐')+'</span>'
-      +'<div style="flex:1">'
-        +'<div style="font-weight:600;color:var(--gold);font-size:13px">Recommended template: '+matching.name+'</div>'
-        +'<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">'+matching.description+'</div>'
-        +'<div style="font-family:var(--fm);font-size:10px;color:var(--txm);margin-top:3px">v'+matching.activeVersion+' · '+drwCount+' drawings · ~'+totalHrs+'h total · COA + IS 962 aligned</div>'
-      +'</div>'
-    +'</div>'
-    +'<label style="display:flex;align-items:center;gap:8px;padding:8px 0 4px;border-top:1px solid var(--bd2);cursor:pointer;font-family:var(--fm);font-size:11px;color:var(--tx)">'
-      +'<input type="checkbox" id="ap-tmpl-apply" data-tid="'+matching.id+'" checked onchange="onTmplToggle()" style="width:14px;height:14px;accent-color:var(--gold)">'
-      +'Apply this template to seed the drawing register'
-    +'</label>'
-    +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:4px;padding-left:22px;line-height:1.55">'
-      +'When ticked, your project gets '+drwCount+' COA-aligned drawings with stage-distributed dates and pre-set hours. Untick to use the legacy discipline-based register below.'
-    +'</div>'
-  +'</div>';
+  // v101.14 — was a single-template recommendation card; now delegates to the
+  // multi-template picker so the user can pick zero, one, or several templates
+  // at create time. Function name kept because onProjTypeChange calls it.
+  renderTemplateMultiPicker(projType);
+  // After render, hide the legacy preview / discipline toggles if any template
+  // is checked (matches the auto-check of "matching" templates).
+  if (typeof onApMultiTplToggle === 'function') onApMultiTplToggle();
 }
 
-/* v100 Phase 2 — Toggle handler. When the user toggles the template
-   checkbox, refresh the legacy preview so it appears or disappears. */
+/* v100 Phase 2 / v101.14 — single-template toggle was deprecated when the
+   create-project picker became multi-template. Kept as a back-compat shim
+   that simply re-runs the toggle logic (legacy preview hide/show). */
 function onTmplToggle(){
+  if (typeof onApMultiTplToggle === 'function') onApMultiTplToggle();
   const tid = document.getElementById('ap-type')?.value;
   const pt = PROJECT_TYPES.find(t=>t.id===tid);
-  if(pt) renderTemplatePreview(pt);
+  if (pt && typeof renderTemplatePreview === 'function') renderTemplatePreview(pt);
 }
 
 function onProjTypeChange(){
@@ -11460,18 +11489,33 @@ function submitProject(){
       delete editIdEl.dataset.fromPipelineId;
     }
 
-    // v100 Phase 2 — Apply DRW_TEMPLATE if user ticked the recommended template
-    // checkbox. Otherwise fall through to the legacy PROJECT_TYPES drawingTemplate
-    // path. The template path uses applyTemplateToProject which gives stage-based
-    // dates (Phase 1) and uses the COA-aligned curated drawing list.
-    const tmplApply = document.getElementById('ap-tmpl-apply');
-    const useTmpl = tmplApply && tmplApply.checked;
-    const tmplId = useTmpl ? tmplApply.dataset.tid : null;
-    if(useTmpl && tmplId){
-      const result = applyTemplateToProject(pid, tmplId);
-      if(result){
-        addAudit('template-apply', 'Template applied at create',
-          (getTemplate(tmplId)?.name||tmplId)+' v'+(getTemplate(tmplId)?.activeVersion||'?')+' → '+pid+' · '+result.created+' drawings');
+    // v101.14 — multi-template apply at create time. The picker renders
+    // any number of checked templates; we apply them in order. Cross-template
+    // dedup is handled inside applyTemplateToProject's existing skipExisting
+    // logic — once a templateRef lands, the next template's same-ref skips.
+    // If the user unchecked all templates, fall through to the legacy
+    // discipline-based PROJECT_TYPES drawingTemplate path.
+    const multiCbxs = document.querySelectorAll('.ap-multi-tpl-cbx:checked');
+    const tmplIds = Array.from(multiCbxs).map(c=>c.dataset.tid).filter(Boolean);
+    // Back-compat: also honour the legacy single-template checkbox id if it
+    // somehow survives in saved state.
+    const legacyTmplApply = document.getElementById('ap-tmpl-apply');
+    if (legacyTmplApply && legacyTmplApply.checked && legacyTmplApply.dataset.tid && !tmplIds.includes(legacyTmplApply.dataset.tid)){
+      tmplIds.push(legacyTmplApply.dataset.tid);
+    }
+    if(tmplIds.length){
+      let totalCreated = 0;
+      tmplIds.forEach(tid=>{
+        const result = applyTemplateToProject(pid, tid);
+        if(result){
+          totalCreated += result.created;
+          addAudit('template-apply', 'Template applied at create',
+            (getTemplate(tid)?.name||tid)+' v'+(getTemplate(tid)?.activeVersion||'?')+' → '+pid+' · '+result.created+' drawings');
+        }
+      });
+      if (tmplIds.length > 1){
+        addAudit('template-apply', 'Multi-template create',
+          tmplIds.length+' templates applied at create → '+pid+' · '+totalCreated+' drawings');
       }
     } else if(pt){
       DISC.forEach(disc=>{
@@ -11495,7 +11539,10 @@ function submitProject(){
         });
       });
     }
-    showNotif(`Project created — ${DRAWINGS.filter(d=>d.proj===pid).length} drawings`,`${name} added with ${useTmpl?(getTemplate(tmplId)?.name||'template'):(pt?.label||type)} drawing register.`);
+    showNotif(`Project created — ${DRAWINGS.filter(d=>d.proj===pid).length} drawings`,
+      `${name} added with `+(tmplIds.length
+        ? (tmplIds.length+' template'+(tmplIds.length!==1?'s':''))
+        : ((pt?.label||type)+' drawing register'))+'.');
     selectedDiscs={};
   }
   closeModal('add-proj-ov');
@@ -13626,8 +13673,8 @@ function renderProjCtxBar(){
         +'<button class="btn bp bsm" style="font-size:9px" onclick="openMtgFromProject(\''+p.id+'\',\'client\')" title="Schedule client meeting">🤝 Client</button>'
         :'')
       +(typeof canEditTemplate==='function'&&canEditTemplate()
-        ?'<button class="btn bg bsm" style="font-size:9px" onclick="openApplyTemplateModal(\''+p.id+'\')" title="'+(p.templateId?'Re-sync drawings from template':'Apply firm-wide drawing template')+'">'
-          +(p.templateId?'🔄 Re-sync':'📐 Template')+'</button>'
+        ?'<button class="btn bg bsm" style="font-size:9px" onclick="openMultiApplyTemplateModal(\''+p.id+'\')" title="Apply one or more drawing templates">'
+          +'📐 Templates</button>'
         :'')
       +'<button class="btn bg bsm" onclick="openEditProjectModal(\''+p.id+'\')" title="Edit project" style="font-size:10px">✏</button>'
       +'<button class="btn bd2 bsm" onclick="confirmRemoveProject(\''+p.id+'\')" title="Remove project" style="font-size:10px">✕</button>'
@@ -13871,7 +13918,7 @@ function bulkSetTarget(){
   const div=document.createElement('div');
   div.id='bulk-tgt-ov'; div.className='ov show';
   div.innerHTML='<div class="modal" style="max-width:380px">'
-    +'<button class="mclose" onclick="closeModal(\'bulk-tgt-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'bulk-tgt-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">Set Target Date</div>'
     +'<div class="msub">Apply to '+count+' selected drawing'+(count!==1?'s':'')+'</div>'
     +'<div class="frow"><label class="flbl">Target Date</label>'
@@ -14621,7 +14668,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.11',
+    appVersion: 'S62-v101.14',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -15893,7 +15940,7 @@ function openQaModal(drawingId){
   const isApprover=canSchedule();
 
   div.innerHTML='<div class="modal" style="max-width:480px">'
-    +'<button class="mclose" onclick="closeModal(\'qa-approve-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'qa-approve-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Check &mdash; '+d.id+'</div>'
     +'<div class="msub" style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:12px">'+disc.icon+' '+d.title+' &middot; '+p.name+'</div>'
 
@@ -15950,7 +15997,7 @@ function openAddRevModal(drawingId){
   const div=document.createElement('div');
   div.id='add-rev-ov';div.className='ov show';
   div.innerHTML='<div class="modal" style="max-width:400px">'
-    +'<button class="mclose" onclick="closeModal(\'add-rev-ov\')">\u2715</button>'
+    +'<button class="mclose" onclick="closeModal(\'add-rev-ov\')" aria-label="Close">\u2715</button>'
     +'<div class="mtitle">Add Revision</div>'
     +'<div class="msub">'+d.id+' \u2014 '+d.title+'</div>'
     +'<input type="hidden" id="arv-drw-id" value="'+d.id+'">'  
@@ -17114,7 +17161,7 @@ function openTsApprovalPanel(){
   if(prevOv) prevOv.remove();
   const ov=document.createElement('div');
   ov.id='ts-approve-ov';ov.className='ov show';
-  ov.innerHTML='<div class="modal" style="max-width:560px"><button class="mclose" onclick="closeModal(\'ts-approve-ov\')">&#x2715;</button>'
+  ov.innerHTML='<div class="modal" style="max-width:560px"><button class="mclose" onclick="closeModal(\'ts-approve-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Timesheet Approvals</div>'+h+'</div>';
   document.body.appendChild(ov);
 }
@@ -17323,7 +17370,7 @@ function previewWeeklyEmailFor(staffId){
   const div=document.createElement('div');
   div.id='weekly-email-prev-ov';div.className='ov show';
   div.innerHTML='<div class="modal" style="max-width:480px">'
-    +'<button class="mclose" onclick="closeModal(\'weekly-email-prev-ov\')">\u2715</button>'
+    +'<button class="mclose" onclick="closeModal(\'weekly-email-prev-ov\')" aria-label="Close">\u2715</button>'
     +'<div class="mtitle">Weekly Summary \u2014 '+s.first+' '+s.last+'</div>'
     +'<div class="msub">'+s.role+'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:12px 0">'
@@ -17405,7 +17452,7 @@ function sendEmailNow(templateName){
 function openSimpleConfirm(title,bodyHtml,onConfirm){
   const prevOv=document.getElementById('simple-confirm-ov');if(prevOv)prevOv.remove();
   const ov=document.createElement('div');ov.id='simple-confirm-ov';ov.className='ov show';
-  ov.innerHTML='<div class="modal" style="max-width:400px"><button class="mclose" onclick="closeModal(\'simple-confirm-ov\')">&#x2715;</button>'
+  ov.innerHTML='<div class="modal" style="max-width:400px"><button class="mclose" onclick="closeModal(\'simple-confirm-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">'+title+'</div>'
     +'<div style="margin:14px 0">'+bodyHtml+'</div>'
     +'<div style="display:flex;gap:8px"><button class="btn bp" style="flex:1" id="sconf-ok">Confirm</button>'
@@ -17688,7 +17735,7 @@ function openGcalSetup(){
   const div=document.createElement('div');div.id='gcal-setup-ov';div.className='ov show';
   const cfg=_gcalCfg,ok2=isGcalConfigured();
   div.innerHTML='<div class="modal" style="max-width:520px">'
-    +'<button class="mclose" onclick="closeModal(\'gcal-setup-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'gcal-setup-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
       +'<div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#4285F4,#34A853);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px">📅</div>'
       +'<div><div class="mtitle" style="margin:0">Google Calendar Setup</div>'
@@ -17970,7 +18017,7 @@ function openGcalEvDetail(gcalId){
   const div=document.createElement('div');div.id='gcal-ev-ov';div.className='ov show';
   const dt=ev.start?.dateTime||ev.start?.date||'';
   div.innerHTML='<div class="modal" style="max-width:460px">'
-    +'<button class="mclose" onclick="closeModal(\'gcal-ev-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'gcal-ev-ov\')" aria-label="Close">&#x2715;</button>'
     +'<span class="gcal-badge" style="margin-bottom:10px;display:inline-flex">📅 Google Calendar event</span>'
     +'<div class="mtitle" style="margin-bottom:4px">'+ev.summary+'</div>'
     +(dt?'<div style="font-family:var(--fm);font-size:10px;color:var(--txm);margin-bottom:10px">'+new Date(dt).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'')
@@ -18026,7 +18073,7 @@ function openMtgDetail(mtgId){
   const ex=document.getElementById('mtg-detail-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='mtg-detail-ov';div.className='ov show';
   div.innerHTML='<div class="modal modal-xl" style="max-width:640px;max-height:90vh;overflow-y:auto">'
-    +'<button class="mclose" onclick="closeModal(\'mtg-detail-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'mtg-detail-ov\')" aria-label="Close">&#x2715;</button>'
 
     // ── Header: project name bold + meeting title
     +(p?'<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;background:'+p.color+'18;border-radius:8px;margin-bottom:12px">'
@@ -18121,12 +18168,12 @@ function openAddAI(mid){
   const ex=document.getElementById('ai-add-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='ai-add-ov';div.className='ov show';
   div.innerHTML='<div class="modal" style="max-width:400px">'
-    +'<button class="mclose" onclick="closeModal(\'ai-add-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'ai-add-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Add Action Item</div>'
     +'<div class="frow"><label class="flbl">Action</label><input class="finp" id="ai-text" placeholder="e.g. Send revised drawings" autofocus></div>'
-    +'<div class="frow"><label class="flbl">Assign to</label><select class="fsel" id="ai-who"><option value="">Unassigned</option>'
+    +'<div class="frow"><label class="flbl" for="ai-who">Assign to</label><select class="fsel" id="ai-who"><option value="">Unassigned</option>'
     +STAFF.filter(s=>s.type!=='contractor').map(s=>'<option value="'+s.id+'">'+s.first+' '+s.last+'</option>').join('')+'</select></div>'
-    +'<div class="frow"><label class="flbl">Due date</label><input class="finp" id="ai-due" type="date"></div>'
+    +'<div class="frow"><label class="flbl" for="ai-due">Due date</label><input class="finp" id="ai-due" type="date"></div>'
     +'<div style="display:flex;gap:8px"><button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="submitAI(\''+mid+'\')">Add</button>'
     +'<button class="btn bg" style="padding:10px 14px" onclick="closeModal(\'ai-add-ov\')">Cancel</button></div></div>';
   document.body.appendChild(div);
@@ -18554,18 +18601,18 @@ function openMtgModal(mtgId,prefillDate){
   const div=document.createElement('div');div.id='mtg-edit-ov';div.className='ov show';
 
   div.innerHTML='<div class="modal modal-xl" style="max-width:560px;max-height:88vh;overflow-y:auto">'
-    +'<button class="mclose" onclick="closeModal(\'mtg-edit-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'mtg-edit-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">'+(m?'Edit Meeting':'New Meeting')+'</div>'+(pfill?.drawingRef?'<div style="background:rgba(82,133,224,.08);border:1px solid rgba(82,133,224,.2);border-radius:7px;padding:8px 12px;font-family:var(--fm);font-size:10px;color:var(--blu);margin-bottom:10px">'+'<b>Pre-filled from Drawing '+pfill.drawingRef+'</b> — adjust as needed'+'</div>':'')
-    +'<div class="frow"><label class="flbl">Title <span style="color:var(--red)">*</span></label><input class="finp" id="me-title" placeholder="e.g. Site Meeting \u2014 Thornfield" value="'+(m?.title||pfill?.title||'')+'"></div>'
-    +'<div class="fgrid"><div class="frow"><label class="flbl">Type</label><select class="fsel" id="me-type"><option value="client-review"'+(m?.type=='client-review'?' selected':'')+'>👥 Client Review</option><option value="design-review"'+(m?.type=='design-review'?' selected':'')+'>📐 Design Review</option><option value="site-visit"'+(m?.type=='site-visit'?' selected':'')+'>🏗 Site Visit</option><option value="internal"'+(m?.type=='internal'?' selected':'')+'>💬 Internal</option><option value="contractor"'+(m?.type=='contractor'?' selected':'')+'>🔧 Contractor</option><option value="inspection"'+(m?.type=='inspection'?' selected':'')+'>🔍 Inspection</option><option value="call"'+(m?.type=='call'?' selected':'')+'>📞 Call</option><option value="other"'+(m?.type=='other'?' selected':'')+'>Other</option></select></div><div class="frow"><label class="flbl">Status</label><select class="fsel" id="me-status"><option value="scheduled"'+(m?.status=='scheduled'?' selected':'')+'>📅 Scheduled</option><option value="completed"'+(m?.status=='completed'?' selected':'')+'>Completed</option></select></div></div>'
-    +'<div class="fgrid"><div class="frow"><label class="flbl">Date</label><input class="finp" id="me-date" type="date" value="'+defDate+'"></div>'
-    +'<div class="frow"><label class="flbl">Time</label><input class="finp" id="me-time" type="time" value="'+defTime+'"></div></div>'
-    +'<div class="fgrid"><div class="frow"><label class="flbl">Duration (mins)</label><input class="finp" id="me-dur" type="number" value="'+(m?.duration||60)+'" placeholder="60"></div>'
-    +'<div class="frow"><label class="flbl">Project</label><div id="me-proj"></div></div></div>'
+    +'<div class="frow"><label class="flbl" for="me-title">Title <span style="color:var(--red)">*</span></label><input class="finp" id="me-title" placeholder="e.g. Site Meeting \u2014 Thornfield" value="'+(m?.title||pfill?.title||'')+'"></div>'
+    +'<div class="fgrid"><div class="frow"><label class="flbl" for="me-type">Type</label><select class="fsel" id="me-type"><option value="client-review"'+(m?.type=='client-review'?' selected':'')+'>👥 Client Review</option><option value="design-review"'+(m?.type=='design-review'?' selected':'')+'>📐 Design Review</option><option value="site-visit"'+(m?.type=='site-visit'?' selected':'')+'>🏗 Site Visit</option><option value="internal"'+(m?.type=='internal'?' selected':'')+'>💬 Internal</option><option value="contractor"'+(m?.type=='contractor'?' selected':'')+'>🔧 Contractor</option><option value="inspection"'+(m?.type=='inspection'?' selected':'')+'>🔍 Inspection</option><option value="call"'+(m?.type=='call'?' selected':'')+'>📞 Call</option><option value="other"'+(m?.type=='other'?' selected':'')+'>Other</option></select></div><div class="frow"><label class="flbl" for="me-status">Status</label><select class="fsel" id="me-status"><option value="scheduled"'+(m?.status=='scheduled'?' selected':'')+'>📅 Scheduled</option><option value="completed"'+(m?.status=='completed'?' selected':'')+'>Completed</option></select></div></div>'
+    +'<div class="fgrid"><div class="frow"><label class="flbl" for="me-date">Date</label><input class="finp" id="me-date" type="date" value="'+defDate+'"></div>'
+    +'<div class="frow"><label class="flbl" for="me-time">Time</label><input class="finp" id="me-time" type="time" value="'+defTime+'"></div></div>'
+    +'<div class="fgrid"><div class="frow"><label class="flbl" for="me-dur">Duration (mins)</label><input class="finp" id="me-dur" type="number" value="'+(m?.duration||60)+'" placeholder="60"></div>'
+    +'<div class="frow"><label class="flbl" for="me-loc">Project</label><div id="me-proj"></div></div></div>'
     +'<div class="frow"><label class="flbl">Location</label><input class="finp" id="me-loc" placeholder="Studio / Google Meet / Site" value="'+(m?.location||'')+'"></div>'
 
     // ── Staff chip-dropdown ─────────────────────────────────
-    +'<div class="frow"><label class="flbl">Staff Attendees <span style="color:var(--txd);font-weight:400">— calendar updates silently, no RSVP needed</span></label>'
+    +'<div class="frow"><label class="flbl" for="me-ext">Staff Attendees <span style="color:var(--txd);font-weight:400">— calendar updates silently, no RSVP needed</span></label>'
       +'<div id="me-staff-cd"></div>'
     +'</div>'
 
@@ -18576,7 +18623,7 @@ function openMtgModal(mtgId,prefillDate){
     +'</div>'
 
     +'<div class="frow"><label class="flbl">Other Emails <span style="color:var(--txd);font-weight:400">— clients, consultants · receive RSVP invite</span></label><input class="finp" id="me-ext" placeholder="client@email.com, structural@consultant.com" value="'+((m?.externalAttendees||[]).join(', '))+'"></div>'
-    +'<div class="frow"><label class="flbl">Agenda</label><textarea class="ftarea" id="me-agenda" rows="3" placeholder="Items to discuss\u2026">'+(m?.agenda||pfill?.agenda||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl" for="me-agenda">Agenda</label><textarea class="ftarea" id="me-agenda" rows="3" placeholder="Items to discuss\u2026">'+(m?.agenda||pfill?.agenda||'')+'</textarea></div>'
     +(isGcalConnected()&&!m?.gcalId?'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(82,133,224,.08);border-radius:6px;margin-bottom:12px"><input type="checkbox" id="me-gcal" checked><label style="font-family:var(--fm);font-size:10px;cursor:pointer" for="me-gcal">📅 Push to Google Calendar (sends RSVP invites to vendors and external emails)</label></div>':'')
     +(!isGcalConnected()?'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(240,201,122,.08);border:1px solid rgba(240,201,122,.25);border-radius:6px;margin-bottom:12px"><span style="color:var(--gold);font-size:14px">⚠</span><div style="font-family:var(--fm);font-size:9px;color:var(--gold);line-height:1.4">Google Calendar not connected — calendar invites will not be sent. <a onclick="gcalSignIn()" style="color:var(--gld2);cursor:pointer;text-decoration:underline">Connect now</a></div></div>':'')
     +'<div style="display:flex;gap:8px"><button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="submitMtg(\''+( m?.id||'')+'\')">'+( m?'Save Changes':'Create Meeting')+'</button>'
@@ -18933,7 +18980,7 @@ function openAttendanceModal(mtgId){
   }).join('');
 
   div.innerHTML='<div class="modal" style="max-width:540px">'
-    +'<button class="mclose" onclick="closeModal(\'attend-ov\')">&#x2715;</button>'
+    +'<button class="mclose" onclick="closeModal(\'attend-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Attendance — '+m.title+'</div>'
     +'<div class="msub" style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:14px">Mark attendance for this meeting. Changes save automatically.</div>'
     +rows
@@ -18969,7 +19016,7 @@ async function openFreeBusy(mtgId){
 
   const ex=document.getElementById('freebusy-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='freebusy-ov';div.className='ov show';
-  div.innerHTML='<div class="modal" style="max-width:520px"><button class="mclose" onclick="closeModal(\'freebusy-ov\')">&#x2715;</button>'
+  div.innerHTML='<div class="modal" style="max-width:520px"><button class="mclose" onclick="closeModal(\'freebusy-ov\')" aria-label="Close">&#x2715;</button>'
     +'<div class="mtitle">Availability Check</div>'
     +'<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:16px">Checking Google Calendar for '+atts.length+' attendee'+(atts.length>1?'s':'')+' on '+m.date+'</div>'
     +'<div id="fb-body" style="font-family:var(--fm);font-size:10px">Checking...</div>'
@@ -19663,20 +19710,20 @@ function openAddInvoiceModal(){
   const ex=document.getElementById('add-inv-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='add-inv-ov';div.className='ov show';
   div.innerHTML=`<div class="modal" style="max-width:500px">
-    <button class="mclose" onclick="closeModal('add-inv-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('add-inv-ov')" aria-label="Close">✕</button>
     <div class="mtitle">Add Invoice</div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Invoice #</label>
+      <div class="frow"><label class="flbl" for="inv-id">Invoice #</label>
         <input class="finp" id="inv-id" value="INV-${String(Date.now()).slice(-4)}" style="font-family:var(--fm);font-size:11px"></div>
-      <div class="frow"><label class="flbl">Project</label>
+      <div class="frow"><label class="flbl" for="inv-desc">Project</label>
         <div id="inv-proj"></div></div>
     </div>
     <div class="frow"><label class="flbl">Description</label>
       <input class="finp" id="inv-desc" placeholder="e.g. Stage 3 Design Fee"></div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Amount (₹)</label>
+      <div class="frow"><label class="flbl" for="inv-amount">Amount (₹)</label>
         <input class="finp" id="inv-amount" type="number" placeholder="e.g. 1200000" min="0"></div>
-      <div class="frow"><label class="flbl">Status</label>
+      <div class="frow"><label class="flbl" for="inv-status">Status</label>
         <select class="fsel" id="inv-status">
           <option value="draft">Draft</option>
           <option value="pending" selected>Pending</option>
@@ -19685,12 +19732,12 @@ function openAddInvoiceModal(){
         </select></div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Issue Date</label>
+      <div class="frow"><label class="flbl" for="inv-issue">Issue Date</label>
         <input class="finp" id="inv-issue" type="date" value="${toISO(new Date())}"></div>
-      <div class="frow"><label class="flbl">Due Date</label>
+      <div class="frow"><label class="flbl" for="inv-due">Due Date</label>
         <input class="finp" id="inv-due" type="date"></div>
     </div>
-    <div class="frow"><label class="flbl">Notes</label>
+    <div class="frow"><label class="flbl" for="inv-notes">Notes</label>
       <input class="finp" id="inv-notes" placeholder="Optional notes"></div>
     <div style="display:flex;gap:8px;margin-top:4px">
       <button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="submitAddInvoice()">Add Invoice</button>
@@ -21310,28 +21357,28 @@ function openVendorEdit(id){
   const cat = vdGetCategory(v?.primaryCategory);
 
   div.innerHTML='<div class="modal" style="max-width:680px">'
-    +'<button class="mclose" onclick="closeModal(\'vendor-edit-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'vendor-edit-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">'+(isEdit?'Edit Vendor':'New Vendor')+'</div>'
 
     // Identity
     +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px">📇 Identity &amp; Contact</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Company Name *</label><input class="finp" id="vd-companyName" value="'+(v?.companyName||'')+'" placeholder="ABC Constructions Pvt Ltd"></div>'
-      +'<div class="frow"><label class="flbl">Contact Person</label><input class="finp" id="vd-contactPerson" value="'+(v?.contactPerson||'')+'" placeholder="Mr. Rajesh Kumar"></div>'
-      +'<div class="frow"><label class="flbl">Designation</label><input class="finp" id="vd-designation" value="'+(v?.designation||'')+'" placeholder="Proprietor / Site Engineer"></div>'
-      +'<div class="frow"><label class="flbl">Phone</label><input class="finp" id="vd-phone" value="'+(v?.phone||'')+'" placeholder="+91 98765 43210"></div>'
-      +'<div class="frow"><label class="flbl">Email</label><input class="finp" id="vd-email" value="'+(v?.email||'')+'" placeholder="contact@company.com"></div>'
-      +'<div class="frow"><label class="flbl">WhatsApp</label><input class="finp" id="vd-whatsapp" value="'+(v?.whatsapp||'')+'" placeholder="+91 98765 43210"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-companyName">Company Name *</label><input class="finp" id="vd-companyName" value="'+(v?.companyName||'')+'" placeholder="ABC Constructions Pvt Ltd"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-contactPerson">Contact Person</label><input class="finp" id="vd-contactPerson" value="'+(v?.contactPerson||'')+'" placeholder="Mr. Rajesh Kumar"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-designation">Designation</label><input class="finp" id="vd-designation" value="'+(v?.designation||'')+'" placeholder="Proprietor / Site Engineer"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-phone">Phone</label><input class="finp" id="vd-phone" value="'+(v?.phone||'')+'" placeholder="+91 98765 43210"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-email">Email</label><input class="finp" id="vd-email" value="'+(v?.email||'')+'" placeholder="contact@company.com"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-whatsapp">WhatsApp</label><input class="finp" id="vd-whatsapp" value="'+(v?.whatsapp||'')+'" placeholder="+91 98765 43210"></div>'
     +'</div>'
-    +'<div class="frow"><label class="flbl">Address</label><textarea class="ftarea" id="vd-address" rows="2" placeholder="Street address, locality">'+(v?.address||'')+'</textarea></div>'
-    +'<div class="frow"><label class="flbl">City</label><input class="finp" id="vd-city" value="'+(v?.city||'')+'" placeholder="Chennai"></div>'
+    +'<div class="frow"><label class="flbl" for="vd-address">Address</label><textarea class="ftarea" id="vd-address" rows="2" placeholder="Street address, locality">'+(v?.address||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl" for="vd-city">City</label><input class="finp" id="vd-city" value="'+(v?.city||'')+'" placeholder="Chennai"></div>'
 
     // Categories
     +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px">🏗 Trade &amp; Service Area</div>'
-    +'<div class="frow"><label class="flbl">Primary Category *</label><select class="fsel" id="vd-primaryCategory" onchange="vdRefreshSubTrades()">'+catOpts+'</select>'
+    +'<div class="frow"><label class="flbl" for="vd-primaryCategory">Primary Category *</label><select class="fsel" id="vd-primaryCategory" onchange="vdRefreshSubTrades()">'+catOpts+'</select>'
       +'<div style="font-family:var(--fm);font-size:9px;color:var(--blu);margin-top:3px" id="vd-baseRate">Market base: <b>'+cat.baseRate+'</b></div>'
     +'</div>'
-    +'<div class="frow"><label class="flbl">Sub-trades (multi-select)</label>'
+    +'<div class="frow"><label class="flbl" for="vd-serviceAreas">Sub-trades (multi-select)</label>'
       +'<div id="vd-subTradesBox" style="display:flex;flex-wrap:wrap;gap:5px;padding:8px;background:var(--sf3);border:1px solid var(--bd);border-radius:6px;min-height:38px">'
       +cat.subTrades.map(st=>{
         const checked=(v?.subTrades||[]).includes(st);
@@ -21345,35 +21392,35 @@ function openVendorEdit(id){
     // Compliance
     +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px">📋 Compliance</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">GSTIN</label><input class="finp" id="vd-gstin" value="'+(v?.gstin||'')+'" placeholder="33ABCDE1234F1Z5"></div>'
-      +'<div class="frow"><label class="flbl">PAN</label><input class="finp" id="vd-pan" value="'+(v?.pan||'')+'" placeholder="ABCDE1234F"></div>'
-      +'<div class="frow"><label class="flbl">MSME / Udyam</label><input class="finp" id="vd-msmeUdyam" value="'+(v?.msmeUdyam||'')+'" placeholder="UDYAM-XX-NN-NNNNNNN"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-gstin">GSTIN</label><input class="finp" id="vd-gstin" value="'+(v?.gstin||'')+'" placeholder="33ABCDE1234F1Z5"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-pan">PAN</label><input class="finp" id="vd-pan" value="'+(v?.pan||'')+'" placeholder="ABCDE1234F"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-msmeUdyam">MSME / Udyam</label><input class="finp" id="vd-msmeUdyam" value="'+(v?.msmeUdyam||'')+'" placeholder="UDYAM-XX-NN-NNNNNNN"></div>'
     +'</div>'
 
     // Capacity
     +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px">⚙ Capacity</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Team Size</label><input class="finp" type="number" min="0" id="vd-teamSize" value="'+(v?.teamSize||'')+'" placeholder="15"></div>'
-      +'<div class="frow"><label class="flbl">Concurrent Jobs</label><input class="finp" type="number" min="0" id="vd-concurrentJobs" value="'+(v?.concurrentJobs||'')+'" placeholder="3"></div>'
-      +'<div class="frow"><label class="flbl">Typical Project Size</label><input class="finp" id="vd-typicalProjectSize" value="'+(v?.typicalProjectSize||'')+'" placeholder="₹50L–2Cr"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-teamSize">Team Size</label><input class="finp" type="number" min="0" id="vd-teamSize" value="'+(v?.teamSize||'')+'" placeholder="15"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-concurrentJobs">Concurrent Jobs</label><input class="finp" type="number" min="0" id="vd-concurrentJobs" value="'+(v?.concurrentJobs||'')+'" placeholder="3"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-typicalProjectSize">Typical Project Size</label><input class="finp" id="vd-typicalProjectSize" value="'+(v?.typicalProjectSize||'')+'" placeholder="₹50L–2Cr"></div>'
     +'</div>'
 
     // Documents & Status
     +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px">📎 Documents &amp; Status</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Sample Work URL</label><input class="finp" id="vd-sampleWorkUrl" value="'+(v?.sampleWorkUrl||'')+'" placeholder="https://drive.google.com/…"></div>'
-      +'<div class="frow"><label class="flbl">Quote PDF URL</label><input class="finp" id="vd-quotePdfUrl" value="'+(v?.quotePdfUrl||'')+'" placeholder="https://drive.google.com/…"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-sampleWorkUrl">Sample Work URL</label><input class="finp" id="vd-sampleWorkUrl" value="'+(v?.sampleWorkUrl||'')+'" placeholder="https://drive.google.com/…"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-quotePdfUrl">Quote PDF URL</label><input class="finp" id="vd-quotePdfUrl" value="'+(v?.quotePdfUrl||'')+'" placeholder="https://drive.google.com/…"></div>'
     +'</div>'
-    +'<div class="frow"><label class="flbl">References (other architects who recommended)</label><input class="finp" id="vd-references" value="'+(v?.references||'')+'" placeholder="Recommended by Studio X, used on Project Y"></div>'
-    +'<div class="frow"><label class="flbl">Notes</label><textarea class="ftarea" id="vd-notes" rows="2" placeholder="Anything else worth remembering">'+(v?.notes||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl" for="vd-references">References (other architects who recommended)</label><input class="finp" id="vd-references" value="'+(v?.references||'')+'" placeholder="Recommended by Studio X, used on Project Y"></div>'
+    +'<div class="frow"><label class="flbl" for="vd-notes">Notes</label><textarea class="ftarea" id="vd-notes" rows="2" placeholder="Anything else worth remembering">'+(v?.notes||'')+'</textarea></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Status</label><select class="fsel" id="vd-status">'
+      +'<div class="frow"><label class="flbl" for="vd-status">Status</label><select class="fsel" id="vd-status">'
         +'<option value="active" '+((v?.status||'active')==='active'?'selected':'')+'>🟢 Active</option>'
         +'<option value="onhold" '+(v?.status==='onhold'?'selected':'')+'>🟡 On Hold</option>'
         +'<option value="blacklisted" '+(v?.status==='blacklisted'?'selected':'')+'>🔴 Blacklisted</option>'
       +'</select></div>'
-      +'<div class="frow"><label class="flbl">Last Engaged</label><input class="finp" type="date" id="vd-lastEngaged" value="'+(v?.lastEngaged||'')+'"></div>'
-      +'<div class="frow"><label class="flbl">Next Followup</label><input class="finp" type="date" id="vd-nextFollowup" value="'+(v?.nextFollowup||'')+'"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-lastEngaged">Last Engaged</label><input class="finp" type="date" id="vd-lastEngaged" value="'+(v?.lastEngaged||'')+'"></div>'
+      +'<div class="frow"><label class="flbl" for="vd-nextFollowup">Next Followup</label><input class="finp" type="date" id="vd-nextFollowup" value="'+(v?.nextFollowup||'')+'"></div>'
     +'</div>'
 
     +'<div style="display:flex;gap:8px;margin-top:14px">'
@@ -21488,12 +21535,12 @@ function addVendorRate(vendorId){
   const div=document.createElement('div');div.id='vendor-rate-ov';div.className='ov show';
   const unitOpts = VENDOR_RATE_UNITS.map(u=>'<option value="'+u+'">'+u+'</option>').join('');
   div.innerHTML='<div class="modal" style="max-width:480px">'
-    +'<button class="mclose" onclick="closeModal(\'vendor-rate-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'vendor-rate-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">+ Add Rate for '+v.companyName+'</div>'
-    +'<div class="frow"><label class="flbl">Item / Description</label><input class="finp" id="rate-item" placeholder="e.g. RCC slab work, false ceiling installation"></div>'
+    +'<div class="frow"><label class="flbl" for="rate-item">Item / Description</label><input class="finp" id="rate-item" placeholder="e.g. RCC slab work, false ceiling installation"></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Rate (₹)</label><input class="finp" type="number" id="rate-rate" min="0" step="any" placeholder="850"></div>'
-      +'<div class="frow"><label class="flbl">Unit</label><select class="fsel" id="rate-unit">'+unitOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl" for="rate-rate">Rate (₹)</label><input class="finp" type="number" id="rate-rate" min="0" step="any" placeholder="850"></div>'
+      +'<div class="frow"><label class="flbl" for="rate-unit">Unit</label><select class="fsel" id="rate-unit">'+unitOpts+'</select></div>'
     +'</div>'
     +'<div style="display:flex;gap:8px;margin-top:8px">'
       +'<button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveVendorRate(\''+vendorId+'\')">✓ Add Rate</button>'
@@ -21530,9 +21577,9 @@ function openVendorReviewModal(vendorId){
   const div=document.createElement('div');div.id='vendor-rev-ov';div.className='ov show';
 
   div.innerHTML='<div class="modal" style="max-width:520px">'
-    +'<button class="mclose" onclick="closeModal(\'vendor-rev-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'vendor-rev-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">⭐ Review '+v.companyName+'</div>'
-    +'<div class="frow"><label class="flbl">Project worked on *</label><div id="rv-projId"></div></div>'
+    +'<div class="frow"><label class="flbl" for="rv-notes">Project worked on *</label><div id="rv-projId"></div></div>'
 
     +'<div style="background:var(--sf3);border-radius:8px;padding:12px 14px;margin:8px 0">'
       +vdScoreInput('rv-quality',    'Quality',    'Workmanship, finish, attention to detail')
@@ -22048,21 +22095,21 @@ function openCASVRModal(id){
   +'</div>').join('');
 
   div.innerHTML='<div class="modal" style="max-width:640px">'
-    +'<button class="mclose" onclick="closeModal(\'ca-svr-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'ca-svr-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Site Visit Report</div>'
 
     // ── SECTION 1: Visit details ──────────────────────────────
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Project</label><div id="svr-proj"></div></div>'
+      +'<div class="frow"><label class="flbl" for="svr-stage">Project</label><div id="svr-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Stage</label><select class="fsel" id="svr-stage">'+stages.map(s=>'<option value="'+s+'" '+((r?.stage||'CA')===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>'
-      +'<div class="frow"><label class="flbl">Visit Date</label><input class="finp" type="date" id="svr-date" value="'+(r?.date||caToday())+'"></div>'
-      +'<div class="frow"><label class="flbl">Visit Time</label><input class="finp" type="time" id="svr-time" value="'+(r?.time||'09:00')+'"></div>'
-      +'<div class="frow"><label class="flbl">Weather</label><select class="fsel" id="svr-weather">'+weather.map(w=>'<option value="'+w+'" '+((r?.weather||'Sunny')===w?'selected':'')+'>'+w+'</option>').join('')+'</select></div>'
-      +'<div class="frow"><label class="flbl">% Complete (Overall)</label><input class="finp" type="number" min="0" max="100" id="svr-pct" value="'+(r?.progressPct||0)+'" style="width:80px"></div>'
-      +'<div class="frow"><label class="flbl">Contractor Present</label><select class="fsel" id="svr-cpresent"><option value="yes" '+(r?.contractorPresent!==false?'selected':'')+'>Yes</option><option value="no" '+(r?.contractorPresent===false?'selected':'')+'>No</option></select></div>'
-      +'<div class="frow"><label class="flbl">Contractor / Site Supervisor</label><input class="finp" id="svr-cname" value="'+(r?.contractorName||'')+'" placeholder="Contractor name / foreman"></div>'
+      +'<div class="frow"><label class="flbl" for="svr-date">Visit Date</label><input class="finp" type="date" id="svr-date" value="'+(r?.date||caToday())+'"></div>'
+      +'<div class="frow"><label class="flbl" for="svr-time">Visit Time</label><input class="finp" type="time" id="svr-time" value="'+(r?.time||'09:00')+'"></div>'
+      +'<div class="frow"><label class="flbl" for="svr-weather">Weather</label><select class="fsel" id="svr-weather">'+weather.map(w=>'<option value="'+w+'" '+((r?.weather||'Sunny')===w?'selected':'')+'>'+w+'</option>').join('')+'</select></div>'
+      +'<div class="frow"><label class="flbl" for="svr-pct">% Complete (Overall)</label><input class="finp" type="number" min="0" max="100" id="svr-pct" value="'+(r?.progressPct||0)+'" style="width:80px"></div>'
+      +'<div class="frow"><label class="flbl" for="svr-cpresent">Contractor Present</label><select class="fsel" id="svr-cpresent"><option value="yes" '+(r?.contractorPresent!==false?'selected':'')+'>Yes</option><option value="no" '+(r?.contractorPresent===false?'selected':'')+'>No</option></select></div>'
+      +'<div class="frow"><label class="flbl" for="svr-cname">Contractor / Site Supervisor</label><input class="finp" id="svr-cname" value="'+(r?.contractorName||'')+'" placeholder="Contractor name / foreman"></div>'
     +'</div>'
-    +'<div class="frow"><label class="flbl">Construction Stage</label><input class="finp" id="svr-cstage" value="'+(r?.constructionStage||'')+'" placeholder="e.g. Roof slab shuttering in progress, blockwork ground floor complete"></div>'
+    +'<div class="frow"><label class="flbl" for="svr-cstage">Construction Stage</label><input class="finp" id="svr-cstage" value="'+(r?.constructionStage||'')+'" placeholder="e.g. Roof slab shuttering in progress, blockwork ground floor complete"></div>'
 
     // ── STAFF ATTENDING THIS VISIT ────────────────────────────
     +'<div style="background:rgba(82,201,122,.04);border:1px solid rgba(82,201,122,.15);border-radius:8px;padding:12px 14px;margin:8px 0 4px">'
@@ -22082,9 +22129,9 @@ function openCASVRModal(id){
     +'</div>'
 
     // ── SITE OBSERVATIONS ─────────────────────────────────────
-    +'<div class="frow"><label class="flbl">Drawings Checked on Site</label><input class="finp" id="svr-drws" value="'+(r?.drawingsChecked?.join(', ')||'')+'" placeholder="e.g. CP-A-001, CP-S-001 (comma-separated)"></div>'
-    +'<div class="frow"><label class="flbl">Observations</label><textarea class="ftarea" id="svr-obs" rows="3" placeholder="Progress observed, quality, compliance with drawings, materials on site…">'+(r?.observations||'')+'</textarea></div>'
-    +'<div class="frow"><label class="flbl" style="display:flex;align-items:center;justify-content:space-between">Issues Found <button class="btn bg bsm" onclick="addCASVRIssue()" style="font-size:9px">+ Add Issue</button></label>'
+    +'<div class="frow"><label class="flbl" for="svr-drws">Drawings Checked on Site</label><input class="finp" id="svr-drws" value="'+(r?.drawingsChecked?.join(', ')||'')+'" placeholder="e.g. CP-A-001, CP-S-001 (comma-separated)"></div>'
+    +'<div class="frow"><label class="flbl" for="svr-obs">Observations</label><textarea class="ftarea" id="svr-obs" rows="3" placeholder="Progress observed, quality, compliance with drawings, materials on site…">'+(r?.observations||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl" style="display:flex;align-items:center;justify-content:space-between" for="svr-instr">Issues Found <button class="btn bg bsm" onclick="addCASVRIssue()" style="font-size:9px">+ Add Issue</button></label>'
       +'<div id="svr-issues-list">'+issHtml+'</div></div>'
     +'<div class="frow"><label class="flbl">Instructions Given on Site</label><textarea class="ftarea" id="svr-instr" rows="2" placeholder="Verbal or written instructions to contractor issued during this visit…">'+(r?.instructions||'')+'</textarea></div>'
 
@@ -22094,10 +22141,10 @@ function openCASVRModal(id){
         +'📅 Next site visit — auto-schedules meeting &amp; blocks staff calendar'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">'
-        +'<div class="frow" style="margin:0"><label class="flbl">Next Visit Date</label><input class="finp" type="date" id="svr-nextdate" value="'+(r?.nextVisitDate||caAddDays(caToday(),14))+'"></div>'
-        +'<div class="frow" style="margin:0"><label class="flbl">Planned Time</label><input class="finp" type="time" id="svr-nexttime" value="'+(r?.nextVisitTime||'09:00')+'"></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="svr-nextdate">Next Visit Date</label><input class="finp" type="date" id="svr-nextdate" value="'+(r?.nextVisitDate||caAddDays(caToday(),14))+'"></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="svr-nexttime">Planned Time</label><input class="finp" type="time" id="svr-nexttime" value="'+(r?.nextVisitTime||'09:00')+'"></div>'
       +'</div>'
-      +'<div class="frow" style="margin:0"><label class="flbl">Staff for Next Visit</label>'
+      +'<div class="frow" style="margin:0"><label class="flbl" for="rfi-date">Staff for Next Visit</label>'
         +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'
         +STAFF.filter(s=>s.type!=='contractor').map(s=>{
           const nxtAttendees=r?.nextVisitAttendees||(r?.visitedBy?[r.visitedBy]:[CURRENT_USER_ID]);
@@ -22367,14 +22414,14 @@ function openCARFIModal(id){
   const drwOpts='<option value="">— None —</option>'+DRAWINGS.filter(d=>d.proj===(r?.projId||projId)).map(d=>'<option value="'+d.id+'" '+(r?.drawingRefs?.includes(d.id)?'selected':'')+'>'+d.id+' — '+d.title.slice(0,40)+'</option>').join('');
 
   div.innerHTML='<div class="modal" style="max-width:600px">'
-    +'<button class="mclose" onclick="closeModal(\'ca-rfi-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'ca-rfi-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">'+(isEdit?'Edit':'New')+' RFI</div>'
 
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
       +'<div class="frow"><label class="flbl">Project</label><div id="rfi-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Date Raised</label><input class="finp" type="date" id="rfi-date" value="'+(r?.raisedDate||caToday())+'"></div>'
-      +'<div class="frow"><label class="flbl">Raised By</label><select class="fsel" id="rfi-by">'+staffOpts+'</select></div>'
-      +'<div class="frow"><label class="flbl">Directed To (External)</label><input class="finp" id="rfi-to" value="'+(r?.directedTo||'')+'" placeholder="Contractor / Engineer"></div>'
+      +'<div class="frow"><label class="flbl" for="rfi-by">Raised By</label><select class="fsel" id="rfi-by">'+staffOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl" for="rfi-to">Directed To (External)</label><input class="finp" id="rfi-to" value="'+(r?.directedTo||'')+'" placeholder="Contractor / Engineer"></div>'
     +'</div>'
 
     // ── ASSIGNMENT BLOCK ──────────────────────────────────────
@@ -22383,16 +22430,16 @@ function openCARFIModal(id){
         +'👤 Assignment — visible in Staff Schedule'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-        +'<div class="frow" style="margin:0"><label class="flbl">Assigned To (Staff)</label><select class="fsel" id="rfi-assigned" onchange="caUpdateClashBanner(\'rfi\',1)">'+assignOpts+'</select></div>'
-        +'<div class="frow" style="margin:0"><label class="flbl">Action / Target Date</label><input class="finp" type="date" id="rfi-target" value="'+(r?.targetDate||r?.responseDue||caAddDays(caToday(),5))+'" onchange="caUpdateClashBanner(\'rfi\',1)"></div>'
-        +'<div class="frow" style="margin:0"><label class="flbl">Reviewer</label><select class="fsel" id="rfi-reviewer">'+reviewerOpts+'</select></div>'
-        +'<div class="frow" style="margin:0"><label class="flbl">Response Due (External)</label><input class="finp" type="date" id="rfi-due" value="'+(r?.responseDue||caAddDays(caToday(),7))+'"></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="rfi-assigned">Assigned To (Staff)</label><select class="fsel" id="rfi-assigned" onchange="caUpdateClashBanner(\'rfi\',1)">'+assignOpts+'</select></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="rfi-target">Action / Target Date</label><input class="finp" type="date" id="rfi-target" value="'+(r?.targetDate||r?.responseDue||caAddDays(caToday(),5))+'" onchange="caUpdateClashBanner(\'rfi\',1)"></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="rfi-reviewer">Reviewer</label><select class="fsel" id="rfi-reviewer">'+reviewerOpts+'</select></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="rfi-due">Response Due (External)</label><input class="finp" type="date" id="rfi-due" value="'+(r?.responseDue||caAddDays(caToday(),7))+'"></div>'
       +'</div>'
       +'<div id="rfi-clash-banner" style="margin-top:8px"></div>'
     +'</div>'
 
     // ── STATUS WORKFLOW ───────────────────────────────────────
-    +'<div class="frow"><label class="flbl">Status</label><select class="fsel" id="rfi-status">'
+    +'<div class="frow"><label class="flbl" for="rfi-status">Status</label><select class="fsel" id="rfi-status">'
       +'<option value="open" '+((!r||r.status==='open')?'selected':'')+'>📂 Open — not yet started</option>'
       +'<option value="in-progress" '+(r?.status==='in-progress'?'selected':'')+'>⚡ In Progress — assignee working on it</option>'
       +'<option value="pending" '+(r?.status==='pending'?'selected':'')+'>⏳ Pending — waiting for external response</option>'
@@ -22400,11 +22447,11 @@ function openCARFIModal(id){
       +'<option value="closed" '+(r?.status==='closed'?'selected':'')+'>✓ Closed — completed &amp; approved</option>'
     +'</select></div>'
 
-    +'<div class="frow"><label class="flbl">Subject</label><input class="finp" id="rfi-subj" value="'+(r?.subject||'')+'" placeholder="Clear, specific question subject"></div>'
-    +'<div class="frow"><label class="flbl">Question / Issue</label><textarea class="ftarea" id="rfi-q" rows="3" placeholder="Describe the information requested…">'+(r?.question||'')+'</textarea></div>'
-    +'<div class="frow"><label class="flbl">Referenced Drawings</label><select class="fsel" id="rfi-drws" multiple style="height:80px;font-size:10px">'+drwOpts+'</select>'
+    +'<div class="frow"><label class="flbl" for="rfi-subj">Subject</label><input class="finp" id="rfi-subj" value="'+(r?.subject||'')+'" placeholder="Clear, specific question subject"></div>'
+    +'<div class="frow"><label class="flbl" for="rfi-q">Question / Issue</label><textarea class="ftarea" id="rfi-q" rows="3" placeholder="Describe the information requested…">'+(r?.question||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl" for="rfi-drws">Referenced Drawings</label><select class="fsel" id="rfi-drws" multiple style="height:80px;font-size:10px">'+drwOpts+'</select>'
       +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px">Hold Ctrl/Cmd to select multiple</div></div>'
-    +(isEdit&&r.status!=='open'?'<div class="frow"><label class="flbl">Answer / Response</label><textarea class="ftarea" id="rfi-ans" rows="2" placeholder="Response received…">'+(r?.answer||'')+'</textarea></div>':'')
+    +(isEdit&&r.status!=='open'?'<div class="frow"><label class="flbl" for="rfi-ans">Answer / Response</label><textarea class="ftarea" id="rfi-ans" rows="2" placeholder="Response received…">'+(r?.answer||'')+'</textarea></div>':'')
 
     +'<div style="display:flex;gap:8px;margin-top:8px">'
       +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="saveCARFI('+(isEdit?'\''+id+'\'':"''")+')">'+(isEdit?'💾 Save Changes':'✓ Save &amp; Assign')+'</button>'
@@ -22487,14 +22534,14 @@ function openCASUBModal(id){
   const reviewerOpts='<option value="">— No reviewer —</option>'+inhouse.filter(s=>['Principal Architect','Associate','Lead Architect','Project Architect'].includes(s.role)).map(s=>'<option value="'+s.id+'" '+(r?.reviewer===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
 
   div.innerHTML='<div class="modal" style="max-width:600px">'
-    +'<button class="mclose" onclick="closeModal(\'ca-sub-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'ca-sub-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Submittal</div>'
 
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Project</label><div id="sub-proj"></div></div>'
+      +'<div class="frow"><label class="flbl" for="sub-spec">Project</label><div id="sub-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Spec Section</label><input class="finp" id="sub-spec" value="'+(r?.specSection||'')+'" placeholder="e.g. 08 80 00 — Glazing"></div>'
-      +'<div class="frow"><label class="flbl">Date Submitted</label><input class="finp" type="date" id="sub-date" value="'+(r?.submittedDate||caToday())+'"></div>'
-      +'<div class="frow"><label class="flbl">Submitted By</label><select class="fsel" id="sub-by">'+staffOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl" for="sub-date">Date Submitted</label><input class="finp" type="date" id="sub-date" value="'+(r?.submittedDate||caToday())+'"></div>'
+      +'<div class="frow"><label class="flbl" for="sub-by">Submitted By</label><select class="fsel" id="sub-by">'+staffOpts+'</select></div>'
     +'</div>'
 
     // ── ASSIGNMENT BLOCK ──────────────────────────────────────
@@ -22503,16 +22550,16 @@ function openCASUBModal(id){
         +'👤 Review Assignment — visible in Staff Schedule'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-        +'<div class="frow" style="margin:0"><label class="flbl">Assigned To (Reviewer)</label><select class="fsel" id="sub-assigned" onchange="caUpdateClashBanner(\'sub\',2)">'+assignOpts+'</select></div>'
-        +'<div class="frow" style="margin:0"><label class="flbl">Target Review Date</label><input class="finp" type="date" id="sub-target" value="'+(r?.targetDate||r?.reviewDue||caAddDays(caToday(),10))+'" onchange="caUpdateClashBanner(\'sub\',2)"></div>'
-        +'<div class="frow" style="margin:0"><label class="flbl">Final Approver</label><select class="fsel" id="sub-reviewer">'+reviewerOpts+'</select></div>'
-        +'<div class="frow" style="margin:0"><label class="flbl">Review Due (External)</label><input class="finp" type="date" id="sub-due" value="'+(r?.reviewDue||caAddDays(caToday(),14))+'"></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="sub-assigned">Assigned To (Reviewer)</label><select class="fsel" id="sub-assigned" onchange="caUpdateClashBanner(\'sub\',2)">'+assignOpts+'</select></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="sub-target">Target Review Date</label><input class="finp" type="date" id="sub-target" value="'+(r?.targetDate||r?.reviewDue||caAddDays(caToday(),10))+'" onchange="caUpdateClashBanner(\'sub\',2)"></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="sub-reviewer">Final Approver</label><select class="fsel" id="sub-reviewer">'+reviewerOpts+'</select></div>'
+        +'<div class="frow" style="margin:0"><label class="flbl" for="sub-due">Review Due (External)</label><input class="finp" type="date" id="sub-due" value="'+(r?.reviewDue||caAddDays(caToday(),14))+'"></div>'
       +'</div>'
       +'<div id="sub-clash-banner" style="margin-top:8px"></div>'
     +'</div>'
 
     // ── STATUS WORKFLOW ───────────────────────────────────────
-    +'<div class="frow"><label class="flbl">Status</label><select class="fsel" id="sub-status">'
+    +'<div class="frow"><label class="flbl" for="sub-status">Status</label><select class="fsel" id="sub-status">'
       +'<option value="pending" '+((!r||r.status==='pending')?'selected':'')+'>📂 Pending Review</option>'
       +'<option value="in-progress" '+(r?.status==='in-progress'?'selected':'')+'>⚡ In Progress — under review</option>'
       +'<option value="review" '+(r?.status==='review'?'selected':'')+'>🔍 Final Approval Pending</option>'
@@ -22521,9 +22568,9 @@ function openCASUBModal(id){
       +'<option value="resubmit" '+(r?.status==='resubmit'?'selected':'')+'>↻ Resubmit Required</option>'
     +'</select></div>'
 
-    +'<div class="frow"><label class="flbl">Title / Description</label><input class="finp" id="sub-title" value="'+(r?.title||'')+'" placeholder="e.g. Aluminium Window Shop Drawings — Type W1"></div>'
-    +'<div class="frow"><label class="flbl">Referenced Drawing IDs (comma-separated)</label><input class="finp" id="sub-drws" value="'+(r?.drawingRefs?.join(', ')||'')+'" placeholder="CP-A-003, CP-A-004"></div>'
-    +'<div class="frow"><label class="flbl">Review Notes</label><textarea class="ftarea" id="sub-notes" rows="2" placeholder="Reviewer comments…">'+(r?.notes||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl" for="sub-title">Title / Description</label><input class="finp" id="sub-title" value="'+(r?.title||'')+'" placeholder="e.g. Aluminium Window Shop Drawings — Type W1"></div>'
+    +'<div class="frow"><label class="flbl" for="sub-drws">Referenced Drawing IDs (comma-separated)</label><input class="finp" id="sub-drws" value="'+(r?.drawingRefs?.join(', ')||'')+'" placeholder="CP-A-003, CP-A-004"></div>'
+    +'<div class="frow"><label class="flbl" for="sub-notes">Review Notes</label><textarea class="ftarea" id="sub-notes" rows="2" placeholder="Reviewer comments…">'+(r?.notes||'')+'</textarea></div>'
 
     +'<div style="display:flex;gap:8px;margin-top:8px">'
       +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="saveCASUB('+(isEdit?'\''+id+'\'':"''")+')">'+(isEdit?'💾 Save Changes':'✓ Save &amp; Assign')+'</button>'
@@ -22597,18 +22644,18 @@ function openCASnagModal(id){
   const div=document.createElement('div');div.id='ca-snag-ov';div.className='ov show';
   const drwOpts='<option value="">— None —</option>'+DRAWINGS.filter(d=>d.proj===(r?.projId||projId)).map(d=>'<option value="'+d.id+'" '+(r?.drawingRef===d.id?'selected':'')+'>'+d.id+' — '+d.title.slice(0,35)+'</option>').join('');
   div.innerHTML='<div class="modal" style="max-width:480px">'
-    +'<button class="mclose" onclick="closeModal(\'ca-snag-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'ca-snag-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Snag Item</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Project</label><div id="snag-proj"></div></div>'
+      +'<div class="frow"><label class="flbl" for="snag-pri">Project</label><div id="snag-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Priority</label><select class="fsel" id="snag-pri"><option value="low" '+(r?.priority==='low'?'selected':'')+'>Low</option><option value="high" '+((!r||r.priority==='high')?'selected':'')+'>High</option><option value="critical" '+(r?.priority==='critical'?'selected':'')+'>Critical</option></select></div>'
-      +'<div class="frow"><label class="flbl">Date Found</label><input class="finp" type="date" id="snag-date" value="'+(r?.reportedDate||caToday())+'"></div>'
-      +'<div class="frow"><label class="flbl">Status</label><select class="fsel" id="snag-status"><option value="open" '+((!r||r.status==='open')?'selected':'')+'>Open</option><option value="resolved" '+(r?.status==='resolved'?'selected':'')+'>Resolved</option></select></div>'
-      +'<div class="frow"><label class="flbl">Contractor Responsible</label><input class="finp" id="snag-cont" value="'+(r?.contractor||'')+'" placeholder="Contractor name"></div>'
-      +'<div class="frow"><label class="flbl">Location on Site</label><input class="finp" id="snag-loc" value="'+(r?.location||'')+'" placeholder="e.g. 1st floor, north elevation"></div>'
+      +'<div class="frow"><label class="flbl" for="snag-date">Date Found</label><input class="finp" type="date" id="snag-date" value="'+(r?.reportedDate||caToday())+'"></div>'
+      +'<div class="frow"><label class="flbl" for="snag-status">Status</label><select class="fsel" id="snag-status"><option value="open" '+((!r||r.status==='open')?'selected':'')+'>Open</option><option value="resolved" '+(r?.status==='resolved'?'selected':'')+'>Resolved</option></select></div>'
+      +'<div class="frow"><label class="flbl" for="snag-cont">Contractor Responsible</label><input class="finp" id="snag-cont" value="'+(r?.contractor||'')+'" placeholder="Contractor name"></div>'
+      +'<div class="frow"><label class="flbl" for="snag-loc">Location on Site</label><input class="finp" id="snag-loc" value="'+(r?.location||'')+'" placeholder="e.g. 1st floor, north elevation"></div>'
     +'</div>'
-    +'<div class="frow"><label class="flbl">Description</label><textarea class="ftarea" id="snag-desc" rows="3" placeholder="Describe the defect or incomplete item…">'+(r?.description||'')+'</textarea></div>'
-    +'<div class="frow"><label class="flbl">Related Drawing</label><select class="fsel" id="snag-drw">'+drwOpts+'</select></div>'
+    +'<div class="frow"><label class="flbl" for="snag-desc">Description</label><textarea class="ftarea" id="snag-desc" rows="3" placeholder="Describe the defect or incomplete item…">'+(r?.description||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl" for="snag-drw">Related Drawing</label><select class="fsel" id="snag-drw">'+drwOpts+'</select></div>'
     +'<div style="display:flex;gap:8px;margin-top:4px">'
       +'<button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveCASnag('+(isEdit?'\''+id+'\'':"''")+')">Save Snag Item</button>'
       +'<button class="btn bg" onclick="closeModal(\'ca-snag-ov\')">Cancel</button>'
@@ -22649,19 +22696,19 @@ function openCAAIModal(id){
   const div=document.createElement('div');div.id='ca-ai-ov';div.className='ov show';
   const staffOpts=STAFF.filter(s=>s.type!=='contractor').map(s=>'<option value="'+s.id+'" '+((r?.issuedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
   div.innerHTML='<div class="modal" style="max-width:520px">'
-    +'<button class="mclose" onclick="closeModal(\'ca-ai-ov\')">✕</button>'
+    +'<button class="mclose" onclick="closeModal(\'ca-ai-ov\')" aria-label="Close">✕</button>'
     +'<div class="mtitle">'+(isEdit?'Edit':'New')+' Architect\'s Instruction</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
-      +'<div class="frow"><label class="flbl">Project</label><div id="ai-proj"></div></div>'
+      +'<div class="frow"><label class="flbl" for="ai-date">Project</label><div id="ai-proj"></div></div>'
       +'<div class="frow"><label class="flbl">Date Issued</label><input class="finp" type="date" id="ai-date" value="'+(r?.issuedDate||caToday())+'"></div>'
-      +'<div class="frow"><label class="flbl">Issued By</label><select class="fsel" id="ai-by">'+staffOpts+'</select></div>'
-      +'<div class="frow"><label class="flbl">Issued To (Contractor)</label><input class="finp" id="ai-to" value="'+(r?.issuedTo||'')+'" placeholder="Contractor name"></div>'
-      +'<div class="frow"><label class="flbl">Cost Impact</label><select class="fsel" id="ai-cost"><option value="none" '+((!r||r.costImpact==='none')?'selected':'')+'>None</option><option value="possible" '+(r?.costImpact==='possible'?'selected':'')+'>Possible</option><option value="confirmed" '+(r?.costImpact==='confirmed'?'selected':'')+'>Confirmed</option></select></div>'
-      +'<div class="frow"><label class="flbl">Acknowledged by Contractor</label><select class="fsel" id="ai-ack"><option value="no" '+((!r||!r.acknowledged)?'selected':'')+'>Not Yet</option><option value="yes" '+(r?.acknowledged?'selected':'')+'>Yes — Acknowledged</option></select></div>'
+      +'<div class="frow"><label class="flbl" for="ai-by">Issued By</label><select class="fsel" id="ai-by">'+staffOpts+'</select></div>'
+      +'<div class="frow"><label class="flbl" for="ai-to">Issued To (Contractor)</label><input class="finp" id="ai-to" value="'+(r?.issuedTo||'')+'" placeholder="Contractor name"></div>'
+      +'<div class="frow"><label class="flbl" for="ai-cost">Cost Impact</label><select class="fsel" id="ai-cost"><option value="none" '+((!r||r.costImpact==='none')?'selected':'')+'>None</option><option value="possible" '+(r?.costImpact==='possible'?'selected':'')+'>Possible</option><option value="confirmed" '+(r?.costImpact==='confirmed'?'selected':'')+'>Confirmed</option></select></div>'
+      +'<div class="frow"><label class="flbl" for="ai-ack">Acknowledged by Contractor</label><select class="fsel" id="ai-ack"><option value="no" '+((!r||!r.acknowledged)?'selected':'')+'>Not Yet</option><option value="yes" '+(r?.acknowledged?'selected':'')+'>Yes — Acknowledged</option></select></div>'
     +'</div>'
-    +'<div class="frow"><label class="flbl">Instruction Title / Subject</label><input class="finp" id="ai-title" value="'+(r?.title||'')+'" placeholder="e.g. Revise window lintel to RCC as per S-03"></div>'
-    +'<div class="frow"><label class="flbl">Full Description</label><textarea class="ftarea" id="ai-desc" rows="3" placeholder="Detailed instruction to contractor…">'+(r?.description||'')+'</textarea></div>'
-    +'<div class="frow"><label class="flbl">Referenced Drawing IDs (comma-separated)</label><input class="finp" id="ai-drws" value="'+(r?.drawingRefs?.join(', ')||'')+'" placeholder="CP-S-002, CP-A-003"></div>'
+    +'<div class="frow"><label class="flbl" for="ai-title">Instruction Title / Subject</label><input class="finp" id="ai-title" value="'+(r?.title||'')+'" placeholder="e.g. Revise window lintel to RCC as per S-03"></div>'
+    +'<div class="frow"><label class="flbl" for="ai-desc">Full Description</label><textarea class="ftarea" id="ai-desc" rows="3" placeholder="Detailed instruction to contractor…">'+(r?.description||'')+'</textarea></div>'
+    +'<div class="frow"><label class="flbl" for="ai-drws">Referenced Drawing IDs (comma-separated)</label><input class="finp" id="ai-drws" value="'+(r?.drawingRefs?.join(', ')||'')+'" placeholder="CP-S-002, CP-A-003"></div>'
     +'<div style="display:flex;gap:8px;margin-top:4px">'
       +'<button class="btn bp" style="flex:1;justify-content:center;padding:10px" onclick="saveCAAI('+(isEdit?'\''+id+'\'':"''")+')">Issue Instruction</button>'
       +'<button class="btn bg" onclick="closeModal(\'ca-ai-ov\')">Cancel</button>'
@@ -23105,7 +23152,7 @@ function openFirmSettings(){
   const ex=document.getElementById('firm-settings-ov');if(ex)ex.remove();
   const div=document.createElement('div');div.id='firm-settings-ov';div.className='ov show';
   div.innerHTML=`<div class="modal" style="max-width:580px">
-    <button class="mclose" onclick="closeModal('firm-settings-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('firm-settings-ov')" aria-label="Close">✕</button>
     <div class="mtitle">Firm Settings</div>
 
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
@@ -23120,25 +23167,25 @@ function openFirmSettings(){
     </div>
 
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Firm Name *</label><input class="finp" id="fs-name" value="${FIRM_CONFIG.name||''}"></div>
-      <div class="frow"><label class="flbl">App Name</label><input class="finp" id="fs-appname" value="${FIRM_CONFIG.appName||'Studio OS'}"></div>
+      <div class="frow"><label class="flbl" for="fs-name">Firm Name *</label><input class="finp" id="fs-name" value="${FIRM_CONFIG.name||''}"></div>
+      <div class="frow"><label class="flbl" for="fs-appname">App Name</label><input class="finp" id="fs-appname" value="${FIRM_CONFIG.appName||'Studio OS'}"></div>
     </div>
-    <div class="frow"><label class="flbl">Tagline</label><input class="finp" id="fs-tagline" value="${FIRM_CONFIG.tagline||''}"></div>
+    <div class="frow"><label class="flbl" for="fs-tagline">Tagline</label><input class="finp" id="fs-tagline" value="${FIRM_CONFIG.tagline||''}"></div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Phone</label><input class="finp" id="fs-phone" value="${FIRM_CONFIG.phone||''}"></div>
-      <div class="frow"><label class="flbl">Email</label><input class="finp" id="fs-email" type="email" value="${FIRM_CONFIG.email||''}"></div>
+      <div class="frow"><label class="flbl" for="fs-phone">Phone</label><input class="finp" id="fs-phone" value="${FIRM_CONFIG.phone||''}"></div>
+      <div class="frow"><label class="flbl" for="fs-email">Email</label><input class="finp" id="fs-email" type="email" value="${FIRM_CONFIG.email||''}"></div>
     </div>
-    <div class="frow"><label class="flbl">Website</label><input class="finp" id="fs-website" value="${FIRM_CONFIG.website||''}"></div>
-    <div class="frow"><label class="flbl">Address</label><input class="finp" id="fs-address" value="${FIRM_CONFIG.address||''}"></div>
+    <div class="frow"><label class="flbl" for="fs-website">Website</label><input class="finp" id="fs-website" value="${FIRM_CONFIG.website||''}"></div>
+    <div class="frow"><label class="flbl" for="fs-address">Address</label><input class="finp" id="fs-address" value="${FIRM_CONFIG.address||''}"></div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">City</label><input class="finp" id="fs-city" value="${FIRM_CONFIG.city||''}"></div>
-      <div class="frow"><label class="flbl">State</label><input class="finp" id="fs-state" value="${FIRM_CONFIG.state||''}"></div>
+      <div class="frow"><label class="flbl" for="fs-city">City</label><input class="finp" id="fs-city" value="${FIRM_CONFIG.city||''}"></div>
+      <div class="frow"><label class="flbl" for="fs-state">State</label><input class="finp" id="fs-state" value="${FIRM_CONFIG.state||''}"></div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">GSTIN</label><input class="finp" id="fs-gstin" value="${FIRM_CONFIG.gstin||''}" style="text-transform:uppercase"></div>
-      <div class="frow"><label class="flbl">PAN</label><input class="finp" id="fs-pan" value="${FIRM_CONFIG.pan||''}" style="text-transform:uppercase"></div>
+      <div class="frow"><label class="flbl" for="fs-gstin">GSTIN</label><input class="finp" id="fs-gstin" value="${FIRM_CONFIG.gstin||''}" style="text-transform:uppercase"></div>
+      <div class="frow"><label class="flbl" for="fs-pan">PAN</label><input class="finp" id="fs-pan" value="${FIRM_CONFIG.pan||''}" style="text-transform:uppercase"></div>
     </div>
-    <div class="frow"><label class="flbl">CIN</label><input class="finp" id="fs-cin" value="${FIRM_CONFIG.cin||''}"></div>
+    <div class="frow"><label class="flbl" for="fs-cin">CIN</label><input class="finp" id="fs-cin" value="${FIRM_CONFIG.cin||''}"></div>
 
     <div style="margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--bd2)">
       <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Appearance</div>
@@ -23161,7 +23208,7 @@ function openFirmSettings(){
       </div>
     </div>
 
-    <div class="frow" style="margin-top:14px"><label class="flbl">Custom Brand Colour (optional override)</label>
+    <div class="frow" style="margin-top:14px"><label class="flbl" for="tpl-edit-note">Custom Brand Colour (optional override)</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="color" id="fs-color-picker" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" style="width:44px;height:36px;border:none;background:none;cursor:pointer;padding:0" oninput="FIRM_CONFIG.primaryColor=this.value;applyFirmTheme()">
         <input class="finp" id="fs-color-hex" value="${FIRM_CONFIG.primaryColor||'#c9a96e'}" style="flex:1" oninput="FIRM_CONFIG.primaryColor=this.value;applyFirmTheme()">
@@ -23190,10 +23237,55 @@ function openFirmSettings(){
 }
 
 function handleFsLogoUpload(input){
-  const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{ FIRM_CONFIG.logoDataUrl=e.target.result; applyFirmTheme(); saveFirmConfig(); closeModal('firm-settings-ov'); openFirmSettings(); };
+  // v101.13 — auto-resize / recompress logos. Previously a 2 MB phone photo
+  // would be base64-encoded as-is (~2.7 MB string) and pushed to Firebase on
+  // every sync. We cap the long side at 512px and re-encode at quality 0.85
+  // for raster sources; SVG passes through unchanged.
+  const file = input.files[0]; if(!file) return;
+  const MAX_DIM = 512;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    if (file.type === 'image/svg+xml' || dataUrl.indexOf('data:image/svg') === 0){
+      _setFirmLogo(dataUrl, dataUrl.length, dataUrl.length, null, null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const longSide = Math.max(img.width, img.height);
+      const scale = longSide > MAX_DIM ? MAX_DIM / longSide : 1;
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const isPng = file.type === 'image/png';
+      const png  = isPng ? canvas.toDataURL('image/png') : null;
+      const jpeg = canvas.toDataURL('image/jpeg', 0.85);
+      // Prefer JPEG if it's significantly smaller (PNG without transparency
+      // is usually 2-3x bigger); otherwise keep PNG to preserve alpha.
+      const final = (png && png.length < jpeg.length * 1.4) ? png : jpeg;
+      _setFirmLogo(final, dataUrl.length, final.length, w, h);
+    };
+    img.onerror = () => {
+      _setFirmLogo(dataUrl, dataUrl.length, dataUrl.length, null, null);
+      showNotif('Logo uploaded', 'Could not auto-resize — used original ('+Math.round(dataUrl.length/1024)+' KB)');
+    };
+    img.src = dataUrl;
+  };
   reader.readAsDataURL(file);
+}
+function _setFirmLogo(url, beforeBytes, afterBytes, w, h){
+  FIRM_CONFIG.logoDataUrl = url;
+  applyFirmTheme(); saveFirmConfig();
+  closeModal('firm-settings-ov'); openFirmSettings();
+  const beforeKB = Math.round(beforeBytes/1024);
+  const afterKB  = Math.round(afterBytes/1024);
+  if (beforeKB - afterKB > 20){
+    showNotif('Logo optimised', beforeKB+' KB → '+afterKB+' KB'+(w?' ('+w+'×'+h+')':''));
+  } else if (afterKB > 100){
+    showNotif('Logo uploaded', afterKB+' KB — consider an SVG for smaller payloads');
+  }
 }
 
 function saveFirmSettingsModal(){
@@ -23235,7 +23327,7 @@ function openDrwTemplatesModal(){
   const builtinCount = DRW_TEMPLATES.filter(t=>t.builtin).length;
   const customCount = totalCount - builtinCount;
   div.innerHTML = `<div class="modal" style="max-width:780px;max-height:85vh;display:flex;flex-direction:column">
-    <button class="mclose" onclick="closeModal('drw-tpl-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('drw-tpl-ov')" aria-label="Close">✕</button>
     <div class="mtitle">📐 Drawing Templates
       <span style="font-family:var(--fm);font-size:11px;font-weight:500;background:var(--blu);color:#fff;padding:3px 10px;border-radius:12px;margin-left:10px;letter-spacing:.04em">${totalCount} total</span>
     </div>
@@ -23428,8 +23520,18 @@ function editDrwTemplate(tid){
   if(!canEditTemplate()){ showNotif('Access denied','Principal/Associate/PA only.'); return; }
   const t = getTemplate(tid); if(!t) return;
   if(t.builtin){
-    if(!confirm('"'+t.name+'" is built-in and cannot be modified directly.\n\nFork it as a custom template to edit?')) return;
-    forkDrwTemplate(tid);
+    // v101.14 — built-ins auto-fork on edit. The original built-in stays as
+    // the canonical seed (and is reseeded from source code on every load); the
+    // edit goes into a new custom copy that the user immediately starts
+    // editing. No confirm dialog — clicking Edit means "edit this".
+    const newT = forkTemplate(tid);
+    if(!newT){ showNotif('Fork failed','Could not create editable copy.'); return; }
+    scheduleSave({immediate:true});
+    _drwTplExpanded = newT.id;
+    const listEl = document.getElementById('drw-tpl-list');
+    if(listEl) listEl.innerHTML = renderDrwTemplateList();
+    showNotif('Editing custom copy', t.name+' was forked — original built-in preserved');
+    openDrwTemplateEditor(newT.id);
     return;
   }
   openDrwTemplateEditor(tid);
@@ -23480,7 +23582,7 @@ function openDrwTemplateEditor(tid){
   div.id = 'tpl-edit-ov';
   div.className = 'ov show';
   div.innerHTML = `<div class="modal" style="max-width:740px;max-height:85vh;display:flex;flex-direction:column">
-    <button class="mclose" onclick="closeModal('tpl-edit-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('tpl-edit-ov')" aria-label="Close">✕</button>
     <div class="mtitle">✏ Edit Template — ${t.name}</div>
     <div class="msub">v${t.activeVersion} · changes will be saved as a new version</div>
 
@@ -23536,32 +23638,32 @@ function promptTplDrawing(idx){
   div.className = 'ov show';
   div.style.zIndex = 10001;
   div.innerHTML = `<div class="modal" style="max-width:480px">
-    <button class="mclose" onclick="closeModal('tpl-row-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('tpl-row-ov')" aria-label="Close">✕</button>
     <div class="mtitle">${existing?'Edit Drawing':'Add Drawing'}</div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Ref ID *</label><input class="finp" id="tr-ref" value="${existing?.ref||''}" placeholder="e.g. A-WD-001"></div>
-      <div class="frow"><label class="flbl">Discipline</label>
+      <div class="frow"><label class="flbl" for="tr-ref">Ref ID *</label><input class="finp" id="tr-ref" value="${existing?.ref||''}" placeholder="e.g. A-WD-001"></div>
+      <div class="frow"><label class="flbl" for="tr-disc">Discipline</label>
         <select class="fsel" id="tr-disc">
           ${DISC.map(d=>`<option value="${d.id}" ${(existing?.disc||'ARCH')===d.id?'selected':''}>${d.icon} ${d.label}</option>`).join('')}
         </select>
       </div>
     </div>
-    <div class="frow"><label class="flbl">Title *</label><input class="finp" id="tr-title" value="${existing?.title||''}" placeholder="Drawing title"></div>
+    <div class="frow"><label class="flbl" for="tr-title">Title *</label><input class="finp" id="tr-title" value="${existing?.title||''}" placeholder="Drawing title"></div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Stage</label>
+      <div class="frow"><label class="flbl" for="tr-stage">Stage</label>
         <select class="fsel" id="tr-stage">
           ${['SD','DD','CD','CA'].map(s=>`<option value="${s}" ${(existing?.stage||'CD')===s?'selected':''}>${s}</option>`).join('')}
         </select>
       </div>
-      <div class="frow"><label class="flbl">Type</label>
+      <div class="frow"><label class="flbl" for="tr-type">Type</label>
         <select class="fsel" id="tr-type">
           ${Object.entries(DRW_TYPES).map(([k,v])=>`<option value="${k}" ${(existing?.drwType||'GA')===k?'selected':''}>${k} — ${v}</option>`).join('')}
         </select>
       </div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Est. Hours</label><input class="finp" id="tr-hrs" type="number" min="0" value="${existing?.estHrs||5}"></div>
-      <div class="frow"><label class="flbl">Priority</label>
+      <div class="frow"><label class="flbl" for="tr-hrs">Est. Hours</label><input class="finp" id="tr-hrs" type="number" min="0" value="${existing?.estHrs||5}"></div>
+      <div class="frow"><label class="flbl" for="tr-pri">Priority</label>
         <select class="fsel" id="tr-pri">
           ${['low','normal','high','critical'].map(p=>`<option value="${p}" ${(existing?.priority||'normal')===p?'selected':''}>${p}</option>`).join('')}
         </select>
@@ -23632,7 +23734,7 @@ function openApplyTemplateModal(projId){
   });
 
   div.innerHTML = `<div class="modal" style="max-width:560px">
-    <button class="mclose" onclick="closeModal('apply-tpl-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('apply-tpl-ov')" aria-label="Close">✕</button>
     <div class="mtitle">${isResync ? '🔄 Re-sync from Template' : '📐 Apply Template to Project'}</div>
     <div class="msub">${proj.name} · ${proj.type||'no type'}</div>
 
@@ -23683,7 +23785,7 @@ function reviewApplyTemplate(projId, tid){
   const isFirstApply = !proj.templateId;
 
   div.innerHTML = `<div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column">
-    <button class="mclose" onclick="closeModal('clash-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('clash-ov')" aria-label="Close">✕</button>
     <div class="mtitle">${isFirstApply?'📐 Apply':'🔄 Re-sync'} — ${t.name}</div>
     <div class="msub">${proj.name} · v${t.activeVersion} · review changes below</div>
 
@@ -23754,6 +23856,394 @@ function commitClashApply(projId, tid){
 }
 
 /* ═════════════════════════════════════════════════════════════════════
+   v101.14 — MULTI-TEMPLATE APPLY SUITE
+   ─────────────────────────────────────────────────────────────────────
+   Lets a user pick multiple templates and apply them in one action.
+   Behaviour spec:
+     1. If the project has any existing drawings, ALL existing drawings
+        have their staff assignment (sid) and dates (tgt, due) cleared.
+        Status / revisions / progress are preserved.
+     2. Each selected template is applied in sequence via the existing
+        applyTemplateToProject(skipExisting:true) — which already skips
+        any drawing whose templateRef matches an existing one.
+     3. Cross-template dedup: if template A and template B both have ref
+        R, only the first one to be applied creates the drawing.
+     4. A combined preview shows everything that will change before the
+        user approves.
+═════════════════════════════════════════════════════════════════════ */
+
+/* ── State for the multi-apply modal ────────────────────────────────── */
+let _multiApplyProjId = null;
+let _multiApplySearch = '';
+
+/* ── Step 1: pick templates ─────────────────────────────────────────── */
+function openMultiApplyTemplateModal(projId){
+  if(!canEditTemplate()){ showNotif('Access denied','Principal/Associate/PA only.'); return; }
+  const proj = PROJS.find(p=>p.id===projId); if(!proj) return;
+  _multiApplyProjId = projId;
+  _multiApplySearch = '';
+
+  const ex = document.getElementById('multi-apply-ov'); if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'multi-apply-ov';
+  div.className = 'ov show';
+  div.setAttribute('role','dialog');
+  div.setAttribute('aria-modal','true');
+  div.setAttribute('aria-labelledby','multi-apply-title');
+
+  const existingCount = DRAWINGS.filter(d=>d.proj===projId).length;
+  const alreadyApplied = Array.isArray(proj.templateIds) ? proj.templateIds : (proj.templateId?[proj.templateId]:[]);
+
+  div.innerHTML = `<div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column">
+    <button class="mclose" onclick="closeModal('multi-apply-ov')" aria-label="Close">✕</button>
+    <div class="mtitle" id="multi-apply-title">📐 Apply Drawing Templates</div>
+    <div class="msub">${proj.name} · ${proj.type||'no type'} · pick one or more templates</div>
+
+    ${existingCount>0 ? `<div style="background:rgba(240,201,122,.08);border:1px solid rgba(240,201,122,.3);border-radius:5px;padding:10px 14px;margin:12px 0;font-family:var(--fm);font-size:11px;color:var(--gold);line-height:1.55">
+      <strong>⚠ Reset notice:</strong> This project has ${existingCount} drawing(s). Applying templates will clear all staff assignments and target/due dates so the project can be re-planned. Status, revisions, and progress are preserved. Drawings with matching template refs are not duplicated.
+    </div>` : ''}
+
+    <div style="margin:12px 0 8px;display:flex;gap:8px;align-items:center">
+      <input type="text" id="multi-apply-search" placeholder="Search templates…" oninput="filterMultiApplyList()" style="flex:1;background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:6px 12px;color:var(--tx);font-family:var(--fm);font-size:11px;outline:none">
+      <span id="multi-apply-count" style="font-family:var(--fm);font-size:9px;color:var(--txd)"></span>
+    </div>
+
+    <div id="multi-apply-list" style="overflow-y:auto;flex:1;border:1px solid var(--bd2);border-radius:5px;padding:8px;background:var(--sf)">
+      ${renderMultiApplyTemplateList(proj, alreadyApplied)}
+    </div>
+
+    <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--bd2);margin-top:10px;align-items:center">
+      <span id="multi-apply-summary" style="font-family:var(--fm);font-size:10px;color:var(--txd);flex:1"></span>
+      <button class="btn bg" onclick="closeModal('multi-apply-ov')" style="padding:9px 14px">Cancel</button>
+      <button class="btn bp" onclick="previewMultiTemplateApply()" style="padding:9px 16px;font-weight:600">Preview Changes →</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  updateMultiApplySummary();
+}
+
+function renderMultiApplyTemplateList(proj, alreadyApplied){
+  // Sort: matching project type first, then alphabetical
+  const scored = DRW_TEMPLATES.map(t=>{
+    const matches = Array.isArray(t.appliesTo) && t.appliesTo.includes(proj.type);
+    const wasApplied = alreadyApplied.includes(t.id);
+    return {t, matches, wasApplied};
+  }).sort((a,b)=>{
+    if (a.matches !== b.matches) return Number(b.matches) - Number(a.matches);
+    return (a.t.name||'').localeCompare(b.t.name||'');
+  });
+
+  if (!scored.length) return '<div style="padding:30px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No templates available</div>';
+
+  return scored.map(({t, matches, wasApplied})=>{
+    const tv = getTemplateVersion(t.id);
+    const drwCount = (tv?.drawings||[]).filter(d=>!d.consultant).length;
+    const totalHrs = (tv?.drawings||[]).reduce((s,d)=>s+(d.estHrs||0),0);
+    return `<label class="multi-apply-row" data-name="${(t.name||'').toLowerCase()}" data-desc="${(t.description||'').toLowerCase()}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:${matches?'rgba(186,117,23,.08)':'var(--sf2)'};border:1px solid ${matches?'rgba(186,117,23,.4)':'var(--bd)'};border-radius:5px;margin-bottom:6px;cursor:pointer;font-family:var(--fm);font-size:11px;transition:background .12s">
+      <input type="checkbox" class="multi-apply-cbx" data-tid="${t.id}" onchange="updateMultiApplySummary()" style="width:14px;height:14px;accent-color:var(--gold);cursor:pointer">
+      <span style="font-size:18px">${t.icon||'📐'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;color:var(--tx);font-size:11.5px">
+          ${t.name}
+          ${matches?'<span style="font-family:var(--fm);font-size:8px;font-weight:700;color:var(--gold);margin-left:6px;letter-spacing:.04em">★ MATCHES TYPE</span>':''}
+          ${wasApplied?'<span style="font-family:var(--fm);font-size:8px;font-weight:700;color:var(--blu);margin-left:6px;letter-spacing:.04em">✓ APPLIED EARLIER</span>':''}
+          ${t.builtin?'<span style="font-family:var(--fm);font-size:8px;font-weight:600;background:var(--sf3);color:var(--txm);padding:1px 5px;border-radius:3px;margin-left:6px">BUILT-IN</span>':''}
+        </div>
+        <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-top:1px">${t.description||''}</div>
+        <div style="font-family:var(--fm);font-size:9.5px;color:var(--txm);margin-top:2px">v${t.activeVersion} · ${drwCount} drawings · ~${totalHrs}h</div>
+      </div>
+    </label>`;
+  }).join('');
+}
+
+function filterMultiApplyList(){
+  const q = (document.getElementById('multi-apply-search')?.value || '').trim().toLowerCase();
+  _multiApplySearch = q;
+  let visible = 0, total = 0;
+  document.querySelectorAll('.multi-apply-row').forEach(row=>{
+    total++;
+    const name = row.dataset.name || '';
+    const desc = row.dataset.desc || '';
+    const show = !q || name.indexOf(q) !== -1 || desc.indexOf(q) !== -1;
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const c = document.getElementById('multi-apply-count');
+  if (c) c.textContent = q ? (visible+' of '+total) : (total+' templates');
+}
+
+function updateMultiApplySummary(){
+  const checked = document.querySelectorAll('.multi-apply-cbx:checked').length;
+  const total = document.querySelectorAll('.multi-apply-cbx').length;
+  const c = document.getElementById('multi-apply-count');
+  if (c && !_multiApplySearch) c.textContent = total+' templates';
+  const s = document.getElementById('multi-apply-summary');
+  if (s){
+    s.textContent = checked === 0
+      ? 'Select at least one template'
+      : checked+' template'+(checked!==1?'s':'')+' selected';
+    s.style.color = checked === 0 ? 'var(--txd)' : 'var(--gold)';
+  }
+}
+
+/* ── Step 2: combined preview ───────────────────────────────────────── */
+function previewMultiTemplateApply(){
+  const projId = _multiApplyProjId;
+  const proj = PROJS.find(p=>p.id===projId); if(!proj) return;
+  const checked = document.querySelectorAll('.multi-apply-cbx:checked');
+  const tids = Array.from(checked).map(c=>c.dataset.tid);
+  if (!tids.length){ showNotif('No templates selected','Pick at least one template before previewing'); return; }
+
+  // Build the diff
+  const existing = DRAWINGS.filter(d=>d.proj===projId);
+  const existingRefs = new Set(existing.map(d=>d.templateRef).filter(Boolean));
+  const seenRefs = new Set(existingRefs);
+
+  const perTpl = tids.map(tid=>{
+    const t = getTemplate(tid);
+    const tv = getTemplateVersion(tid);
+    const adds = [], existingDup = [], crossDup = [];
+    (tv?.drawings||[]).forEach(td=>{
+      if (td.consultant) return;
+      if (existingRefs.has(td.ref)){
+        existingDup.push(td);
+      } else if (seenRefs.has(td.ref)){
+        crossDup.push(td);
+      } else {
+        adds.push(td);
+        seenRefs.add(td.ref);
+      }
+    });
+    return {tid, t, tv, adds, existingDup, crossDup};
+  });
+
+  const totalAdds = perTpl.reduce((s,p)=>s+p.adds.length, 0);
+  const totalExistingDup = perTpl.reduce((s,p)=>s+p.existingDup.length, 0);
+  const totalCrossDup = perTpl.reduce((s,p)=>s+p.crossDup.length, 0);
+  const willReset = existing.length;
+  const finalCount = existing.length + totalAdds;
+
+  // Hide the picker modal underneath while preview is open
+  const pickerModal = document.getElementById('multi-apply-ov');
+  if (pickerModal) pickerModal.style.display = 'none';
+
+  const ex = document.getElementById('multi-preview-ov'); if(ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'multi-preview-ov';
+  div.className = 'ov show';
+  div.setAttribute('role','dialog');
+  div.setAttribute('aria-modal','true');
+  div.setAttribute('aria-labelledby','multi-preview-title');
+
+  div.innerHTML = `<div class="modal" style="max-width:720px;max-height:88vh;display:flex;flex-direction:column">
+    <button class="mclose" onclick="cancelMultiPreview()" aria-label="Close">✕</button>
+    <div class="mtitle" id="multi-preview-title">📋 Review Changes</div>
+    <div class="msub">${proj.name} · ${tids.length} template${tids.length!==1?'s':''} · ${totalAdds} drawing${totalAdds!==1?'s':''} will be added</div>
+
+    <div style="overflow-y:auto;flex:1;margin:14px 0">
+
+      ${willReset > 0 ? `<div style="background:rgba(240,201,122,.08);border:1px solid rgba(240,201,122,.4);border-radius:5px;padding:11px 14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:16px">⚠</span>
+          <div style="font-weight:600;color:var(--gold);font-size:12px">${willReset} existing drawing${willReset!==1?'s':''} will be reset</div>
+        </div>
+        <div style="font-family:var(--fm);font-size:10.5px;color:var(--txm);line-height:1.6;padding-left:24px">
+          • Staff assignments cleared (drafter unassigned)<br>
+          • Target dates and due dates cleared<br>
+          • Schedule task assignments cleared<br>
+          • Status, revision history, and progress preserved
+        </div>
+      </div>` : ''}
+
+      ${perTpl.map((p,i)=>{
+        return `<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:5px;padding:11px 14px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <span style="font-size:20px">${p.t?.icon||'📐'}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;color:var(--tx);font-size:12px">${i+1}. ${p.t?.name||p.tid}</div>
+              <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd)">v${p.t?.activeVersion||'?'} · ${p.tv?.drawings?.length||0} drawings in template</div>
+            </div>
+            <span style="font-family:var(--fm);font-size:11px;color:var(--grn);font-weight:700;white-space:nowrap">+${p.adds.length} new</span>
+            ${(p.existingDup.length+p.crossDup.length) > 0 ? `<span style="font-family:var(--fm);font-size:10px;color:var(--txd);white-space:nowrap">${p.existingDup.length+p.crossDup.length} skip</span>` : ''}
+          </div>
+          ${p.adds.length > 0 ? `<details style="margin-top:6px">
+            <summary style="cursor:pointer;font-family:var(--fm);font-size:10px;color:var(--grn);font-weight:600;padding:4px 0">▸ ${p.adds.length} drawing${p.adds.length!==1?'s':''} to add</summary>
+            <div style="padding:6px 0 0 12px;max-height:200px;overflow-y:auto">
+              ${p.adds.map(td=>`<div style="font-family:var(--fm);font-size:10px;color:var(--txm);padding:2px 0;display:flex;gap:10px">
+                <span style="color:var(--gold);font-weight:600;min-width:80px">${td.ref}</span>
+                <span style="flex:1">${td.title}</span>
+                <span style="color:var(--txd)">${td.disc} · ${td.stage} · ${td.estHrs||0}h</span>
+              </div>`).join('')}
+            </div>
+          </details>` : '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);padding:4px 0">No new drawings — all refs already covered</div>'}
+          ${p.existingDup.length > 0 ? `<details style="margin-top:4px">
+            <summary style="cursor:pointer;font-family:var(--fm);font-size:10px;color:var(--txd);padding:4px 0">▸ ${p.existingDup.length} already in project</summary>
+            <div style="padding:4px 0 0 12px;font-family:var(--fm);font-size:9.5px;color:var(--txd)">${p.existingDup.map(td=>td.ref).join(' · ')}</div>
+          </details>` : ''}
+          ${p.crossDup.length > 0 ? `<details style="margin-top:4px">
+            <summary style="cursor:pointer;font-family:var(--fm);font-size:10px;color:var(--txd);padding:4px 0">▸ ${p.crossDup.length} already added by an earlier template in this batch</summary>
+            <div style="padding:4px 0 0 12px;font-family:var(--fm);font-size:9.5px;color:var(--txd)">${p.crossDup.map(td=>td.ref).join(' · ')}</div>
+          </details>` : ''}
+        </div>`;
+      }).join('')}
+
+      <div style="background:rgba(82,201,122,.06);border:1px solid rgba(82,201,122,.3);border-radius:5px;padding:11px 14px;margin-top:14px">
+        <div style="font-weight:600;color:var(--grn);font-size:12px;margin-bottom:6px">✓ Total impact</div>
+        <div style="font-family:var(--fm);font-size:10.5px;color:var(--txm);line-height:1.6">
+          <strong style="color:var(--grn)">+${totalAdds}</strong> drawings will be added
+          ${totalExistingDup>0 ? ' · <strong style="color:var(--txm)">'+totalExistingDup+'</strong> skipped (already in project)' : ''}
+          ${totalCrossDup>0 ? ' · <strong style="color:var(--txm)">'+totalCrossDup+'</strong> deduplicated across templates' : ''}
+          ${willReset>0 ? ' · <strong style="color:var(--gold)">'+willReset+'</strong> existing drawings will have staff &amp; dates cleared' : ''}
+          <br><br>After apply: project will have <strong style="color:var(--tx)">${finalCount}</strong> drawing${finalCount!==1?'s':''}.
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2)">
+      <button class="btn bg" onclick="cancelMultiPreview()" style="padding:10px 14px">← Back</button>
+      <div style="flex:1"></div>
+      <button class="btn bp" onclick="commitMultiTemplateApply()" style="padding:10px 18px;font-weight:600">${willReset>0?'Reset & Apply':'Apply'} ${tids.length} Template${tids.length!==1?'s':''}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div);
+  // Stash the chosen tids on a state object that commit will read
+  window._multiApplyTids = tids;
+}
+
+function cancelMultiPreview(){
+  closeModal('multi-preview-ov');
+  const picker = document.getElementById('multi-apply-ov');
+  if (picker) picker.style.display = '';
+}
+
+/* ── Step 3: commit (clear assignments + apply each template) ──────── */
+function commitMultiTemplateApply(){
+  const projId = _multiApplyProjId;
+  const tids = window._multiApplyTids || [];
+  const proj = PROJS.find(p=>p.id===projId);
+  if (!proj || !tids.length){ showNotif('Apply failed','Lost selection state'); return; }
+  const me = currentUser();
+
+  // Step 1: clear staff + dates from existing drawings (preserve status/progress)
+  const existingDrawings = DRAWINGS.filter(d=>d.proj===projId);
+  let clearedDrawings = 0;
+  existingDrawings.forEach(d=>{
+    let touched = false;
+    if (d.sid){ d.sid = ''; touched = true; }
+    if (d.tgt){ d.tgt = ''; touched = true; }
+    if (d.due){ d.due = ''; touched = true; }
+    if (touched) clearedDrawings++;
+  });
+  let clearedTasks = 0;
+  SCHED_TASKS.filter(t=>t.projId===projId).forEach(t=>{
+    let touched = false;
+    if (t.staffId){ t.staffId = ''; touched = true; }
+    if (t.sid){ t.sid = ''; touched = true; }
+    if (t.start){ t.start = ''; touched = true; }
+    if (t.due){ t.due = ''; touched = true; }
+    if (touched) clearedTasks++;
+  });
+
+  // Step 2: apply each template (skipExisting=true is the default)
+  let totalCreated = 0, totalSkipped = 0;
+  tids.forEach(tid=>{
+    const result = applyTemplateToProject(projId, tid, null, {skipExisting:true});
+    if (result){
+      totalCreated += result.created;
+      totalSkipped += result.skipped;
+    }
+  });
+
+  scheduleSave({immediate:true});
+  if (typeof addAudit === 'function'){
+    addAudit('template-apply', 'Multi-template apply',
+      tids.length+' template'+(tids.length!==1?'s':'')+' → '+proj.name+' ('+projId+') · '+
+      totalCreated+' added · '+totalSkipped+' skipped'+
+      (clearedDrawings?' · '+clearedDrawings+' drawings reset':''));
+  }
+
+  closeModal('multi-preview-ov');
+  closeModal('multi-apply-ov');
+  if (typeof renderDrawings === 'function')   renderDrawings();
+  if (typeof renderProjList === 'function')   renderProjList();
+  if (typeof renderDashboard === 'function')  renderDashboard();
+  if (typeof renderSchedule === 'function')   renderSchedule();
+  if (typeof renderStaffSched === 'function') renderStaffSched();
+  if (typeof updateNavBadges === 'function')  updateNavBadges();
+
+  showNotif('✓ Templates applied',
+    totalCreated+' drawing'+(totalCreated!==1?'s':'')+' added'+
+    (clearedDrawings?' · '+clearedDrawings+' reset':'')+
+    ' · '+tids.length+' template'+(tids.length!==1?'s':'')+' linked');
+
+  _multiApplyProjId = null;
+  window._multiApplyTids = null;
+}
+
+/* ── Multi-template picker for the project-create modal ─────────────── */
+/* Replaces the old single-template recommended-card. Renders all templates
+   with a checkbox each; the recommended (matching project type) ones are
+   pre-checked. The legacy ap-tmpl-apply / ap-tmpl-card single-template
+   variables are kept off so onProjTypeChange's old code still works. */
+function renderTemplateMultiPicker(projType){
+  const el = document.getElementById('ap-tmpl-card');
+  if (!el) return;
+  if (!projType){ el.innerHTML = ''; return; }
+  if (!Array.isArray(DRW_TEMPLATES) || !DRW_TEMPLATES.length){ el.innerHTML = ''; return; }
+
+  // Sort: matching first (and pre-checked), then alphabetical
+  const scored = DRW_TEMPLATES.map(t=>{
+    const matches = Array.isArray(t.appliesTo) && t.appliesTo.includes(projType);
+    return {t, matches};
+  }).sort((a,b)=>{
+    if (a.matches !== b.matches) return Number(b.matches) - Number(a.matches);
+    return (a.t.name||'').localeCompare(b.t.name||'');
+  });
+  const matchingCount = scored.filter(x=>x.matches).length;
+
+  el.innerHTML = `<div style="background:rgba(186,117,23,.06);border:1px solid var(--bd2);border-radius:8px;padding:12px 14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">📐 Drawing Templates</div>
+      <span style="font-family:var(--fm);font-size:9px;color:var(--txd)">${matchingCount?matchingCount+' recommended · ':''}pick any combination</span>
+    </div>
+    <div id="ap-multi-tpl-list" style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
+      ${scored.map(({t,matches})=>{
+        const tv = getTemplateVersion(t.id);
+        const drwCount = (tv?.drawings||[]).filter(d=>!d.consultant).length;
+        const totalHrs = (tv?.drawings||[]).reduce((s,d)=>s+(d.estHrs||0),0);
+        return `<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${matches?'rgba(186,117,23,.10)':'var(--sf2)'};border:1px solid ${matches?'rgba(186,117,23,.4)':'var(--bd)'};border-radius:5px;cursor:pointer;font-family:var(--fm);font-size:11px;transition:background .12s">
+          <input type="checkbox" class="ap-multi-tpl-cbx" data-tid="${t.id}" ${matches?'checked':''} onchange="onApMultiTplToggle()" style="width:14px;height:14px;accent-color:var(--gold);cursor:pointer">
+          <span style="font-size:18px">${t.icon||'📐'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;color:var(--tx);font-size:11.5px">
+              ${t.name}
+              ${matches?'<span style="font-family:var(--fm);font-size:8px;font-weight:700;color:var(--gold);margin-left:6px;letter-spacing:.04em">★ MATCHES TYPE</span>':''}
+            </div>
+            <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-top:1px">v${t.activeVersion} · ${drwCount} drawings · ~${totalHrs}h</div>
+          </div>
+        </label>`;
+      }).join('')}
+    </div>
+    <div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:8px;line-height:1.55">
+      Selected templates seed the drawing register. Duplicate refs across templates are auto-deduplicated. Untick all to use the legacy discipline list below.
+    </div>
+  </div>`;
+}
+
+/* When user toggles any of the multi-template checkboxes in the
+   create-project modal, hide/show the legacy preview accordingly. */
+function onApMultiTplToggle(){
+  const anyChecked = !!document.querySelector('.ap-multi-tpl-cbx:checked');
+  const legacy = document.getElementById('ap-template-preview');
+  if (legacy) legacy.style.display = anyChecked ? 'none' : '';
+  // Also hide the legacy discipline toggles when a template is chosen — the
+  // template provides its own drawings, the discipline picker is only useful
+  // for the legacy discipline-template path.
+  const discWrap = document.getElementById('ap-disc-toggles-wrap');
+  if (discWrap) discWrap.style.display = anyChecked ? 'none' : '';
+}
+
+/* ═════════════════════════════════════════════════════════════════════
    v100 Phase 3 — BULK RE-SYNC ACROSS PROJECTS
    ─────────────────────────────────────────────────────────────────────
    Lists all projects bound to a given template. User ticks the projects
@@ -23793,7 +24283,7 @@ function openBulkResyncModal(tid){
   const av = t.activeVersion;
 
   div.innerHTML = `<div class="modal" style="max-width:760px;max-height:88vh;display:flex;flex-direction:column">
-    <button class="mclose" onclick="closeModal('bulk-resync-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('bulk-resync-ov')" aria-label="Close">✕</button>
     <div class="mtitle">🔄 Bulk Re-sync · ${t.name}</div>
     <div class="msub">${usingProjs.length} project${usingProjs.length!==1?'s':''} use this template · template active version v${av} · default selection: none</div>
 
@@ -24007,7 +24497,7 @@ function confirmBulkResync(tid){
   div.className = 'ov show';
   div.style.zIndex = '10001';
   div.innerHTML = `<div class="modal" style="max-width:440px;text-align:center">
-    <button class="mclose" onclick="closeModal('bulk-confirm-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('bulk-confirm-ov')" aria-label="Close">✕</button>
     <div style="font-size:36px;margin:8px 0">🔄</div>
     <div class="mtitle" style="text-align:center">Confirm bulk re-sync</div>
     <div style="font-family:var(--fm);font-size:12px;color:var(--txm);margin:14px 0 18px;line-height:1.6">
@@ -24117,7 +24607,7 @@ function showBulkResyncSummary(t, successes, failures, totalCreated){
   div.id = 'bulk-summary-ov';
   div.className = 'ov show';
   div.innerHTML = `<div class="modal" style="max-width:560px;max-height:80vh;display:flex;flex-direction:column">
-    <button class="mclose" onclick="closeModal('bulk-summary-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('bulk-summary-ov')" aria-label="Close">✕</button>
     <div class="mtitle">${failures.length ? '⚠' : '✓'} Bulk Re-sync Complete</div>
     <div class="msub">${t.name} v${t.activeVersion} · ${successes.length} succeeded · ${failures.length} failed · ${totalCreated} new drawings total</div>
 
@@ -24590,31 +25080,31 @@ function _openVisModal(editId, prefillProj){
     .map(f=>`<option value="${f}" ${v?.format===f?'selected':''}>${f}</option>`).join('');
 
   div.innerHTML=`<div class="modal" style="max-width:560px">
-    <button class="mclose" onclick="closeModal('add-vis-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('add-vis-ov')" aria-label="Close">✕</button>
     <div class="mtitle">${editId?'Edit Visual':'Add Visual Deliverable'}</div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Project <span style="color:var(--red)">*</span></label><select class="fsel" id="avis-proj">${projOpts}</select></div>
-      <div class="frow"><label class="flbl">Type <span style="color:var(--red)">*</span></label><select class="fsel" id="avis-type" onchange="visToggleIntSpace()">${typeOpts}</select></div>
+      <div class="frow"><label class="flbl" for="avis-proj">Project <span style="color:var(--red)">*</span></label><select class="fsel" id="avis-proj">${projOpts}</select></div>
+      <div class="frow"><label class="flbl" for="avis-type">Type <span style="color:var(--red)">*</span></label><select class="fsel" id="avis-type" onchange="visToggleIntSpace()">${typeOpts}</select></div>
     </div>
     <div class="frow" id="avis-space-row" style="${v?.typeId==='INT'?'':'display:none'}">
-      <label class="flbl">Interior Space</label>
+      <label class="flbl" for="avis-space">Interior Space</label>
       <select class="fsel" id="avis-space">${spaceOpts}</select>
     </div>
-    <div class="frow"><label class="flbl">Title / Description <span style="color:var(--red)">*</span></label>
+    <div class="frow"><label class="flbl" for="avis-title">Title / Description <span style="color:var(--red)">*</span></label>
       <input class="finp" id="avis-title" placeholder="e.g. Master Bedroom — Natural Light Interior" value="${v?.title||''}"></div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Assigned To</label><select class="fsel" id="avis-staff"><option value="">— Unassigned —</option>${staffOpts}</select></div>
-      <div class="frow"><label class="flbl">Software</label><select class="fsel" id="avis-software"><option value="">— Select —</option>${swOpts}</select></div>
+      <div class="frow"><label class="flbl" for="avis-staff">Assigned To</label><select class="fsel" id="avis-staff"><option value="">— Unassigned —</option>${staffOpts}</select></div>
+      <div class="frow"><label class="flbl" for="avis-software">Software</label><select class="fsel" id="avis-software"><option value="">— Select —</option>${swOpts}</select></div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Status</label><select class="fsel" id="avis-status">${statOpts}</select></div>
-      <div class="frow"><label class="flbl">Delivery Format</label><select class="fsel" id="avis-format">${fmtOpts}</select></div>
+      <div class="frow"><label class="flbl" for="avis-status">Status</label><select class="fsel" id="avis-status">${statOpts}</select></div>
+      <div class="frow"><label class="flbl" for="avis-format">Delivery Format</label><select class="fsel" id="avis-format">${fmtOpts}</select></div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Target Date</label><input class="finp" id="avis-tgt" type="date" value="${v?.tgt||''}"></div>
-      <div class="frow"><label class="flbl">File / Drive Link</label><input class="finp" id="avis-link" placeholder="https://..." value="${v?.deliveryLink||''}"></div>
+      <div class="frow"><label class="flbl" for="avis-tgt">Target Date</label><input class="finp" id="avis-tgt" type="date" value="${v?.tgt||''}"></div>
+      <div class="frow"><label class="flbl" for="avis-link">File / Drive Link</label><input class="finp" id="avis-link" placeholder="https://..." value="${v?.deliveryLink||''}"></div>
     </div>
-    <div class="frow"><label class="flbl">Notes</label>
+    <div class="frow"><label class="flbl" for="avis-notes">Notes</label>
       <textarea class="ftarea" id="avis-notes" placeholder="Brief, style notes, reference images, client requirements...">${v?.notes||''}</textarea></div>
     <div style="display:flex;gap:8px;margin-top:4px">
       <button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="submitVisModal('${editId||''}')">${editId?'Save Changes':'Add Visual'}</button>
@@ -24718,26 +25208,26 @@ function updateVisBadge(){
 /* ── SCHEMA v3 — add visuals to migration ── */
 </script>
 <!-- ADD / EDIT PROJECT MODAL -->
-<div class="ov" id="add-proj-ov">
+<div class="ov" id="add-proj-ov" role="dialog" aria-modal="true" aria-labelledby="ap-title" aria-hidden="true">
   <div class="modal modal-xl">
-    <button class="mclose" onclick="closeModal('add-proj-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('add-proj-ov')" aria-label="Close">✕</button>
     <div class="mtitle" id="ap-title">Add New Project</div>
     <div class="msub">Configure project details and drawing template — drawings auto-generated from type</div>
     <input type="hidden" id="ap-edit-id">
 
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Project Name</label><input class="finp" id="ap-name" placeholder="e.g. Northgate Mixed-Use Development"></div>
-      <div class="frow"><label class="flbl">Client / Employer</label><input class="finp" id="ap-client" placeholder="e.g. Northgate Capital Ltd."></div>
+      <div class="frow"><label class="flbl" for="ap-name">Project Name</label><input class="finp" id="ap-name" placeholder="e.g. Northgate Mixed-Use Development"></div>
+      <div class="frow"><label class="flbl" for="ap-client">Client / Employer</label><input class="finp" id="ap-client" placeholder="e.g. Northgate Capital Ltd."></div>
     </div>
 
-    <div class="frow"><label class="flbl">Project Type</label>
+    <div class="frow"><label class="flbl" for="ap-type">Project Type</label>
       <select class="fsel" id="ap-type" onchange="onProjTypeChange()"></select>
     </div>
 
     <div id="ap-type-desc" style="margin-top:-8px;margin-bottom:14px;padding:10px 14px;background:var(--sf2);border-radius:7px;font-size:11px;color:var(--txm);line-height:1.55;display:none"></div>
 
     <div class="fgrid">
-      <div class="frow"><label class="flbl">RIBA Phase</label>
+      <div class="frow"><label class="flbl" for="ap-phase">RIBA Phase</label>
         <select class="fsel" id="ap-phase">
           <option value="0">Stage 0 — Strategic Definition</option>
           <option value="1">Stage 1 — Preparation & Briefing</option>
@@ -24749,18 +25239,18 @@ function updateVisBadge(){
           <option value="7">Stage 7 — Use</option>
         </select>
       </div>
-      <div class="frow"><label class="flbl">Contract Fee (₹)</label><input class="finp" id="ap-fee" type="number" placeholder="e.g. 12000000 (₹1.2Cr)"></div>
+      <div class="frow"><label class="flbl" for="ap-fee">Contract Fee (₹)</label><input class="finp" id="ap-fee" type="number" placeholder="e.g. 12000000 (₹1.2Cr)"></div>
     </div>
 
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Project Status</label>
+      <div class="frow"><label class="flbl" for="ap-status">Project Status</label>
         <select class="fsel" id="ap-status">
           <option value="active">🟢 Active</option>
           <option value="onhold">⏸ On Hold</option>
           <option value="complete">✓ Complete</option>
           <option value="archived">📦 Archived</option>
         </select></div>
-      <div class="frow"><label class="flbl">Contract Type</label>
+      <div class="frow"><label class="flbl" for="ap-contract">Contract Type</label>
         <select class="fsel" id="ap-contract">
           <option value="Lump Sum">Lump Sum</option>
           <option value="Cost Plus">Cost Plus</option>
@@ -24769,8 +25259,8 @@ function updateVisBadge(){
         </select></div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Project Start <span style="color:var(--red)">*</span></label><input class="finp" id="ap-start" type="date" required></div>
-      <div class="frow"><label class="flbl">Project End</label><input class="finp" id="ap-end" type="date"></div>
+      <div class="frow"><label class="flbl" for="ap-start">Project Start <span style="color:var(--red)">*</span></label><input class="finp" id="ap-start" type="date" required></div>
+      <div class="frow"><label class="flbl" for="ap-end">Project End</label><input class="finp" id="ap-end" type="date"></div>
     </div>
 
     <!-- Stage dates accordion -->
@@ -24827,7 +25317,7 @@ function updateVisBadge(){
       </div>
     </div>
 
-    <div class="frow"><label class="flbl">Project Colour</label>
+    <div class="frow"><label class="flbl" for="aw-drawing">Project Colour</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="ap-colors"></div>
     </div>
 
@@ -24849,10 +25339,10 @@ function updateVisBadge(){
 </div>
 
 <!-- CONFIRM REMOVE PROJECT MODAL -->
-<div class="ov" id="rm-proj-ov">
+<div class="ov" id="rm-proj-ov" role="dialog" aria-modal="true" aria-labelledby="rm-proj-title" aria-hidden="true">
   <div class="modal" style="max-width:420px">
-    <button class="mclose" onclick="closeModal('rm-proj-ov')">✕</button>
-    <div class="mtitle" style="color:var(--red)">Remove Project?</div>
+    <button class="mclose" onclick="closeModal('rm-proj-ov')" aria-label="Close">✕</button>
+    <div class="mtitle" style="color:var(--red)" id="rm-proj-title">Remove Project?</div>
     <div style="font-size:12px;color:var(--txm);margin-bottom:16px;line-height:1.6" id="rm-proj-msg">This will permanently remove the project and all its drawings from the register.</div>
     <div style="background:var(--sf2);border-radius:8px;padding:12px 14px;margin-bottom:18px" id="rm-proj-summary"></div>
     <div style="display:flex;gap:10px">
@@ -24864,9 +25354,9 @@ function updateVisBadge(){
 
 
 <!-- DRAWING DETAIL MODAL -->
-<div class="ov" id="drw-detail-ov">
+<div class="ov" id="drw-detail-ov" role="dialog" aria-modal="true" aria-labelledby="dd-title" aria-hidden="true">
   <div class="modal">
-    <button class="mclose" onclick="closeModal('drw-detail-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('drw-detail-ov')" aria-label="Close">✕</button>
     <div class="mtitle" id="dd-title">Drawing Detail</div>
     <div class="msub" id="dd-sub"></div>
     <div id="dd-body"></div>
@@ -24874,9 +25364,9 @@ function updateVisBadge(){
 </div>
 
 <!-- ══ WORK ASSIGNMENT MODAL ══════════════════════════════ -->
-<div class="ov" id="assign-work-ov">
+<div class="ov" id="assign-work-ov" role="dialog" aria-modal="true" aria-labelledby="dd-title" aria-hidden="true">
   <div class="modal" style="max-width:640px">
-    <button class="mclose" onclick="closeModal('assign-work-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('assign-work-ov')" aria-label="Close">✕</button>
     <div class="mtitle">Assign Work</div>
     <div class="msub">Assign a task or drawing, set schedule dates, priority and dependencies</div>
 
@@ -24888,16 +25378,16 @@ function updateVisBadge(){
         <select class="fsel" id="aw-drawing"></select>
       </div>
     </div>
-    <div class="frow"><label class="flbl">Assign To</label>
+    <div class="frow"><label class="flbl" for="aw-staff">Assign To</label>
       <select class="fsel" id="aw-staff"></select>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Start Date <span style="color:var(--red)">*</span></label><input class="finp" id="aw-start" type="date"></div>
-      <div class="frow"><label class="flbl">Due Date</label><input class="finp" id="aw-due" type="date"></div>
+      <div class="frow"><label class="flbl" for="aw-start">Start Date <span style="color:var(--red)">*</span></label><input class="finp" id="aw-start" type="date"></div>
+      <div class="frow"><label class="flbl" for="aw-due">Due Date</label><input class="finp" id="aw-due" type="date"></div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Estimated Hours</label><input class="finp" id="aw-hours" type="number" placeholder="e.g. 16" min="1"></div>
-      <div class="frow"><label class="flbl">Priority</label>
+      <div class="frow"><label class="flbl" for="aw-hours">Estimated Hours</label><input class="finp" id="aw-hours" type="number" placeholder="e.g. 16" min="1"></div>
+      <div class="frow"><label class="flbl" for="aw-priority">Priority</label>
         <select class="fsel" id="aw-priority">
           <option value="critical">🔴 Critical — on critical path</option>
           <option value="high" selected>🟠 High — important milestone</option>
@@ -24906,7 +25396,7 @@ function updateVisBadge(){
         </select>
       </div>
     </div>
-    <div class="frow"><label class="flbl">RIBA / AIA Phase</label>
+    <div class="frow"><label class="flbl" for="aw-phase">RIBA / AIA Phase</label>
       <select class="fsel" id="aw-phase">
         <option value="SD">Stage 2 — Concept Design (SD)</option>
         <option value="DD">Stage 3 — Spatial Coordination (DD)</option>
@@ -24916,7 +25406,7 @@ function updateVisBadge(){
         <option value="BID">Procurement — Bidding / Tender</option>
       </select>
     </div>
-    <div class="frow"><label class="flbl">Notes / Instructions</label>
+    <div class="frow"><label class="flbl" for="aw-notes">Notes / Instructions</label>
       <textarea class="ftarea" id="aw-notes" placeholder="Instructions visible to assignee…" style="min-height:60px"></textarea>
     </div>
     <div id="aw-estimate-hint" style="display:none;margin-bottom:14px;padding:10px 14px;background:rgba(82,133,224,.1);border:1px solid rgba(82,133,224,.25);border-radius:7px;font-size:11px;color:var(--txm)"></div>
@@ -24928,25 +25418,25 @@ function updateVisBadge(){
 </div>
 
 <!-- ══ EDIT TASK / ADJUST SCHEDULE MODAL ═══════════════════ -->
-<div class="ov" id="edit-task-ov">
+<div class="ov" id="edit-task-ov" role="dialog" aria-modal="true" aria-labelledby="et-title" aria-hidden="true">
   <div class="modal" style="max-width:560px">
-    <button class="mclose" onclick="closeModal('edit-task-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('edit-task-ov')" aria-label="Close">✕</button>
     <div class="mtitle" id="et-title">Adjust Schedule</div>
     <div class="msub" id="et-sub">Adjust dates, hours, completion — restricted to Principal / Lead / Project Architect</div>
     <input type="hidden" id="et-task-id">
     <div style="background:var(--sf2);border-radius:8px;padding:12px 14px;margin-bottom:16px" id="et-current-info"></div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Start Date <span style="color:var(--red)">*</span></label><input class="finp" id="et-start" type="date"></div>
-      <div class="frow"><label class="flbl">Due Date</label><input class="finp" id="et-due" type="date"></div>
+      <div class="frow"><label class="flbl" for="et-start">Start Date <span style="color:var(--red)">*</span></label><input class="finp" id="et-start" type="date"></div>
+      <div class="frow"><label class="flbl" for="et-due">Due Date</label><input class="finp" id="et-due" type="date"></div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Estimated Hours</label><input class="finp" id="et-hours" type="number"></div>
-      <div class="frow"><label class="flbl">% Complete</label><input class="finp" id="et-pct" type="number" min="0" max="100"></div>
+      <div class="frow"><label class="flbl" for="et-hours">Estimated Hours</label><input class="finp" id="et-hours" type="number"></div>
+      <div class="frow"><label class="flbl" for="et-pct">% Complete</label><input class="finp" id="et-pct" type="number" min="0" max="100"></div>
     </div>
-    <div class="frow"><label class="flbl">Reassign To</label>
+    <div class="frow"><label class="flbl" for="et-staff">Reassign To</label>
       <select class="fsel" id="et-staff"></select>
     </div>
-    <div class="frow"><label class="flbl">RAG Override</label>
+    <div class="frow"><label class="flbl" for="et-rag">RAG Override</label>
       <select class="fsel" id="et-rag">
         <option value="auto">Auto — calculated from SPI</option>
         <option value="green">🟢 Green — On Track</option>
@@ -24954,7 +25444,7 @@ function updateVisBadge(){
         <option value="red">🔴 Red — Behind / Blocked</option>
       </select>
     </div>
-    <div class="frow"><label class="flbl">Change Reason (audit trail)</label>
+    <div class="frow"><label class="flbl" for="et-reason">Change Reason (audit trail)</label>
       <textarea class="ftarea" id="et-reason" placeholder="e.g. Client requested scope change on 21 Mar. +8h added." style="min-height:56px"></textarea>
     </div>
     <div style="display:flex;gap:10px">
@@ -24966,20 +25456,20 @@ function updateVisBadge(){
 </div>
 
 <!-- ══ DRAWING UPDATE MODAL (staff self-service) ═══════════ -->
-<div class="ov" id="drawing-update-ov">
+<div class="ov" id="drawing-update-ov" role="dialog" aria-modal="true" aria-labelledby="du-title" aria-hidden="true">
   <div class="modal" style="max-width:460px">
-    <button class="mclose" onclick="closeModal('drawing-update-ov')">&#x2715;</button>
+    <button class="mclose" onclick="closeModal('drawing-update-ov')" aria-label="Close">&#x2715;</button>
     <div class="mtitle" id="du-title">Update Drawing</div>
     <div class="msub" id="du-sub" style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-bottom:12px"></div>
     <input type="hidden" id="du-drawing-id">
     <div id="du-current" style="background:var(--sf2);border-radius:8px;padding:10px 14px;margin-bottom:14px"></div>
-    <div class="frow"><label class="flbl">Progress</label>
+    <div class="frow"><label class="flbl" for="du-hrs-today">Progress</label>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px" id="du-pct-btns"></div>
       <input type="hidden" id="du-pct" value="0">
       <input type="hidden" id="du-hrs-total" value="0"></div>
     <div class="frow"><label class="flbl">Hours today <span style="font-weight:400;color:var(--txd)">(auto-logs to timesheet)</span></label>
       <input class="finp" id="du-hrs-today" type="number" min="0" max="24" step="0.5" placeholder="e.g. 3.5"></div>
-    <div class="frow"><label class="flbl">Note <span style="font-weight:400;color:var(--txd)">(optional)</span></label>
+    <div class="frow"><label class="flbl" for="du-note">Note <span style="font-weight:400;color:var(--txd)">(optional)</span></label>
       <input class="finp" id="du-note" placeholder="e.g. Revised section per engineer comments"></div>
     <input type="hidden" id="du-status-hidden" value="ip">
     <input type="hidden" id="du-rev" value="">
@@ -24991,29 +25481,29 @@ function updateVisBadge(){
   </div>
 </div>
 
-<div class="ov" id="add-drw-ov">
+<div class="ov" id="add-drw-ov" role="dialog" aria-modal="true" aria-labelledby="adm-title" aria-hidden="true">
   <div class="modal" style="max-width:560px">
-    <button class="mclose" onclick="closeModal('add-drw-ov')">✕</button>
+    <button class="mclose" onclick="closeModal('add-drw-ov')" aria-label="Close">✕</button>
     <div class="mtitle" id="adm-title">Add Drawing</div>
     <div class="msub">Add a new drawing to the register for the selected project</div>
     <input type="hidden" id="adm-edit-id">
 
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Project</label>
+      <div class="frow"><label class="flbl" for="adm-proj-OBSOLETE">Project</label>
         <select class="fsel" id="adm-proj-OBSOLETE" style="display:none"></select><div id="adm-proj"></div></div>
-      <div class="frow"><label class="flbl">Discipline</label>
+      <div class="frow"><label class="flbl" for="adm-disc">Discipline</label>
         <select class="fsel" id="adm-disc" onchange="onAdmDiscChange()"></select></div>
     </div>
 
-    <div class="frow"><label class="flbl">Drawing Title <span style="color:var(--red)">*</span></label>
+    <div class="frow"><label class="flbl" for="adm-title-inp">Drawing Title <span style="color:var(--red)">*</span></label>
       <input class="finp" id="adm-title-inp" placeholder="e.g. Ground Floor Plan — Architectural" oninput="onAdmTitleChange()">
     </div>
 
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Drawing ID</label>
+      <div class="frow"><label class="flbl" for="adm-id">Drawing ID</label>
         <input class="finp" id="adm-id" placeholder="Auto-generated" style="font-family:var(--fm);font-size:11px">
       </div>
-      <div class="frow"><label class="flbl">Drawing Type</label>
+      <div class="frow"><label class="flbl" for="adm-type">Drawing Type</label>
         <select class="fsel" id="adm-type">
           <option value="GA">GA — General Arrangement</option>
           <option value="SEC">SEC — Section</option>
@@ -25028,7 +25518,7 @@ function updateVisBadge(){
     </div>
 
     <div class="fgrid">
-      <div class="frow"><label class="flbl">RIBA Stage</label>
+      <div class="frow"><label class="flbl" for="adm-stage">RIBA Stage</label>
         <select class="fsel" id="adm-stage">
           <option value="SD">SD — Concept Design</option>
           <option value="DD">DD — Spatial Coordination</option>
@@ -25036,7 +25526,7 @@ function updateVisBadge(){
           <option value="CA">CA — Construction</option>
         </select>
       </div>
-      <div class="frow"><label class="flbl">Assign To</label>
+      <div class="frow"><label class="flbl" for="adm-assignee">Assign To</label>
         <select class="fsel" id="adm-assignee">
           <option value="">— Unassigned —</option>
         </select>
@@ -25044,16 +25534,16 @@ function updateVisBadge(){
     </div>
 
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Due Date</label>
+      <div class="frow"><label class="flbl" for="adm-due">Due Date</label>
         <input class="finp" id="adm-due" type="date">
       </div>
-      <div class="frow"><label class="flbl">Package</label>
+      <div class="frow"><label class="flbl" for="adm-pkg">Package</label>
         <input class="finp" id="adm-pkg" placeholder="e.g. 50DD" style="font-family:var(--fm);font-size:11px">
       </div>
     </div>
 
     <div class="fgrid">
-      <div class="frow"><label class="flbl">Priority</label>
+      <div class="frow"><label class="flbl" for="adm-priority">Priority</label>
         <select class="fsel" id="adm-priority">
           <option value="low">Low</option>
           <option value="normal" selected>Normal</option>
@@ -25061,7 +25551,7 @@ function updateVisBadge(){
           <option value="critical">Critical</option>
         </select>
       </div>
-      <div class="frow"><label class="flbl">Est. Hours <span style="color:var(--txd);font-weight:400">(optional)</span></label>
+      <div class="frow"><label class="flbl" for="adm-est-hours">Est. Hours <span style="color:var(--txd);font-weight:400">(optional)</span></label>
         <input class="finp" id="adm-est-hours" type="number" min="1" placeholder="Auto-estimate if blank" style="font-family:var(--fm);font-size:11px">
       </div>
     </div>
@@ -25074,6 +25564,139 @@ function updateVisBadge(){
     </div>
   </div>
 </div>
+
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   v101.13 — SWEEP 3 PHASE 2 + 3 (a11y runtime layer)
+   ────────────────────────────────────────────────────────────────────────
+   Phase 2 (form labels)  — DONE statically: 230+ <label class="flbl"> got
+     for="<id>" attributes during build.
+   Phase 3 (buttons + ARIA) — STATIC: 11 modals got role="dialog"/aria-modal/
+     aria-labelledby; <nav> got aria-label="Main"; mclose buttons got
+     aria-label="Close".
+   Phase 3 (buttons + ARIA) — RUNTIME: every clickable <div>/<span>/<aside>
+     with an onclick handler gets role="button" + tabindex="0" so keyboard
+     users can reach it; a global keydown handler converts Enter/Space into
+     a click. A MutationObserver re-runs on every DOM change so dynamically
+     injected templates get the same treatment.
+   ──────────────────────────────────────────────────────────────────────── */
+(function(){
+  'use strict';
+
+  /* Native interactive tags — never touch these (they already work) */
+  var NATIVE_INT = { BUTTON:1, A:1, INPUT:1, SELECT:1, TEXTAREA:1, LABEL:1, SUMMARY:1 };
+
+  function s62NormalizeA11y(root){
+    root = root || document;
+    /* (1) any element with onclick that isn't a native interactive */
+    var nodes = root.querySelectorAll('[onclick]');
+    for (var i = 0; i < nodes.length; i++){
+      var el = nodes[i];
+      if (NATIVE_INT[el.tagName]) continue;
+      if (!el.hasAttribute('role'))     el.setAttribute('role', 'button');
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+      /* if no accessible text, fall back to title attribute */
+      if (!el.hasAttribute('aria-label')
+          && !el.textContent.trim()
+          && el.hasAttribute('title')) {
+        el.setAttribute('aria-label', el.getAttribute('title'));
+      }
+    }
+    /* (2) reflect modal open/close into aria-hidden so screen readers know
+           which dialog is active */
+    var ovs = root.querySelectorAll('.ov');
+    for (var j = 0; j < ovs.length; j++){
+      var o = ovs[j];
+      var open = o.classList.contains('show');
+      o.setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
+  }
+  window.s62NormalizeA11y = s62NormalizeA11y;
+
+  /* Global keyboard handler — Enter / Space on a role="button" fires click.
+     Use capture-phase so we beat any onclick already wired up via attribute. */
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    var t = e.target;
+    if (!t || NATIVE_INT[t.tagName]) return;            /* let native handle it */
+    if (t.getAttribute('role') !== 'button') return;
+    /* Avoid scrolling the page on Space */
+    e.preventDefault();
+    /* Avoid double-firing if some library also catches keydown */
+    if (e.repeat) return;
+    /* Programmatic click — runs the onclick attribute */
+    t.click();
+  }, true);
+
+  /* Run once at boot (DOMContentLoaded may have already fired by the time
+     this script runs because we're at the bottom of the body). */
+  function bootNormalize(){ s62NormalizeA11y(document); }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootNormalize);
+  } else {
+    bootNormalize();
+  }
+
+  /* Throttled MutationObserver so dynamic templates get a11y too. We only
+     re-scan when subtree changes happen — most of S62's renders blow away
+     and rebuild a panel's innerHTML, which triggers exactly one mutation. */
+  var pending = false;
+  var mo = new MutationObserver(function(muts){
+    if (pending) return;
+    /* Skip if mutations are only attribute changes WE made (role/tabindex/
+       aria-hidden). Looking at addedNodes is enough. */
+    var hasAdds = false;
+    for (var i = 0; i < muts.length; i++){
+      if (muts[i].addedNodes && muts[i].addedNodes.length){ hasAdds = true; break; }
+    }
+    if (!hasAdds) return;
+    pending = true;
+    /* requestIdleCallback if available, else microtask */
+    var run = function(){ pending = false; s62NormalizeA11y(document); };
+    if (window.requestIdleCallback) {
+      requestIdleCallback(run, { timeout: 250 });
+    } else {
+      setTimeout(run, 50);
+    }
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+
+  /* Hook into existing modal open/close so aria-hidden flips immediately
+     (don't wait for the MutationObserver). The app uses .ov.show to mean
+     "open"; we patch classList.add/remove on those nodes via a setTimeout
+     after each click — but the simpler hook is: re-run normalize after
+     showModal / closeModal calls. We can't intercept those without
+     touching their bodies, so we rely on the MO's class-attribute path
+     too. */
+  var origAdd = DOMTokenList.prototype.add;
+  var origRem = DOMTokenList.prototype.remove;
+  DOMTokenList.prototype.add = function(){
+    var r = origAdd.apply(this, arguments);
+    /* Defer so the modal open transition is in flight first */
+    if (this.value && this.value.indexOf('show') !== -1) {
+      var owner = (this._owner || (this._owner = this.ownerElement || this.element || null));
+    }
+    return r;
+  };
+  DOMTokenList.prototype.remove = function(){
+    return origRem.apply(this, arguments);
+  };
+
+  /* Simpler hook: when window.closeModal / showModal exist, wrap them. */
+  ['closeModal','showModal','openModal'].forEach(function(name){
+    var orig = window[name];
+    if (typeof orig !== 'function') return;
+    window[name] = function(){
+      var r = orig.apply(this, arguments);
+      try{ s62NormalizeA11y(document); }catch(e){}
+      return r;
+    };
+  });
+
+  console.log('S62 v101.13 — a11y runtime layer active (sweep 3 phase 2 + 3)');
+})();
+</script>
 
 </body>
 </html>
