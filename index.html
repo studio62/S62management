@@ -5092,7 +5092,7 @@ let DRW_TEMPLATES = [
       version: '1.0.0',
       publishedAt: '2026-05-01',
       publishedBy: 'system',
-      changeNote: 'Initial template — COA Stages 1-11 aligned with IS 962 prefixes',
+      changeNote: 'Initial template — COA Stages 1-11 aligned with IS 962 prefixes · v101.23 zone-aware tags added',
       drawings: [
         // Stage 1-2 · SD · Concept & Preliminary
         {ref:'A-PR-001', title:'Site Analysis & Brief',         disc:'ARCH', stage:'SD', drwType:'GA',  estHrs:8,  priority:'normal'},
@@ -5107,12 +5107,12 @@ let DRW_TEMPLATES = [
         {ref:'S-ST-001', title:'Structural Submission (consultant)',disc:'STRUCT',stage:'DD',drwType:'GA',estHrs:0,priority:'high', consultant:true},
         // Stage 4 · CD · Working Drawings
         {ref:'A-WD-001', title:'Site Plan (1:200) — Working',   disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:10, priority:'normal'},
-        {ref:'A-WD-002', title:'Floor Plans (1:50) — Working',  disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:24, priority:'normal'},
+        {ref:'A-WD-002', title:'Floor Plans (1:50) — Working',  disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:24, priority:'normal', perFloor:'plans'},
         {ref:'A-WD-003', title:'Roof Plan',                     disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:8,  priority:'normal'},
         {ref:'A-WD-004', title:'Elevations (1:50) — All Faces', disc:'ARCH', stage:'CD', drwType:'ELV', estHrs:16, priority:'normal'},
         {ref:'A-WD-005', title:'Building Sections (min. 2 cuts)',disc:'ARCH',stage:'CD', drwType:'SEC', estHrs:14, priority:'normal'},
         {ref:'A-WD-006', title:'Wall Sections (typical, 1:20)', disc:'ARCH', stage:'CD', drwType:'SEC', estHrs:12, priority:'normal'},
-        {ref:'A-WD-007', title:'Reflected Ceiling Plans',       disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:10, priority:'normal'},
+        {ref:'A-WD-007', title:'Reflected Ceiling Plans',       disc:'ARCH', stage:'CD', drwType:'GA',  estHrs:10, priority:'normal', perFloor:'ceiling'},
         {ref:'A-WD-008', title:'Door & Window Schedule',        disc:'ARCH', stage:'CD', drwType:'SCH', estHrs:8,  priority:'normal'},
         {ref:'A-WD-009', title:'Finishes Schedule',             disc:'ARCH', stage:'CD', drwType:'SCH', estHrs:6,  priority:'normal'},
         {ref:'A-WD-010', title:'Toilet Details (1:20)',         disc:'ARCH', stage:'CD', drwType:'DET', estHrs:10, priority:'normal'},
@@ -5141,7 +5141,7 @@ let DRW_TEMPLATES = [
       version: '1.0.0',
       publishedAt: '2026-05-01',
       publishedBy: 'system',
-      changeNote: 'Initial commercial template — additional service-coordination drawings for MEP-heavy buildings',
+      changeNote: 'Initial commercial template — additional service-coordination drawings for MEP-heavy buildings · v101.23 zone-aware tags added',
       drawings: [
         // SD
         {ref:'A-PR-001', title:'Site Analysis & Programme Brief',disc:'ARCH',stage:'SD',drwType:'GA', estHrs:14, priority:'high'},
@@ -5159,13 +5159,13 @@ let DRW_TEMPLATES = [
         {ref:'S-ST-001', title:'Structural Submission (consultant)',disc:'STRUCT',stage:'DD',drwType:'GA',estHrs:0,priority:'critical',consultant:true},
         // CD · Working
         {ref:'A-WD-001', title:'Site Plan & Hardscape',          disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
-        {ref:'A-WD-002', title:'Basement & GF Floor Plans',      disc:'ARCH',stage:'CD',drwType:'GA', estHrs:22, priority:'high'},
-        {ref:'A-WD-003', title:'Typical Floor Plans',            disc:'ARCH',stage:'CD',drwType:'GA', estHrs:18, priority:'high'},
+        {ref:'A-WD-002', title:'Basement & GF Floor Plans',      disc:'ARCH',stage:'CD',drwType:'GA', estHrs:22, priority:'high', perFloor:'plans', zoneType:'podium'},
+        {ref:'A-WD-003', title:'Typical Floor Plans',            disc:'ARCH',stage:'CD',drwType:'GA', estHrs:18, priority:'high', perFloor:'plans', zoneType:'tower'},
         {ref:'A-WD-004', title:'Terrace & Roof Plan',            disc:'ARCH',stage:'CD',drwType:'GA', estHrs:10, priority:'high'},
         {ref:'A-WD-005', title:'All Elevations (1:50)',          disc:'ARCH',stage:'CD',drwType:'ELV',estHrs:20, priority:'high'},
         {ref:'A-WD-006', title:'Building Sections (min. 4 cuts)',disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:18, priority:'high'},
         {ref:'A-WD-007', title:'Wall Sections (typical, 1:20)',  disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:16, priority:'high'},
-        {ref:'A-WD-008', title:'Reflected Ceiling Plans',        disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'A-WD-008', title:'Reflected Ceiling Plans',        disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high', perFloor:'ceiling'},
         {ref:'A-WD-009', title:'Door & Window Schedule',         disc:'ARCH',stage:'CD',drwType:'SCH',estHrs:12, priority:'high'},
         {ref:'A-WD-010', title:'Finishes Schedule',              disc:'ARCH',stage:'CD',drwType:'SCH',estHrs:10, priority:'high'},
         {ref:'A-WD-011', title:'Common Area Toilet Details',     disc:'ARCH',stage:'CD',drwType:'DET',estHrs:14, priority:'high'},
@@ -5198,7 +5198,7 @@ let DRW_TEMPLATES = [
       version: '1.0.0',
       publishedAt: '2026-05-01',
       publishedBy: 'system',
-      changeNote: 'Initial civic template — public-building emphasis on accessibility and assembly',
+      changeNote: 'Initial civic template — public-building emphasis on accessibility and assembly · v101.23 zone-aware tags added',
       drawings: [
         // SD
         {ref:'A-PR-001', title:'Site Analysis & Public Realm Study', disc:'ARCH',stage:'SD',drwType:'GA', estHrs:16, priority:'high'},
@@ -5215,12 +5215,12 @@ let DRW_TEMPLATES = [
         {ref:'A-ST-006', title:'Accessibility Submission (HCC)', disc:'ARCH',stage:'DD',drwType:'GA', estHrs:10, priority:'critical'},
         // CD
         {ref:'A-WD-001', title:'Site Plan & Approach',           disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
-        {ref:'A-WD-002', title:'All Floor Plans (1:50)',         disc:'ARCH',stage:'CD',drwType:'GA', estHrs:24, priority:'high'},
+        {ref:'A-WD-002', title:'All Floor Plans (1:50)',         disc:'ARCH',stage:'CD',drwType:'GA', estHrs:24, priority:'high', perFloor:'plans'},
         {ref:'A-WD-003', title:'Roof Plan',                      disc:'ARCH',stage:'CD',drwType:'GA', estHrs:10, priority:'high'},
         {ref:'A-WD-004', title:'All Elevations (1:50)',          disc:'ARCH',stage:'CD',drwType:'ELV',estHrs:18, priority:'high'},
         {ref:'A-WD-005', title:'Building Sections (min. 3 cuts)',disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:16, priority:'high'},
         {ref:'A-WD-006', title:'Wall Sections (typical & special)',disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:14,priority:'high'},
-        {ref:'A-WD-007', title:'Reflected Ceiling Plans',        disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high'},
+        {ref:'A-WD-007', title:'Reflected Ceiling Plans',        disc:'ARCH',stage:'CD',drwType:'GA', estHrs:14, priority:'high', perFloor:'ceiling'},
         {ref:'A-WD-008', title:'Door & Window Schedule',         disc:'ARCH',stage:'CD',drwType:'SCH',estHrs:10, priority:'high'},
         {ref:'A-WD-009', title:'Finishes Schedule',              disc:'ARCH',stage:'CD',drwType:'SCH',estHrs:10, priority:'high'},
         {ref:'A-WD-010', title:'Toilet & Accessible Toilet Details',disc:'ARCH',stage:'CD',drwType:'DET',estHrs:12,priority:'high'},
@@ -5343,7 +5343,7 @@ let DRW_TEMPLATES = [
       version: '1.0.0',
       publishedAt: '2026-05-01',
       publishedBy: 'system',
-      changeNote: 'Initial multi-unit template — RERA registration drawings, typical-floor approach',
+      changeNote: 'Initial multi-unit template — RERA registration drawings, typical-floor approach · v101.23 zone-aware tags added',
       drawings: [
         {ref:'A-PR-001', title:'Site Analysis & Programme Brief',       disc:'ARCH',stage:'SD',drwType:'GA',estHrs:14,priority:'high'},
         {ref:'A-PR-002', title:'Massing Studies & Unit Mix',            disc:'ARCH',stage:'SD',drwType:'GA',estHrs:16,priority:'high'},
@@ -5359,10 +5359,10 @@ let DRW_TEMPLATES = [
         {ref:'A-ST-006', title:'RERA Carpet Area Calculations',         disc:'ARCH',stage:'DD',drwType:'SCH',estHrs:10,priority:'critical'},
         {ref:'A-ST-007', title:'Common Areas & Amenities Submission',   disc:'ARCH',stage:'DD',drwType:'GA',estHrs:8,priority:'critical'},
         {ref:'A-WD-001', title:'Site Plan & Hardscape',                 disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high'},
-        {ref:'A-WD-002', title:'Basement & Stilt Floor Plans',          disc:'ARCH',stage:'CD',drwType:'GA',estHrs:24,priority:'high'},
-        {ref:'A-WD-003', title:'Ground Floor Plan with Lobby',          disc:'ARCH',stage:'CD',drwType:'GA',estHrs:16,priority:'high'},
-        {ref:'A-WD-004', title:'Typical Floor Plan',                    disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high'},
-        {ref:'A-WD-005', title:'Refuge Floor Plan',                     disc:'ARCH',stage:'CD',drwType:'GA',estHrs:12,priority:'high'},
+        {ref:'A-WD-002', title:'Basement & Stilt Floor Plans',          disc:'ARCH',stage:'CD',drwType:'GA',estHrs:24,priority:'high', perFloor:'plans', zoneType:'podium'},
+        {ref:'A-WD-003', title:'Ground Floor Plan with Lobby',          disc:'ARCH',stage:'CD',drwType:'GA',estHrs:16,priority:'high', perFloor:'plans', zoneType:'podium'},
+        {ref:'A-WD-004', title:'Typical Floor Plan',                    disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high', perFloor:'plans', zoneType:'tower'},
+        {ref:'A-WD-005', title:'Refuge Floor Plan',                     disc:'ARCH',stage:'CD',drwType:'GA',estHrs:12,priority:'high', perFloor:'plans', zoneType:'special'},
         {ref:'A-WD-006', title:'Top Floor & Terrace Plan',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high'},
         {ref:'A-WD-007', title:'All Elevations (1:50)',                 disc:'ARCH',stage:'CD',drwType:'ELV',estHrs:22,priority:'high'},
         {ref:'A-WD-008', title:'Building Sections (min. 4 cuts)',       disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:20,priority:'high'},
@@ -5401,7 +5401,7 @@ let DRW_TEMPLATES = [
       version: '1.0.0',
       publishedAt: '2026-05-01',
       publishedBy: 'system',
-      changeNote: 'Initial hospitality template — guest-room module, F&B, BOH, public areas',
+      changeNote: 'Initial hospitality template — guest-room module, F&B, BOH, public areas · v101.23 zone-aware tags added',
       drawings: [
         {ref:'A-PR-001', title:'Site Analysis & Programme Brief',       disc:'ARCH',stage:'SD',drwType:'GA',estHrs:16,priority:'high'},
         {ref:'A-PR-002', title:'Massing & Tower Studies',               disc:'ARCH',stage:'SD',drwType:'GA',estHrs:16,priority:'high'},
@@ -5416,15 +5416,15 @@ let DRW_TEMPLATES = [
         {ref:'A-ST-005', title:'Fire & Life Safety Submission',         disc:'ARCH',stage:'DD',drwType:'GA',estHrs:18,priority:'critical'},
         {ref:'A-ST-006', title:'NBC Compliance & Star Rating Norms',    disc:'ARCH',stage:'DD',drwType:'GA',estHrs:14,priority:'critical'},
         {ref:'A-WD-001', title:'Site Plan & Approach',                  disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high'},
-        {ref:'A-WD-002', title:'Basement & Service Floor',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high'},
-        {ref:'A-WD-003', title:'Ground Floor (Lobby/F&B)',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:24,priority:'high'},
-        {ref:'A-WD-004', title:'Typical Guest Room Floor',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high'},
-        {ref:'A-WD-005', title:'Top Floor (Restaurant/Bar/Pool)',       disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high'},
+        {ref:'A-WD-002', title:'Basement & Service Floor',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high', perFloor:'plans', zoneType:'podium'},
+        {ref:'A-WD-003', title:'Ground Floor (Lobby/F&B)',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:24,priority:'high', perFloor:'plans', zoneType:'podium'},
+        {ref:'A-WD-004', title:'Typical Guest Room Floor',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high', perFloor:'plans', zoneType:'tower'},
+        {ref:'A-WD-005', title:'Top Floor (Restaurant/Bar/Pool)',       disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high', perFloor:'plans', zoneType:'special'},
         {ref:'A-WD-006', title:'Roof Plan',                             disc:'ARCH',stage:'CD',drwType:'GA',estHrs:10,priority:'high'},
         {ref:'A-WD-007', title:'All Elevations (1:50)',                 disc:'ARCH',stage:'CD',drwType:'ELV',estHrs:22,priority:'high'},
         {ref:'A-WD-008', title:'Building Sections (min. 4 cuts)',       disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:20,priority:'high'},
         {ref:'A-WD-009', title:'Wall Sections (special)',               disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:16,priority:'high'},
-        {ref:'A-WD-010', title:'Reflected Ceiling Plans',               disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high'},
+        {ref:'A-WD-010', title:'Reflected Ceiling Plans',               disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high', perFloor:'ceiling'},
         {ref:'A-WD-011', title:'Guest Room Type A (King)',              disc:'ARCH',stage:'CD',drwType:'DET',estHrs:14,priority:'high'},
         {ref:'A-WD-012', title:'Guest Room Type B (Twin)',              disc:'ARCH',stage:'CD',drwType:'DET',estHrs:14,priority:'high'},
         {ref:'A-WD-013', title:'Suite Plans (Junior/Executive)',        disc:'ARCH',stage:'CD',drwType:'DET',estHrs:16,priority:'high'},
@@ -5464,7 +5464,7 @@ let DRW_TEMPLATES = [
       version: '1.0.0',
       publishedAt: '2026-05-01',
       publishedBy: 'system',
-      changeNote: 'Initial industrial template — column-grid driven, simple envelope, MEP-light',
+      changeNote: 'Initial industrial template — column-grid driven, simple envelope, MEP-light · v101.23 zone-aware tags added',
       drawings: [
         {ref:'A-PR-001', title:'Site Analysis & Logistics Brief',       disc:'ARCH',stage:'SD',drwType:'GA',estHrs:10,priority:'high'},
         {ref:'A-PR-002', title:'Site Layout & Truck Movement',          disc:'ARCH',stage:'SD',drwType:'GA',estHrs:14,priority:'high'},
@@ -5476,7 +5476,7 @@ let DRW_TEMPLATES = [
         {ref:'A-ST-004', title:'FAR / Coverage Calculations',           disc:'ARCH',stage:'DD',drwType:'SCH',estHrs:6,priority:'critical'},
         {ref:'A-ST-005', title:'Fire NOC / Industrial Safety',          disc:'ARCH',stage:'DD',drwType:'GA',estHrs:12,priority:'critical'},
         {ref:'A-WD-001', title:'Site Plan with Roads & Drainage',       disc:'ARCH',stage:'CD',drwType:'GA',estHrs:12,priority:'high'},
-        {ref:'A-WD-002', title:'Warehouse Floor Plan (1:100)',          disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high'},
+        {ref:'A-WD-002', title:'Warehouse Floor Plan (1:100)',          disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high', perFloor:'plans'},
         {ref:'A-WD-003', title:'Office/Admin Block Plans',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:12,priority:'high'},
         {ref:'A-WD-004', title:'Roof Plan with Skylights',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:8,priority:'high'},
         {ref:'A-WD-005', title:'Elevations (all faces)',                disc:'ARCH',stage:'CD',drwType:'ELV',estHrs:14,priority:'high'},
@@ -5505,7 +5505,7 @@ let DRW_TEMPLATES = [
       version: '1.0.0',
       publishedAt: '2026-05-01',
       publishedBy: 'system',
-      changeNote: 'Initial healthcare template — NABH-aligned, infection-control zoning, med-gas coordination',
+      changeNote: 'Initial healthcare template — NABH-aligned, infection-control zoning, med-gas coordination · v101.23 zone-aware tags added',
       drawings: [
         {ref:'A-PR-001', title:'Site Analysis & Patient-Flow Brief',    disc:'ARCH',stage:'SD',drwType:'GA',estHrs:14,priority:'high'},
         {ref:'A-PR-002', title:'Functional Adjacency Diagrams',         disc:'ARCH',stage:'SD',drwType:'GA',estHrs:14,priority:'high'},
@@ -5519,9 +5519,9 @@ let DRW_TEMPLATES = [
         {ref:'A-ST-005', title:'Fire & Life Safety / Egress',           disc:'ARCH',stage:'DD',drwType:'GA',estHrs:14,priority:'critical'},
         {ref:'A-ST-006', title:'NABH Pre-accreditation Drawings',       disc:'ARCH',stage:'DD',drwType:'GA',estHrs:14,priority:'critical'},
         {ref:'A-WD-001', title:'Site Plan with Approach',               disc:'ARCH',stage:'CD',drwType:'GA',estHrs:12,priority:'high'},
-        {ref:'A-WD-002', title:'Basement Plan (Services/Plant)',        disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high'},
-        {ref:'A-WD-003', title:'Ground Floor (OPD/Reception)',          disc:'ARCH',stage:'CD',drwType:'GA',estHrs:22,priority:'high'},
-        {ref:'A-WD-004', title:'IPD Floor Plans',                       disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high'},
+        {ref:'A-WD-002', title:'Basement Plan (Services/Plant)',        disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high', perFloor:'plans', zoneType:'podium'},
+        {ref:'A-WD-003', title:'Ground Floor (OPD/Reception)',          disc:'ARCH',stage:'CD',drwType:'GA',estHrs:22,priority:'high', perFloor:'plans', zoneType:'podium'},
+        {ref:'A-WD-004', title:'IPD Floor Plans',                       disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high', perFloor:'plans', zoneType:'tower'},
         {ref:'A-WD-005', title:'OT Complex (with sterile zones)',       disc:'ARCH',stage:'CD',drwType:'GA',estHrs:24,priority:'high'},
         {ref:'A-WD-006', title:'ICU/HDU Layout',                        disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high'},
         {ref:'A-WD-007', title:'Diagnostic Areas (Lab/Radiology)',      disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high'},
@@ -5558,7 +5558,7 @@ let DRW_TEMPLATES = [
       version: '1.0.0',
       publishedAt: '2026-05-01',
       publishedBy: 'system',
-      changeNote: 'Initial mixed-use template — segregated entries, vertical zoning, MEP-heavy',
+      changeNote: 'Initial mixed-use template — segregated entries, vertical zoning, MEP-heavy · v101.23 zone-aware tags added',
       drawings: [
         {ref:'A-PR-001', title:'Site Analysis & Programme Brief',       disc:'ARCH',stage:'SD',drwType:'GA',estHrs:16,priority:'high'},
         {ref:'A-PR-002', title:'Massing Studies (Podium + Tower)',      disc:'ARCH',stage:'SD',drwType:'GA',estHrs:18,priority:'high'},
@@ -5574,14 +5574,14 @@ let DRW_TEMPLATES = [
         {ref:'A-ST-006', title:'Mixed-Use Approval Submission',         disc:'ARCH',stage:'DD',drwType:'GA',estHrs:12,priority:'critical'},
         {ref:'A-WD-001', title:'Site Plan & Hardscape',                 disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high'},
         {ref:'A-WD-002', title:'Basement & Parking Plans',              disc:'ARCH',stage:'CD',drwType:'GA',estHrs:22,priority:'high'},
-        {ref:'A-WD-003', title:'Retail Floors (GF & MZ)',               disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high'},
-        {ref:'A-WD-004', title:'Office Floor (Typical)',                disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high'},
-        {ref:'A-WD-005', title:'Residential Floor (Typical)',           disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high'},
+        {ref:'A-WD-003', title:'Retail Floors (GF & MZ)',               disc:'ARCH',stage:'CD',drwType:'GA',estHrs:20,priority:'high', perFloor:'plans', zoneType:'podium'},
+        {ref:'A-WD-004', title:'Office Floor (Typical)',                disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high', perFloor:'plans', zoneType:'tower'},
+        {ref:'A-WD-005', title:'Residential Floor (Typical)',           disc:'ARCH',stage:'CD',drwType:'GA',estHrs:18,priority:'high', perFloor:'plans', zoneType:'tower'},
         {ref:'A-WD-006', title:'Top Floor & Terrace',                   disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high'},
         {ref:'A-WD-007', title:'All Elevations (1:50)',                 disc:'ARCH',stage:'CD',drwType:'ELV',estHrs:22,priority:'high'},
         {ref:'A-WD-008', title:'Building Sections (min. 4 cuts)',       disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:20,priority:'high'},
         {ref:'A-WD-009', title:'Wall Sections (typical)',               disc:'ARCH',stage:'CD',drwType:'SEC',estHrs:16,priority:'high'},
-        {ref:'A-WD-010', title:'Reflected Ceiling Plans',               disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high'},
+        {ref:'A-WD-010', title:'Reflected Ceiling Plans',               disc:'ARCH',stage:'CD',drwType:'GA',estHrs:14,priority:'high', perFloor:'ceiling'},
         {ref:'A-WD-011', title:'Retail Tenancy Demising',               disc:'ARCH',stage:'CD',drwType:'DET',estHrs:14,priority:'high'},
         {ref:'A-WD-012', title:'Lobby Details (each use)',              disc:'ARCH',stage:'CD',drwType:'DET',estHrs:18,priority:'high'},
         {ref:'A-WD-013', title:'Lift & Vertical Circulation',           disc:'ARCH',stage:'CD',drwType:'DET',estHrs:14,priority:'high'},
@@ -6014,7 +6014,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.22 — type s62Diagnose() to run a full state diagnostic');
+console.log('S62 v101.23 — type s62Diagnose() to run a full state diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -14779,7 +14779,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.22',
+    appVersion: 'S62-v101.23',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -19491,16 +19491,37 @@ const ProjectPicker = (function(){
     delete _state[wrapId+':onChange'];
   }
 
-  // Close on outside click
+  // Close on outside click — v101.22.1 fix
+  // Previously used wrap.contains(e.target), but render() rewrites the
+  // picker's innerHTML during toggle(), detaching the click target from
+  // the DOM. After detachment, contains() returns false and the picker
+  // would auto-close immediately after opening. Fix: walk the click's
+  // composedPath (captured at dispatch time, immune to later mutations)
+  // and check if any ancestor matches the picker's wrap or root id.
   document.addEventListener('click', function(e){
+    const path = (typeof e.composedPath === 'function') ? e.composedPath() : [];
     Object.keys(_state).forEach(wrapId=>{
       if(wrapId.endsWith(':onChange')) return;
       const s = _state[wrapId];
       if(!s || !s.isOpen) return;
-      const wrap = document.getElementById(wrapId+'-wrap');
-      if(wrap && !wrap.contains(e.target)){
-        close(wrapId);
+      // Was the click inside the picker root (id=wrapId) or its wrap
+      // child (id=wrapId-wrap)? Composed path captures ancestry at
+      // dispatch time, so detached nodes still report their original
+      // chain. Falls back to live DOM check for older browsers.
+      const wrapElId = wrapId + '-wrap';
+      let inside = false;
+      for (let i = 0; i < path.length; i++){
+        const node = path[i];
+        if (!node || node.nodeType !== 1) continue;
+        if (node.id === wrapId || node.id === wrapElId){ inside = true; break; }
       }
+      if (!inside){
+        // Composed path didn't catch it — fall back to DOM check.
+        // This path runs only if composedPath is empty (very old browsers).
+        const wrap = document.getElementById(wrapElId);
+        if (wrap && wrap.contains(e.target)) inside = true;
+      }
+      if (!inside) close(wrapId);
     });
   });
 
