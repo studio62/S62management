@@ -1492,6 +1492,47 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 .pp-foot{padding:6px 11px;font-family:var(--fm);font-size:9px;color:var(--txd);text-align:center;border-top:1px solid var(--bd);background:var(--sf2)}
 .pp-arch-toggle{padding:6px 11px;font-family:var(--fm);font-size:10px;color:var(--txm);border-top:1px solid var(--bd);background:var(--sf2);text-align:right}
 .pp-arch-toggle input{margin-right:2px;cursor:pointer}
+/* v101.22 — voice notes */
+.vn-section{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;margin:8px 0 14px}
+.vn-toggle-btn{display:inline-flex;align-items:center;gap:6px;font-family:var(--fm);font-size:11px;font-weight:600;color:var(--gold);background:transparent;border:none;cursor:pointer;padding:0;user-select:none}
+.vn-toggle-btn:hover{color:var(--gold)}
+.vn-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.vn-mic-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;background:linear-gradient(135deg,#a14040,#822a2a);border:none;border-radius:6px;color:#fff;font-family:var(--fm);font-size:11px;font-weight:600;cursor:pointer;transition:transform .08s}
+.vn-mic-btn:hover{transform:scale(1.02)}
+.vn-mic-btn:disabled{opacity:.4;cursor:not-allowed}
+.vn-mic-btn.recording{background:linear-gradient(135deg,#c94545,#a04040);animation:vnpulse 1.4s ease-in-out infinite}
+@keyframes vnpulse{0%,100%{box-shadow:0 0 0 0 rgba(193,80,80,.5)}50%{box-shadow:0 0 0 6px rgba(193,80,80,0)}}
+.vn-lang-pick{padding:7px 10px;background:var(--sf);border:1px solid var(--bd);border-radius:5px;color:var(--tx);font-family:var(--fm);font-size:10px}
+.vn-mode-tabs{display:flex;gap:0;background:var(--sf);border:1px solid var(--bd);border-radius:5px;overflow:hidden}
+.vn-mode-tabs button{padding:7px 12px;background:transparent;border:none;color:var(--txd);font-family:var(--fm);font-size:10px;cursor:pointer;font-weight:600}
+.vn-mode-tabs button.active{background:var(--gold);color:#fff}
+.vn-status{font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-left:auto}
+.vn-live-area{margin-top:10px;padding:10px 12px;background:var(--sf);border:1px solid var(--bd2);border-radius:5px;min-height:60px;font-family:var(--fm);font-size:11px;color:var(--tx);line-height:1.5;display:none}
+.vn-live-area.active{display:block}
+.vn-live-area .interim{color:var(--txd);font-style:italic}
+.vn-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.vn-row{padding:9px 12px;background:var(--sf);border:1px solid var(--bd);border-radius:5px;display:flex;flex-direction:column;gap:6px}
+.vn-row-header{display:flex;align-items:center;gap:10px;font-family:var(--fm);font-size:10.5px}
+.vn-row-icon{font-size:14px}
+.vn-row-meta{color:var(--txd);font-size:9.5px}
+.vn-row-actions{display:flex;gap:5px;margin-left:auto}
+.vn-row-actions button{padding:3px 8px;background:transparent;border:1px solid var(--bd);border-radius:4px;color:var(--txm);font-family:var(--fm);font-size:9px;cursor:pointer}
+.vn-row-actions button:hover{color:var(--gold);border-color:var(--gold)}
+.vn-row-actions button.vn-danger:hover{color:var(--red);border-color:var(--red)}
+.vn-raw-drawer{display:none;padding:8px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:4px;font-family:var(--fm);font-size:10px;color:var(--txm);line-height:1.55;white-space:pre-wrap;max-height:240px;overflow-y:auto}
+.vn-raw-drawer.open{display:block}
+.vn-format-pick{display:flex;flex-direction:column;gap:5px;margin:10px 0}
+.vn-format-pick label{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--sf);border:1px solid var(--bd);border-radius:5px;cursor:pointer;font-family:var(--fm);font-size:10.5px}
+.vn-format-pick label:hover{border-color:var(--gold)}
+.vn-format-pick input[type=radio]{margin-top:2px;accent-color:var(--gold)}
+.vn-format-desc{font-size:9px;color:var(--txd);margin-top:1px}
+.vn-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.vn-review-pane{display:flex;flex-direction:column;background:var(--sf);border:1px solid var(--bd);border-radius:5px;overflow:hidden}
+.vn-review-head{padding:7px 10px;background:var(--sf2);font-family:var(--fm);font-size:9.5px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--bd)}
+.vn-review-body{padding:10px 12px;min-height:200px;max-height:320px;overflow-y:auto;font-family:var(--fm);font-size:10.5px;color:var(--tx);line-height:1.55;outline:none;white-space:pre-wrap}
+.vn-review-body[contenteditable=true]:focus{background:#fffef8}
+.vn-storage-stat{font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:6px;text-align:right}
+@media (max-width: 720px){.vn-review-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -5973,7 +6014,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.21 — type s62Diagnose() to run a full state diagnostic');
+console.log('S62 v101.22 — type s62Diagnose() to run a full state diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -14738,7 +14779,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.21',
+    appVersion: 'S62-v101.22',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -18207,9 +18248,24 @@ function openMtgDetail(mtgId){
       +' style="margin-bottom:8px;min-height:100px">'
       +(m.notes||('<span style="color:var(--txd)">'+(isEd?'Click to type meeting minutes\u2026 (Ctrl+S to save)':'No minutes recorded yet')+'</span>'))
     +'</div>'
-    +(isEd?'<div style="display:flex;gap:6px;margin-bottom:14px"><button class="btn bg bsm" onclick="saveMtgNotes(\''+m.id+'\')">&#x1f4be; Save Notes</button>'
+    +(isEd?'<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap"><button class="btn bg bsm" onclick="saveMtgNotes(\''+m.id+'\')">&#x1f4be; Save Notes</button>'
       +(m.notionPageUrl?'':'<button class="btn bg bsm" style="color:var(--pur)" onclick="pushToNotion(\''+m.id+'\')">📓 Save to Notion</button>')
+      +'<button class="btn bg bsm" style="color:var(--red);font-weight:600" onclick="vnOpenSection(\''+m.id+'\')">🎙 Voice Note</button>'
     +'</div>':'')
+
+    // ── v101.22 Voice Notes section (collapsible)
+    +'<div id="vn-section-'+m.id+'" class="vn-section" style="display:none">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">'
+        +'<button class="vn-toggle-btn" onclick="vnToggleSection(\''+m.id+'\')">'
+          +'<span id="vn-chev-'+m.id+'">▾</span> 🎙 Voice Notes <span style="color:var(--txd);font-weight:400;font-size:10px">('+((m.voiceNotes||[]).length)+')</span>'
+        +'</button>'
+        +'<div style="display:flex;gap:6px;align-items:center">'
+          +'<button class="btn bg bsm" style="font-size:9px;color:var(--txd)" onclick="vnOpenStoragePanel()" title="Manage voice-note storage across all meetings">📊 Storage</button>'
+          +(isEd?'<button class="btn bg bsm" style="font-size:9px;color:var(--red)" onclick="vnStartCapture(\''+m.id+'\')">+ New Voice Note</button>':'')
+        +'</div>'
+      +'</div>'
+      +'<div id="vn-body-'+m.id+'">'+vnRenderListForMeeting(m)+'</div>'
+    +'</div>'
 
     // ── Action Items
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
@@ -18231,6 +18287,800 @@ function openMtgDetail(mtgId){
     +'</div>';
   document.body.appendChild(div);
 }
+/* ═════════════════════════════════════════════════════════════════════
+   v101.22 — VOICE NOTES (Path 2)
+   ─────────────────────────────────────────────────────────────────────
+   Browser Web Speech API for live transcription, Claude API for cleanup
+   and format. One dominant language per recording (en-IN / ta-IN / hi-IN);
+   Claude prompted to recover code-switched portions from phonetic noise.
+
+   Schema: each MEETINGS[i].voiceNotes[] entry is structured for clean
+   future Path 3 (Whisper / AssemblyAI) drop-in — schemaVersion field
+   will let v101.23 detect Path 3 transcripts and route differently.
+═════════════════════════════════════════════════════════════════════ */
+
+/* ── Constants ─────────────────────────────────────────────────────── */
+const VN_LANGS = [
+  {code:'en-IN', label:'English-led', short:'EN'},
+  {code:'ta-IN', label:'Tamil-led',   short:'TA'},
+  {code:'hi-IN', label:'Hindi-led',   short:'HI'}
+];
+const VN_FORMATS = [
+  {id:'point-action',     label:'Point-form action minutes',
+   desc:'Works reviewed, decisions, actions — Indian site-meeting style'},
+  {id:'standard-mom',     label:'Standard MoM',
+   desc:'Attendees, agenda, discussion, decisions, action items, next meeting'},
+  {id:'site-report',      label:'Site visit report',
+   desc:'Weather, trades on site, observations, quality, safety, photos, actions'},
+  {id:'actions-only',     label:'Action items only',
+   desc:'Pure list of to-dos — no narrative'},
+  {id:'verbatim-cleanup', label:'Verbatim cleanup',
+   desc:'Preserves your phrasing, just fixes filler/grammar'}
+];
+const VN_FORMAT_DEFAULT_BY_TYPE = {
+  'design-review':  'point-action',
+  'site-visit':     'site-report',
+  'internal':       'point-action',
+  'client-review':  'standard-mom',
+  'contractor':     'point-action'
+};
+const VN_LANG_PREF_KEY = 's62_vn_last_lang';
+const VN_SCHEMA_VERSION = 1;  // Path 2 schema; v101.23 will use 2 for Whisper
+
+/* ── In-flight recording state (single recorder at a time) ──────────── */
+let _vnRecognition = null;
+let _vnRecording  = false;
+let _vnStartTime  = 0;
+let _vnInterim    = '';
+let _vnFinal      = '';
+let _vnLang       = '';
+let _vnMeetingId  = null;
+let _vnMode       = 'B';  // 'A' = live, 'B' = record-then-process
+let _vnMicCheckPromise = null;  // cached navigator.mediaDevices presence
+
+/* ── Tiny utilities ─────────────────────────────────────────────────── */
+function vnGetLastLang(){
+  try { return localStorage.getItem(VN_LANG_PREF_KEY) || 'en-IN'; }
+  catch(e){ return 'en-IN'; }
+}
+function vnSetLastLang(code){
+  try { localStorage.setItem(VN_LANG_PREF_KEY, code); } catch(e){}
+}
+function vnFormatDuration(secs){
+  secs = Math.round(secs||0);
+  const m = Math.floor(secs/60), s = secs%60;
+  return m+':'+String(s).padStart(2,'0');
+}
+function vnEstimateBytes(s){ return new Blob([s||'']).size; }
+
+/* Total raw-transcript bytes across ALL meetings — used by storage panel. */
+function vnTotalStorageBytes(){
+  let total = 0, count = 0;
+  (MEETINGS||[]).forEach(m => {
+    (m.voiceNotes||[]).forEach(v => {
+      total += vnEstimateBytes(v.rawTranscript);
+      total += vnEstimateBytes(v.processed?.output);
+      count++;
+    });
+  });
+  return {total, count};
+}
+
+/* Web Speech API availability check. Returns {ok:bool, reason:string}. */
+function vnCheckSpeechSupport(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR){
+    return {ok:false, reason:'Your browser does not support speech recognition. Voice notes work in Chrome and Edge on desktop and Android. Safari and iPhone are not supported.'};
+  }
+  if (!window.isSecureContext && location.protocol !== 'https:' && location.hostname !== 'localhost'){
+    return {ok:false, reason:'Speech recognition requires HTTPS. Voice notes will not work over plain HTTP.'};
+  }
+  return {ok:true, SR};
+}
+
+/* ── Section toggle (the collapsible drawer in each meeting modal) ──── */
+function vnOpenSection(meetingId){
+  const sec = document.getElementById('vn-section-'+meetingId);
+  if (!sec) return;
+  sec.style.display = '';
+  // smooth-scroll into view so it doesn't jump under the user
+  setTimeout(()=>sec.scrollIntoView({behavior:'smooth', block:'nearest'}), 50);
+}
+function vnToggleSection(meetingId){
+  const sec = document.getElementById('vn-section-'+meetingId);
+  const body = document.getElementById('vn-body-'+meetingId);
+  const chev = document.getElementById('vn-chev-'+meetingId);
+  if (!body || !chev) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  chev.textContent = open ? '▸' : '▾';
+}
+
+/* ── Render the list of existing voice notes for a meeting ──────────── */
+function vnRenderListForMeeting(m){
+  const vns = m.voiceNotes || [];
+  if (!vns.length){
+    return '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);padding:8px 0;text-align:center">No voice notes yet. Click <strong>+ New Voice Note</strong> to record one.</div>';
+  }
+  return '<div class="vn-list">'
+    + vns.map((v,i) => {
+        const langLabel = (VN_LANGS.find(l=>l.code===v.language)?.short)||v.language||'?';
+        const fmtLabel  = (VN_FORMATS.find(f=>f.id===v.processed?.format)?.label)||'unprocessed';
+        const dt = v.createdAt ? new Date(v.createdAt) : null;
+        const dtStr = dt ? (dt.toLocaleDateString()+' '+dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})) : '';
+        const sz = vnEstimateBytes(v.rawTranscript);
+        const szStr = sz < 1024 ? (sz+' B') : (Math.round(sz/1024)+' KB');
+        return '<div class="vn-row" id="vn-row-'+v.id+'">'
+          + '<div class="vn-row-header">'
+            + '<span class="vn-row-icon">🎙</span>'
+            + '<span style="font-weight:600;color:var(--tx)">'+vnFormatDuration(v.durationSec)+'</span>'
+            + '<span class="vn-row-meta">· '+langLabel+' · '+fmtLabel+' · '+dtStr+' · '+szStr+'</span>'
+            + '<div class="vn-row-actions">'
+              + '<button onclick="vnToggleRaw(\'' + v.id + '\')" title="Show raw transcript">📜 Raw</button>'
+              + '<button onclick="vnReprocess(\''+m.id+'\',\''+v.id+'\')" title="Re-process with different format">🔄 Re-process</button>'
+              + '<button onclick="vnCopyOutput(\''+m.id+'\',\''+v.id+'\')" title="Copy processed output">📋</button>'
+              + '<button class="vn-danger" onclick="vnDelete(\''+m.id+'\',\''+v.id+'\')" title="Delete this voice note">🗑</button>'
+            + '</div>'
+          + '</div>'
+          + '<div class="vn-raw-drawer" id="vn-raw-'+v.id+'">'+vnEscape(v.rawTranscript||'(no raw transcript stored)')+'</div>'
+        + '</div>';
+      }).join('')
+    + '</div>';
+}
+
+function vnEscape(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function vnToggleRaw(vnId){
+  const el = document.getElementById('vn-raw-'+vnId);
+  if (!el) return;
+  el.classList.toggle('open');
+}
+
+function vnCopyOutput(meetingId, vnId){
+  const m = MEETINGS.find(x=>x.id===meetingId); if (!m) return;
+  const v = (m.voiceNotes||[]).find(x=>x.id===vnId); if (!v) return;
+  const txt = v.processed?.output || v.rawTranscript || '';
+  if (navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(txt).then(
+      () => showNotif('Copied','Processed output copied to clipboard'),
+      () => showNotif('Copy failed','Could not access clipboard')
+    );
+  }
+}
+
+function vnDelete(meetingId, vnId){
+  const m = MEETINGS.find(x=>x.id===meetingId); if (!m) return;
+  const v = (m.voiceNotes||[]).find(x=>x.id===vnId); if (!v) return;
+  if (!confirm('Delete this voice note?\n\nThe processed minutes already in your meeting notes will stay. Only the raw transcript and reprocessing history will be removed.')) return;
+  m.voiceNotes = (m.voiceNotes||[]).filter(x => x.id !== vnId);
+  scheduleSave({immediate:true});
+  // Re-render the list inside the section
+  const body = document.getElementById('vn-body-'+meetingId);
+  if (body) body.innerHTML = vnRenderListForMeeting(m);
+  if (typeof addAudit === 'function'){
+    addAudit('voice-note', 'Voice note deleted', meetingId+' / '+vnId+' · '+vnFormatDuration(v.durationSec));
+  }
+  showNotif('Voice note deleted','');
+}
+
+/* ── Start capture flow — opens the recording modal ─────────────────── */
+function vnStartCapture(meetingId){
+  const support = vnCheckSpeechSupport();
+  if (!support.ok){ showNotif('Voice notes unavailable', support.reason); return; }
+  const m = MEETINGS.find(x=>x.id===meetingId); if (!m) return;
+  _vnMeetingId = meetingId;
+  _vnLang = vnGetLastLang();
+  _vnMode = 'B';
+  _vnFinal = '';
+  _vnInterim = '';
+
+  const ex = document.getElementById('vn-record-ov'); if (ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'vn-record-ov';
+  div.className = 'ov show';
+  div.setAttribute('role','dialog');
+  div.setAttribute('aria-modal','true');
+  div.setAttribute('aria-labelledby','vn-record-title');
+
+  div.innerHTML = '<div class="modal" style="max-width:640px;max-height:90vh;display:flex;flex-direction:column">'
+    + '<button class="mclose" onclick="vnCancelCapture()" aria-label="Close">✕</button>'
+    + '<div class="mtitle" id="vn-record-title">🎙 Record Voice Note</div>'
+    + '<div class="msub">'+m.title+'</div>'
+
+    + '<div style="background:rgba(82,133,224,.06);border:1px solid rgba(82,133,224,.3);border-radius:5px;padding:10px 14px;margin:14px 0;font-family:var(--fm);font-size:10.5px;color:var(--blu);line-height:1.55">'
+      + '<strong>How this works:</strong> Pick the dominant language. Recording uses your browser\'s speech recognition (audio briefly goes to Google for transcription). After you stop, Claude will clean up the transcript and convert it to your chosen format. If you mix in another language, Claude will recover meaning from the garbled phonetics.'
+    + '</div>'
+
+    + '<div class="vn-controls">'
+      + '<label style="font-family:var(--fm);font-size:10px;color:var(--txd)">Mode:</label>'
+      + '<div class="vn-mode-tabs">'
+        + '<button id="vn-mode-B" class="active" onclick="vnSetMode(\'B\')">Record then process</button>'
+        + '<button id="vn-mode-A" onclick="vnSetMode(\'A\')">Live transcribe</button>'
+      + '</div>'
+      + '<label style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-left:6px">Language:</label>'
+      + '<select class="vn-lang-pick" id="vn-lang-pick" onchange="vnSetLang(this.value)">'
+        + VN_LANGS.map(l => '<option value="'+l.code+'"'+(l.code===_vnLang?' selected':'')+'>'+l.label+'</option>').join('')
+      + '</select>'
+    + '</div>'
+
+    + '<div style="display:flex;align-items:center;gap:12px;margin-top:14px">'
+      + '<button class="vn-mic-btn" id="vn-mic-btn" onclick="vnToggleRecording()">'
+        + '<span id="vn-mic-icon">🎙</span> <span id="vn-mic-label">Start Recording</span>'
+      + '</button>'
+      + '<span id="vn-timer" style="font-family:var(--fm);font-size:14px;font-weight:600;color:var(--txm)">0:00</span>'
+      + '<span id="vn-status" class="vn-status">Ready</span>'
+    + '</div>'
+
+    + '<div class="vn-live-area" id="vn-live-area">'
+      + '<div id="vn-live-text"></div>'
+    + '</div>'
+
+    + '<div style="display:flex;gap:8px;padding-top:14px;border-top:1px solid var(--bd2);margin-top:14px">'
+      + '<button class="btn bg" onclick="vnCancelCapture()" style="padding:10px 14px">Cancel</button>'
+      + '<div style="flex:1"></div>'
+      + '<button class="btn bp" id="vn-proceed-btn" onclick="vnProceedToFormat()" style="padding:10px 18px;font-weight:600;display:none">Process →</button>'
+    + '</div>'
+
+    + '</div>';
+  document.body.appendChild(div);
+}
+
+function vnSetMode(mode){
+  _vnMode = mode;
+  document.getElementById('vn-mode-A').classList.toggle('active', mode==='A');
+  document.getElementById('vn-mode-B').classList.toggle('active', mode==='B');
+  // Live area is shown for Mode A; Mode B keeps it hidden until stopped
+  const live = document.getElementById('vn-live-area');
+  if (live){ live.classList.toggle('active', mode==='A' && (_vnRecording || _vnFinal)); }
+}
+function vnSetLang(code){
+  _vnLang = code;
+  vnSetLastLang(code);
+}
+
+/* ── Recording proper ───────────────────────────────────────────────── */
+function vnToggleRecording(){
+  if (_vnRecording){ vnStopRecording(); }
+  else            { vnStartRecording(); }
+}
+
+function vnStartRecording(){
+  const support = vnCheckSpeechSupport();
+  if (!support.ok){ showNotif('Cannot record', support.reason); return; }
+  const SR = support.SR;
+  try {
+    _vnRecognition = new SR();
+  } catch(e){
+    showNotif('Recording failed','Could not initialise speech recognition: '+(e.message||e));
+    return;
+  }
+  _vnRecognition.continuous = true;
+  _vnRecognition.interimResults = true;
+  _vnRecognition.lang = _vnLang;
+  _vnFinal = '';
+  _vnInterim = '';
+  _vnStartTime = Date.now();
+
+  _vnRecognition.onresult = (event) => {
+    let interim = '', finalAdd = '';
+    for (let i = event.resultIndex; i < event.results.length; i++){
+      const r = event.results[i];
+      if (r.isFinal){ finalAdd += r[0].transcript + ' '; }
+      else { interim += r[0].transcript; }
+    }
+    if (finalAdd){ _vnFinal = (_vnFinal + finalAdd).replace(/\s+/g,' '); }
+    _vnInterim = interim;
+    vnUpdateLiveUI();
+  };
+  _vnRecognition.onerror = (event) => {
+    console.warn('Speech recognition error:', event.error);
+    if (event.error === 'no-speech'){
+      // benign — recognition timed out waiting for speech; auto-restart
+      return;
+    }
+    if (event.error === 'aborted'){ return; }
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed'){
+      showNotif('Microphone blocked', 'Please allow microphone access in your browser settings and try again.');
+      vnStopRecording(true);
+      return;
+    }
+    if (event.error === 'audio-capture'){
+      showNotif('No microphone', 'No microphone was detected.');
+      vnStopRecording(true);
+      return;
+    }
+    if (event.error === 'language-not-supported'){
+      showNotif('Language not supported', 'Your browser does not support recognition for ' + _vnLang + '. Try a different language.');
+      vnStopRecording(true);
+      return;
+    }
+    if (event.error === 'network'){
+      showNotif('Network error', 'Speech recognition needs internet — check your connection.');
+      vnStopRecording(true);
+      return;
+    }
+  };
+  _vnRecognition.onend = () => {
+    if (_vnRecording){
+      // Auto-restart for long recordings — Web Speech sometimes ends spontaneously
+      try { _vnRecognition.start(); } catch(e){ /* ignore */ }
+    }
+  };
+  try {
+    _vnRecognition.start();
+  } catch(e){
+    showNotif('Recording failed', 'Could not start recording: '+(e.message||e));
+    return;
+  }
+  _vnRecording = true;
+  document.getElementById('vn-mic-btn').classList.add('recording');
+  document.getElementById('vn-mic-icon').textContent = '⏹';
+  document.getElementById('vn-mic-label').textContent = 'Stop';
+  document.getElementById('vn-status').textContent = 'Recording…';
+  if (_vnMode === 'A'){
+    document.getElementById('vn-live-area').classList.add('active');
+  }
+  // Tick timer
+  if (window._vnTimerInterval) clearInterval(window._vnTimerInterval);
+  window._vnTimerInterval = setInterval(()=>{
+    const t = document.getElementById('vn-timer');
+    if (t) t.textContent = vnFormatDuration((Date.now()-_vnStartTime)/1000);
+  }, 500);
+}
+
+function vnStopRecording(skipUI){
+  if (!_vnRecording) return;
+  _vnRecording = false;
+  if (window._vnTimerInterval){ clearInterval(window._vnTimerInterval); window._vnTimerInterval = null; }
+  if (_vnRecognition){
+    try { _vnRecognition.stop(); } catch(e){}
+    _vnRecognition.onresult = null;
+    _vnRecognition.onerror = null;
+    _vnRecognition.onend = null;
+    _vnRecognition = null;
+  }
+  if (skipUI) return;
+  const btn = document.getElementById('vn-mic-btn');
+  if (btn){
+    btn.classList.remove('recording');
+    document.getElementById('vn-mic-icon').textContent = '🎙';
+    document.getElementById('vn-mic-label').textContent = 'Start Recording';
+    document.getElementById('vn-status').textContent = (_vnFinal.trim() ? 'Stopped — ready to process' : 'Stopped — no speech captured');
+  }
+  // Show the captured text and the proceed button
+  const live = document.getElementById('vn-live-area');
+  if (live && _vnFinal.trim()){
+    live.classList.add('active');
+    document.getElementById('vn-live-text').textContent = _vnFinal.trim();
+  }
+  const proceed = document.getElementById('vn-proceed-btn');
+  if (proceed && _vnFinal.trim()){ proceed.style.display = ''; }
+}
+
+function vnUpdateLiveUI(){
+  const txtEl = document.getElementById('vn-live-text');
+  if (!txtEl) return;
+  txtEl.innerHTML = vnEscape(_vnFinal) + '<span class="interim">' + vnEscape(_vnInterim) + '</span>';
+}
+
+function vnCancelCapture(){
+  vnStopRecording(true);
+  closeModal('vn-record-ov');
+  const fov = document.getElementById('vn-format-ov'); if (fov) fov.remove();
+  const rov = document.getElementById('vn-review-ov'); if (rov) rov.remove();
+  _vnFinal = '';
+  _vnInterim = '';
+  _vnMeetingId = null;
+}
+
+/* ── Step 2 — pick format ───────────────────────────────────────────── */
+function vnProceedToFormat(){
+  if (!_vnFinal.trim()){
+    showNotif('No speech captured','Record some audio first.');
+    return;
+  }
+  // Hide the recording modal so the format picker stacks cleanly
+  const rec = document.getElementById('vn-record-ov');
+  if (rec) rec.style.display = 'none';
+
+  const m = MEETINGS.find(x=>x.id===_vnMeetingId);
+  const defaultFmt = VN_FORMAT_DEFAULT_BY_TYPE[m?.type] || 'point-action';
+
+  const ex = document.getElementById('vn-format-ov'); if (ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'vn-format-ov';
+  div.className = 'ov show';
+  div.setAttribute('role','dialog');
+  div.setAttribute('aria-modal','true');
+  div.setAttribute('aria-labelledby','vn-format-title');
+
+  const wordCount = _vnFinal.trim().split(/\s+/).length;
+
+  div.innerHTML = '<div class="modal" style="max-width:560px;max-height:90vh;display:flex;flex-direction:column">'
+    + '<button class="mclose" onclick="vnBackToRecording()" aria-label="Close">✕</button>'
+    + '<div class="mtitle" id="vn-format-title">📐 Choose Output Format</div>'
+    + '<div class="msub">'+wordCount+' words captured · '+vnFormatDuration((Date.now()-_vnStartTime)/1000)+'</div>'
+
+    + '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:5px;padding:8px 12px;margin:12px 0;max-height:120px;overflow-y:auto;font-family:var(--fm);font-size:10px;color:var(--txm);line-height:1.5">'
+      + vnEscape(_vnFinal.trim().slice(0, 500)) + (_vnFinal.length > 500 ? '…' : '')
+    + '</div>'
+
+    + '<div class="vn-format-pick">'
+      + VN_FORMATS.map(f =>
+          '<label>'
+          + '<input type="radio" name="vn-fmt" value="'+f.id+'"'+(f.id===defaultFmt?' checked':'')+'>'
+          + '<div>'
+            + '<div style="font-weight:600;color:var(--tx)">'+f.label+'</div>'
+            + '<div class="vn-format-desc">'+f.desc+'</div>'
+          + '</div>'
+          + '</label>'
+        ).join('')
+    + '</div>'
+
+    + '<div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2)">'
+      + '<button class="btn bg" onclick="vnBackToRecording()" style="padding:9px 14px">← Back</button>'
+      + '<div style="flex:1"></div>'
+      + '<button class="btn bp" id="vn-proc-btn" onclick="vnProcessNow()" style="padding:9px 18px;font-weight:600">Process with Claude →</button>'
+    + '</div>'
+
+    + '</div>';
+  document.body.appendChild(div);
+}
+
+function vnBackToRecording(){
+  const fov = document.getElementById('vn-format-ov'); if (fov) fov.remove();
+  const rec = document.getElementById('vn-record-ov');
+  if (rec) rec.style.display = '';
+}
+
+/* ── Step 3 — call Claude API ───────────────────────────────────────── */
+async function vnProcessNow(){
+  const fmt = document.querySelector('input[name=vn-fmt]:checked')?.value || 'point-action';
+  const procBtn = document.getElementById('vn-proc-btn');
+  if (procBtn){ procBtn.disabled = true; procBtn.textContent = 'Processing… (this may take 10-30s)'; }
+  try {
+    const output = await vnCallClaudeAPI(_vnFinal.trim(), _vnLang, fmt);
+    vnShowReview(_vnFinal.trim(), output, fmt);
+  } catch(e){
+    showNotif('Processing failed', 'Could not reach Claude API: ' + (e.message||e) + '\nThe raw transcript is preserved. Try Re-process from the voice notes list.');
+    // Save raw-only voice note so user doesn't lose work
+    vnCommitVoiceNote(_vnFinal.trim(), null, fmt, _vnLang);
+  } finally {
+    if (procBtn){ procBtn.disabled = false; procBtn.textContent = 'Process with Claude →'; }
+  }
+}
+
+/* The Claude API call. Uses the in-app Claude-in-Claude pattern — no key
+   needed in the request, the host handles auth. */
+async function vnCallClaudeAPI(rawTranscript, langCode, formatId){
+  const langInfo = VN_LANGS.find(l=>l.code===langCode) || VN_LANGS[0];
+  const fmtInfo = VN_FORMATS.find(f=>f.id===formatId) || VN_FORMATS[0];
+  const m = MEETINGS.find(x=>x.id===_vnMeetingId);
+  const proj = m?.proj ? PROJS.find(p=>p.id===m.proj) : null;
+  const projContext = proj ? ('Project: '+proj.name+' ('+proj.id+'), Type: '+(proj.type||'unknown')) : 'No project linked';
+  const meetingContext = m ? ('Meeting: '+m.title+', Type: '+(m.type||'')+', Date: '+(m.date||'')+', Attendees: '+((m.attendees||[]).join(', ')||'unspecified')) : '';
+
+  const formatPrompts = {
+    'point-action': 'Convert into POINT-FORM ACTION MINUTES with this structure:\n\nWORKS REVIEWED\n• [bullet]\n\nDECISIONS\n• [bullet]\n\nOPEN ISSUES\n• [bullet]\n\nACTIONS\n• [Person] Description — Due date\n\nUse "•" bullets. Keep bullets short and active.',
+    'standard-mom': 'Convert into a STANDARD MEETING MINUTES with this structure:\n\n1. ATTENDEES & APOLOGIES\n2. REVIEW OF PREVIOUS MINUTES (if mentioned)\n3. AGENDA ITEMS DISCUSSED\n4. DECISIONS TAKEN\n5. ACTION ITEMS — [Person] Description — Due date\n6. NEXT MEETING (if mentioned)\n\nUse numbered headings. Keep professional and crisp.',
+    'site-report': 'Convert into a SITE VISIT REPORT with this structure:\n\nSITE VISIT REPORT\nDate: [extract from context]\nProject: [extract from context]\n\nWEATHER & CONDITIONS\n[brief]\n\nTRADES ON SITE\n• [list]\n\nWORKS OBSERVED\n• [observations]\n\nQUALITY ITEMS\n• [issues, defects]\n\nSAFETY ITEMS\n• [PPE, hazards, etc.]\n\nPHOTOS REFERENCED\n[any photo numbers/descriptions mentioned]\n\nACTION ITEMS\n• [Person] Description — Due date\n\nNEXT VISIT\n[if mentioned]',
+    'actions-only': 'Extract ONLY the action items, nothing else. Format:\n\n• [Person] Description — Due date\n• [Person] Description — Due date\n\nDo not include any narrative, headings, or other content. Just the action list.',
+    'verbatim-cleanup': 'Clean up the transcript MINIMALLY. Fix only:\n- Speech filler ("um", "uh", "like", repeated phrases)\n- Obvious phonetic errors where context makes correct word clear\n- Punctuation and sentence breaks\n\nDO NOT restructure, summarise, or change phrasing. Preserve the speaker\'s exact wording.'
+  };
+  const fmtPrompt = formatPrompts[formatId] || formatPrompts['point-action'];
+
+  // The Path 2 recovery prompt — explains the garbled phonetics situation
+  const systemPrompt = 'You are processing a meeting transcript captured via browser speech recognition set to ' + langInfo.label + ' ('+langCode+'). The speaker may have switched between English, Tamil, and Hindi during the meeting. Sections in non-' + langInfo.short + ' languages will appear as garbled phonetic English (the recognition transliterated foreign-language sounds into English-letter approximations like "vanga" or "achcha"). Use the surrounding context to recover the intended meaning. If a section is genuinely unrecoverable, mark it as "[unclear]" rather than inventing content. Always output in clean English regardless of original language. Preserve all names, numbers, dates, and decisions verbatim. Output only the formatted minutes — no preamble, no apology, no notes about the recovery process.';
+
+  const userPrompt = 'Context:\n' + projContext + '\n' + meetingContext + '\n\nFormat instructions:\n' + fmtPrompt + '\n\nTranscript:\n"""\n' + rawTranscript + '\n"""\n\nOutput the formatted minutes now.';
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
+    })
+  });
+  if (!response.ok){
+    const txt = await response.text().catch(()=>'');
+    throw new Error('API '+response.status+': '+(txt.slice(0,200)||response.statusText));
+  }
+  const data = await response.json();
+  // Extract text from the content blocks
+  const text = (data.content||[])
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('\n\n')
+    .trim();
+  if (!text) throw new Error('Claude returned no text content');
+  return text;
+}
+
+/* ── Step 4 — review pane ───────────────────────────────────────────── */
+function vnShowReview(rawText, processedText, formatId){
+  const fmt = document.getElementById('vn-format-ov'); if (fmt) fmt.style.display = 'none';
+
+  const ex = document.getElementById('vn-review-ov'); if (ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'vn-review-ov';
+  div.className = 'ov show';
+  div.setAttribute('role','dialog');
+  div.setAttribute('aria-modal','true');
+  div.setAttribute('aria-labelledby','vn-review-title');
+
+  const fmtLabel = (VN_FORMATS.find(f=>f.id===formatId)?.label) || formatId;
+  const langLabel = (VN_LANGS.find(l=>l.code===_vnLang)?.label) || _vnLang;
+
+  div.innerHTML = '<div class="modal" style="max-width:920px;max-height:92vh;display:flex;flex-direction:column">'
+    + '<button class="mclose" onclick="vnCancelReview()" aria-label="Close">✕</button>'
+    + '<div class="mtitle" id="vn-review-title">📝 Review &amp; Approve</div>'
+    + '<div class="msub">'+langLabel+' · '+fmtLabel+' · both panels are editable</div>'
+
+    + '<div class="vn-review-grid" style="flex:1;overflow:hidden">'
+      + '<div class="vn-review-pane">'
+        + '<div class="vn-review-head">📜 Raw transcript (kept for verification)</div>'
+        + '<div class="vn-review-body" id="vn-review-raw" contenteditable="true">'+vnEscape(rawText)+'</div>'
+      + '</div>'
+      + '<div class="vn-review-pane">'
+        + '<div class="vn-review-head">✨ Processed minutes (will go into your notes)</div>'
+        + '<div class="vn-review-body" id="vn-review-output" contenteditable="true">'+vnEscape(processedText)+'</div>'
+      + '</div>'
+    + '</div>'
+
+    + '<div style="margin-top:12px;padding:10px 12px;background:var(--sf2);border-radius:5px;font-family:var(--fm);font-size:10px;color:var(--txd);line-height:1.55">'
+      + 'When you click Use this, the processed minutes will be added to your meeting notes (you can choose how). The raw transcript is kept on this voice note for verification — only you will see it (not in emails or Notion).'
+    + '</div>'
+
+    + '<div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--bd2);margin-top:12px;flex-wrap:wrap">'
+      + '<button class="btn bg" onclick="vnCancelReview()" style="padding:10px 14px">Discard</button>'
+      + '<button class="btn bg" onclick="vnReprocessFromReview()" style="padding:10px 14px">🔄 Try Different Format</button>'
+      + '<div style="flex:1"></div>'
+      + '<button class="btn bp" onclick="vnUseThis(\'append\')" style="padding:10px 14px">Append to Notes</button>'
+      + '<button class="btn bp" onclick="vnUseThis(\'replace\')" style="padding:10px 14px;font-weight:600">Replace Notes</button>'
+    + '</div>'
+
+    + '</div>';
+  document.body.appendChild(div);
+  // Stash for re-process
+  window._vnReviewRaw = rawText;
+  window._vnReviewOutput = processedText;
+  window._vnReviewFormat = formatId;
+}
+
+function vnCancelReview(){
+  if (!confirm('Discard this voice note? The raw transcript and processed output will be lost.')) return;
+  closeModal('vn-review-ov');
+  closeModal('vn-format-ov');
+  closeModal('vn-record-ov');
+  _vnFinal = '';
+  _vnInterim = '';
+  _vnMeetingId = null;
+}
+
+function vnReprocessFromReview(){
+  // Pull the (possibly edited) raw text back into _vnFinal and re-open format picker
+  const rawEl = document.getElementById('vn-review-raw');
+  if (rawEl) _vnFinal = rawEl.innerText || rawEl.textContent || _vnFinal;
+  closeModal('vn-review-ov');
+  closeModal('vn-format-ov');
+  // Re-show the format picker
+  vnProceedToFormat();
+}
+
+/* ── Step 5 — commit ────────────────────────────────────────────────── */
+function vnUseThis(mergeMode){
+  const rawEl = document.getElementById('vn-review-raw');
+  const outEl = document.getElementById('vn-review-output');
+  const finalRaw = rawEl ? (rawEl.innerText || rawEl.textContent || _vnFinal) : _vnFinal;
+  const finalOut = outEl ? (outEl.innerText || outEl.textContent || '') : '';
+  const fmt = window._vnReviewFormat || 'point-action';
+
+  const m = MEETINGS.find(x=>x.id===_vnMeetingId);
+  if (!m){ showNotif('Save failed','Meeting not found'); return; }
+
+  // Build voice note record
+  const vn = vnBuildRecord(finalRaw.trim(), finalOut.trim(), fmt, _vnLang);
+
+  // Merge into m.notes
+  const existingNotes = (m.notes || '').replace(/<span[^>]*>.*?<\/span>/g,'').trim();
+  if (mergeMode === 'replace' || !existingNotes){
+    m.notes = finalOut.trim();
+  } else {
+    m.notes = existingNotes + '\n\n' + finalOut.trim();
+  }
+
+  // Persist
+  m.voiceNotes = m.voiceNotes || [];
+  m.voiceNotes.push(vn);
+  scheduleSave({immediate:true});
+
+  if (typeof addAudit === 'function'){
+    addAudit('voice-note', 'Voice note added',
+      m.title+' · '+vnFormatDuration(vn.durationSec)+' · '+vn.language+' · '+fmt);
+  }
+
+  // Close modals
+  closeModal('vn-review-ov');
+  closeModal('vn-format-ov');
+  closeModal('vn-record-ov');
+
+  // Refresh the meeting modal in place — the simplest approach: re-open it
+  // (we already saved, so this is a clean re-render of the same record)
+  if (typeof openMtgEdit === 'function'){
+    closeModal('mtg-edit-ov');
+    setTimeout(()=>openMtgEdit(m.id), 50);
+  } else {
+    // Fallback — manually update the visible bits
+    const notesEl = document.getElementById('mtg-notes-area');
+    if (notesEl) notesEl.innerText = m.notes;
+    const body = document.getElementById('vn-body-'+m.id);
+    if (body) body.innerHTML = vnRenderListForMeeting(m);
+  }
+
+  showNotif('✓ Voice note saved', vn.processed?.output ? 'Minutes added to meeting · '+vnFormatDuration(vn.durationSec) : 'Raw transcript saved (processing failed)');
+
+  _vnFinal = '';
+  _vnMeetingId = null;
+}
+
+function vnBuildRecord(rawText, outputText, formatId, langCode){
+  const durationSec = Math.round((Date.now() - _vnStartTime)/1000);
+  return {
+    id: 'VN-' + Date.now().toString(36),
+    schemaVersion: VN_SCHEMA_VERSION,
+    createdAt: new Date().toISOString(),
+    createdBy: (typeof currentUser === 'function' ? currentUser()?.id : null) || null,
+    durationSec,
+    language: langCode || 'en-IN',
+    mode: _vnMode,
+    rawTranscript: rawText,
+    processed: outputText ? {
+      format: formatId,
+      output: outputText,
+      processedAt: new Date().toISOString(),
+      modelUsed: 'claude-sonnet-4-20250514',
+      pathVersion: 2  // Path 2 (browser + Claude recovery)
+    } : null,
+    committed: !!outputText,
+    verbatimKept: false
+  };
+}
+
+/* If processing failed, commit a raw-only record so the work isn't lost. */
+function vnCommitVoiceNote(rawText, outputText, formatId, langCode){
+  const m = MEETINGS.find(x=>x.id===_vnMeetingId);
+  if (!m) return;
+  const vn = vnBuildRecord(rawText, outputText, formatId, langCode);
+  m.voiceNotes = m.voiceNotes || [];
+  m.voiceNotes.push(vn);
+  scheduleSave({immediate:true});
+}
+
+/* ── Re-process from list (different format) ────────────────────────── */
+function vnReprocess(meetingId, vnId){
+  const m = MEETINGS.find(x=>x.id===meetingId); if (!m) return;
+  const v = (m.voiceNotes||[]).find(x=>x.id===vnId); if (!v) return;
+  if (!v.rawTranscript || !v.rawTranscript.trim()){
+    showNotif('Cannot re-process','No raw transcript stored on this voice note.'); return;
+  }
+  // Restore state for re-processing flow
+  _vnMeetingId = meetingId;
+  _vnLang = v.language || 'en-IN';
+  _vnFinal = v.rawTranscript;
+  _vnStartTime = Date.now() - (v.durationSec*1000);
+  _vnMode = v.mode || 'B';
+  // Skip recording, jump straight to format picker
+  vnProceedToFormat();
+}
+
+/* ── Storage management panel ───────────────────────────────────────── */
+function vnOpenStoragePanel(){
+  const stats = vnTotalStorageBytes();
+  // Build a flattened list of all voice notes across all meetings, sorted by size desc
+  const all = [];
+  (MEETINGS||[]).forEach(m => {
+    (m.voiceNotes||[]).forEach(v => {
+      const sz = vnEstimateBytes(v.rawTranscript) + vnEstimateBytes(v.processed?.output);
+      all.push({m, v, sz});
+    });
+  });
+  all.sort((a,b) => b.sz - a.sz);
+
+  const ex = document.getElementById('vn-storage-ov'); if (ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'vn-storage-ov';
+  div.className = 'ov show';
+  div.setAttribute('role','dialog');
+  div.setAttribute('aria-modal','true');
+
+  const totalKB = Math.round(stats.total/1024);
+  const totalMB = (stats.total/(1024*1024)).toFixed(2);
+
+  div.innerHTML = '<div class="modal" style="max-width:760px;max-height:88vh;display:flex;flex-direction:column">'
+    + '<button class="mclose" onclick="closeModal(\'vn-storage-ov\')" aria-label="Close">✕</button>'
+    + '<div class="mtitle">📊 Voice Notes Storage</div>'
+    + '<div class="msub">' + stats.count + ' voice note' + (stats.count!==1?'s':'') + ' across all meetings · ~' + (totalMB > 1 ? (totalMB+' MB') : (totalKB+' KB')) + '</div>'
+
+    + '<div style="background:rgba(82,133,224,.06);border:1px solid rgba(82,133,224,.3);border-radius:5px;padding:10px 14px;margin:14px 0;font-family:var(--fm);font-size:10.5px;color:var(--blu);line-height:1.55">'
+      + '<strong>Storage policy:</strong> Raw transcripts are kept indefinitely. Each note averages ~10–15 KB, so 100 voice notes ≈ 1–1.5 MB. If your localStorage or Firebase quota gets tight, use the bulk-delete tools below. Deleting a voice note removes the raw transcript but keeps the processed minutes already added to the meeting notes.'
+    + '</div>'
+
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
+      + '<button class="btn bg bsm" onclick="vnBulkDelete(\'older-30\')" style="padding:7px 12px;font-size:10px">🗑 Delete > 30 days old</button>'
+      + '<button class="btn bg bsm" onclick="vnBulkDelete(\'older-90\')" style="padding:7px 12px;font-size:10px">🗑 Delete > 90 days old</button>'
+      + '<button class="btn bg bsm" onclick="vnBulkDelete(\'committed\')" style="padding:7px 12px;font-size:10px;color:var(--txd)">🗑 Delete already-committed (raw only)</button>'
+      + '<button class="btn bg bsm" onclick="vnBulkDelete(\'all\')" style="padding:7px 12px;font-size:10px;color:var(--red)">🗑 Delete ALL</button>'
+    + '</div>'
+
+    + '<div style="overflow-y:auto;flex:1;border:1px solid var(--bd2);border-radius:5px">'
+      + (all.length === 0
+        ? '<div style="padding:30px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No voice notes yet.</div>'
+        : all.map(item => {
+            const v = item.v, m = item.m;
+            const sz = item.sz;
+            const szStr = sz < 1024 ? (sz+' B') : (Math.round(sz/1024)+' KB');
+            const dt = v.createdAt ? new Date(v.createdAt) : null;
+            const dtStr = dt ? dt.toLocaleDateString() : '';
+            return '<div style="padding:8px 12px;border-bottom:0.5px solid var(--bd2);display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:10px">'
+              + '<span style="color:var(--gold);font-weight:600;min-width:50px">'+szStr+'</span>'
+              + '<span style="flex:1;color:var(--tx)">'+m.title+'</span>'
+              + '<span style="color:var(--txd);font-size:9.5px">'+dtStr+' · '+vnFormatDuration(v.durationSec)+'</span>'
+              + '<button class="btn bg bsm" onclick="vnDeleteAndRefreshStorage(\''+m.id+'\',\''+v.id+'\')" style="padding:3px 8px;font-size:9px;color:var(--red)">🗑</button>'
+              + '</div>';
+          }).join(''))
+    + '</div>'
+
+    + '<div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--bd2);margin-top:10px">'
+      + '<div style="flex:1"></div>'
+      + '<button class="btn bp" onclick="closeModal(\'vn-storage-ov\')" style="padding:9px 14px">Done</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(div);
+}
+
+function vnBulkDelete(scope){
+  const now = Date.now();
+  const candidates = [];
+  (MEETINGS||[]).forEach(m => {
+    (m.voiceNotes||[]).forEach(v => {
+      const ageDays = v.createdAt ? Math.floor((now - new Date(v.createdAt).getTime())/(1000*60*60*24)) : 0;
+      let match = false;
+      if (scope === 'all') match = true;
+      else if (scope === 'older-30' && ageDays > 30) match = true;
+      else if (scope === 'older-90' && ageDays > 90) match = true;
+      else if (scope === 'committed' && v.committed && v.processed?.output) match = true;
+      if (match) candidates.push({m, v});
+    });
+  });
+  if (!candidates.length){ showNotif('Nothing to delete', 'No voice notes match this criteria.'); return; }
+  if (!confirm('Delete ' + candidates.length + ' voice note(s)?\n\nProcessed minutes already in meeting notes will stay. Only raw transcripts and reprocessing history are removed.')) return;
+  candidates.forEach(({m, v}) => {
+    m.voiceNotes = (m.voiceNotes||[]).filter(x => x.id !== v.id);
+  });
+  scheduleSave({immediate:true});
+  if (typeof addAudit === 'function'){
+    addAudit('voice-note', 'Bulk delete', candidates.length + ' voice notes (' + scope + ')');
+  }
+  closeModal('vn-storage-ov');
+  setTimeout(vnOpenStoragePanel, 100);
+  showNotif('Deleted', candidates.length + ' voice note(s) removed');
+}
+
+function vnDeleteAndRefreshStorage(meetingId, vnId){
+  const m = MEETINGS.find(x=>x.id===meetingId); if (!m) return;
+  m.voiceNotes = (m.voiceNotes||[]).filter(x => x.id !== vnId);
+  scheduleSave({immediate:true});
+  closeModal('vn-storage-ov');
+  setTimeout(vnOpenStoragePanel, 100);
+}
+
+console.log('S62 v101.22 — voice notes ready (Path 2: Web Speech + Claude recovery)');
+
 function saveMtgNotes(id){const m=MEETINGS.find(x=>x.id===id);if(!m)return;const el=document.getElementById('mtg-notes-area');if(!el)return;m.notes=el.innerText||el.textContent||'';showNotif('Notes saved','');scheduleSave();if(m.gcalId&&isGcalConnected())gcalUpdateEvent(m);}
 function toggleAI(mid,aiId){const m=MEETINGS.find(x=>x.id===mid);if(!m)return;const ai=(m.actionItems||[]).find(a=>a.id===aiId);if(!ai)return;ai.done=!ai.done;scheduleSave();const row=document.getElementById('ai-'+aiId);if(row){const c=row.querySelector('.mtg-action-done');if(c){c.style.background=ai.done?'var(--grn)':'';c.style.borderColor=ai.done?'var(--grn)':'';c.innerHTML=ai.done?'<svg width="10" height="10" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>':'';}const tx=row.querySelectorAll('div')[1]?.querySelector('div');if(tx)tx.style.cssText=ai.done?'text-decoration:line-through;color:var(--txd)':'';}}
 function removeAI(mid,aiId){const m=MEETINGS.find(x=>x.id===mid);if(!m)return;m.actionItems=(m.actionItems||[]).filter(a=>a.id!==aiId);const row=document.getElementById('ai-'+aiId);if(row)row.remove();scheduleSave();}
