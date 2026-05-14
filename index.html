@@ -3608,6 +3608,25 @@ async function ensureAuthListener(){
   if(_fbAuth._s62Listening) return;
   _fbAuth._s62Listening = true;
   _fbAuth.onAuthStateChanged(_onAuthStateChanged);
+
+  // v101.28 — onIdTokenChanged fires every ~55 minutes when Firebase
+  // issues a fresh ID token. Most of the time the SDK propagates this
+  // automatically to the open WebSocket, but in practice we\'ve seen
+  // cases where the persistent socket keeps using the old token until
+  // it errors. Force a reconnect on every token refresh as insurance.
+  // First fire at sign-in is normal; we skip the reconnect on first
+  // fire because the socket is fresh anyway.
+  let _firstTokenChange = true;
+  _fbAuth.onIdTokenChanged(user => {
+    if (!user) return;
+    if (_firstTokenChange){
+      _firstTokenChange = false;
+      console.log('[v101.28] initial ID token fired (no reconnect needed)');
+      return;
+    }
+    console.log('[v101.28] ID token refreshed — forcing socket reconnect to pick up new token');
+    s62ForceReconnect('id-token-refresh');
+  });
 }
 
 function unlockApp(){
@@ -3967,9 +3986,45 @@ async function fbInit(){
 }
 
 /* ── LIVE LISTENER ─────────────────────────────────────── */
+/* v101.28 — Hourly connection health check. Fires once an hour.
+   If the SDK reports recent errors but raw fetch succeeds, the SDK
+   socket is stale — force a reconnect. Also harmless if everything\'s
+   fine; it\'s a tiny GET that takes ~50ms. */
+let _s62HealthCheckTimer = null;
+function s62StartHealthCheck(){
+  if (_s62HealthCheckTimer) return;
+  _s62HealthCheckTimer = setInterval(async () => {
+    try {
+      if (!_fbAuth || !_fbAuth.currentUser) return;
+      if (!_fbApp || !_fbApp.options) return;
+      const dbUrl = _fbApp.options.databaseURL;
+      if (!dbUrl) return;
+      const token = await _fbAuth.currentUser.getIdToken(false);
+      // Tiny read: server time offset returns a single number
+      const url = dbUrl + '/.info/serverTimeOffset.json?auth=' + token;
+      const res = await fetch(url);
+      if (res.status === 200){
+        // Raw fetch works. If the SDK has been erroring recently
+        // (within the last 90s), the SDK socket is stale.
+        if (_pendingResave && (Date.now() - _lastAutoReconnect > 90 * 1000)){
+          console.log('[v101.28] health check: SDK stale (raw OK but pendingResave) — reconnecting');
+          s62MaybeAutoReconnect('hourly-health-check');
+        }
+      } else if (res.status === 401){
+        console.warn('[v101.28] health check: 401, token may be invalid — forcing reconnect');
+        s62MaybeAutoReconnect('hourly-health-check-401');
+      }
+    } catch(err){
+      console.warn('[v101.28] health check error:', err.message || err);
+    }
+  }, 60 * 60 * 1000);  // every 60 minutes
+}
+
 async function fbStartListener(){
   const ok = await fbInit();
   if(!ok || _fbListener) return;
+  // v101.28 — kick off the health check on first listener attach
+  s62StartHealthCheck();
 
   // Monitor connection state — FIX 3 offline queue hook
   const connRef = _fbDb.ref('.info/connected');
@@ -4046,6 +4101,13 @@ async function fbStartListener(){
     console.error('S62 Firebase listener error:', err);
     _fbConnected = false;
     updateSyncStatusBar();
+  }, function(err){
+    console.warn('[v101.28] listener error:', err && err.message || err);
+    const m = String(err && err.message || '').toLowerCase();
+    if (m.indexOf('permission_denied') >= 0 || m.indexOf('permission denied') >= 0){
+      _pendingResave = true;
+      s62MaybeAutoReconnect('listener permission_denied');
+    }
   });
 
   // FIX 1 — start locks listener
@@ -4468,10 +4530,74 @@ function updateVersionIndicator(){
 
 
 
+/* ─────────────────────────────────────────────────────────────────────
+   v101.28 — Stale-socket auto-reconnect.
+
+   Symptom: SDK reports permission_denied even though raw HTTP fetches
+   to the same database with the same auth token succeed. Cause: the
+   persistent WebSocket holds a stale auth/permission snapshot from
+   when it was first opened. Fix: drop and re-establish the socket.
+
+   We rate-limit auto-reconnects to once per 60 seconds so a permission
+   storm can\'t loop us. Manual reconnects (from the UI button) bypass
+   the rate limit. ───────────────────────────────────────────────────── */
+let _lastAutoReconnect = 0;
+const _AUTO_RECONNECT_COOLDOWN_MS = 60 * 1000;
+
+/* v101.28 — Manual reconnect callable from the browser console.
+   Users can type s62Reconnect() in DevTools if Sync failed shows up
+   and doesn\'t self-heal within 30 seconds. */
+function s62Reconnect(){
+  return s62ForceReconnect('manual-from-console');
+}
+if (typeof window !== 'undefined') { window.s62Reconnect = s62Reconnect; }
+
+function s62ForceReconnect(reason){
+  try {
+    console.log('[v101.28] s62ForceReconnect — reason:', reason || 'manual');
+    if (typeof firebase === 'undefined' || !firebase.database){
+      console.warn('[v101.28] firebase.database not available; skipping reconnect');
+      return false;
+    }
+    const db = firebase.database(_fbApp);
+    db.goOffline();
+    // Brief pause so the socket fully closes before reopening
+    setTimeout(() => {
+      try {
+        db.goOnline();
+        console.log('[v101.28] Reconnect cycle complete');
+        // After reconnect, re-run any pending save so user changes land
+        if (_pendingResave){
+          setTimeout(() => {
+            if (_pendingResave && _fbConnected){
+              _pendingResave = false;
+              cloudSave().catch(e => console.warn('[v101.28] post-reconnect resave:', e));
+            }
+          }, 1500);
+        }
+      } catch(e2){ console.warn('[v101.28] goOnline failed:', e2); }
+    }, 200);
+    return true;
+  } catch(err){
+    console.warn('[v101.28] reconnect failed:', err);
+    return false;
+  }
+}
+
+function s62MaybeAutoReconnect(reason){
+  const now = Date.now();
+  if (now - _lastAutoReconnect < _AUTO_RECONNECT_COOLDOWN_MS){
+    console.log('[v101.28] auto-reconnect throttled (cooldown), reason:', reason);
+    return false;
+  }
+  _lastAutoReconnect = now;
+  return s62ForceReconnect(reason);
+}
+
 /* v101.13 — periodic retry for failed saves. Runs every 30s while
    _pendingResave && _fbConnected. Self-cancels on success or disconnect.
    This catches non-network failures (transaction exhaustion, transient auth
-   blips) that the .info/connected reconnect path won't catch on its own. */
+   blips) that the .info/connected reconnect path won\'t catch on its own. */
 function s62SchedulePendingRetry(){
   if(_resaveTimer) return;  // already scheduled
   _resaveTimer = setInterval(()=>{
@@ -4578,7 +4704,17 @@ async function cloudSave(){
     _pendingResave = true;  // v101.13 — re-save when we reconnect / next retry tick
     updateSaveIndicator('cloud-error');
     console.error('S62 Firebase save:', err);
-    showNotif('Sync failed', err.message+' — saved locally only');
+    // v101.28 — if this looks like stale-socket permission_denied, attempt
+    // an automatic reconnect (rate-limited). Most of the time the rules
+    // and auth are actually fine — the SDK just has a stale connection
+    // that picked up an older permission state.
+    const msg = String(err && err.message || err || '').toLowerCase();
+    if (msg.indexOf('permission_denied') >= 0 || msg.indexOf('permission denied') >= 0){
+      s62MaybeAutoReconnect('save permission_denied');
+      showNotif('Sync interrupted', 'Reconnecting to cloud — your changes are saved locally and will sync as soon as connection refreshes.');
+    } else {
+      showNotif('Sync failed', err.message+' — saved locally only');
+    }
     s62SchedulePendingRetry();  // v101.13
   }
 }
@@ -6014,7 +6150,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.25 — type s62Diagnose() to run a full state diagnostic');
+console.log('S62 v101.29 — type s62Diagnose() for state · s62Reconnect() to refresh sync · voice notes on Haiku 4.5');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -6032,6 +6168,34 @@ function canEditTemplate(){
 }
 
 let DRW_TEMPLATES_INITIALIZED = true; /* sanity flag */
+
+/* ──────────────────────────────────────────────────────────────────────
+   v101.27 — Seed migration. Run once at boot.
+   Old built-ins become regular editable templates. The `seeded` flag
+   is preserved for the lifetime of the template so we can offer a
+   "Reset to factory" action that pulls the original drawings from
+   FACTORY_TEMPLATES (a frozen snapshot at migration time).
+   ────────────────────────────────────────────────────────────────────── */
+const FACTORY_TEMPLATES = JSON.parse(JSON.stringify(DRW_TEMPLATES));
+function s62MigrateSeedTemplates(){
+  let migrated = 0;
+  DRW_TEMPLATES.forEach(t => {
+    if (t.builtin === true){
+      t.builtin = false;
+      t.seeded = true;
+      t.seedSourceId = t.id;
+      // Mark factory version so Reset can find the right source row
+      const factory = FACTORY_TEMPLATES.find(f => f.id === t.id);
+      t.factoryVersion = factory?.activeVersion || t.activeVersion || '1.0.0';
+      migrated++;
+    }
+  });
+  if (migrated > 0){
+    console.log('[v101.27] Seeded ' + migrated + ' templates as editable. Built-ins are now first-class.');
+  }
+}
+s62MigrateSeedTemplates();
+
 
 /* ═════════════════════════════════════════════════════════════════════
    v99 — TEMPLATE OPERATIONS
@@ -6341,7 +6505,7 @@ function forkTemplate(tid){
    keeping history. The active version is updated to the new one.    */
 function saveTemplateVersion(tid, newDrawings, changeNote, bump){
   const t = getTemplate(tid);
-  if(!t || t.builtin) { showNotif('Cannot save','Built-in templates must be forked first.'); return null; }
+  if(!t) return null;
   const me = currentUser();
   const newVer = bumpVersion(t.activeVersion, bump || 'minor');
   t.versions.push({
@@ -6355,11 +6519,98 @@ function saveTemplateVersion(tid, newDrawings, changeNote, bump){
   return newVer;
 }
 
+/* v101.27 — Reset a seeded template to its factory snapshot.
+   Only works on templates where t.seeded === true (i.e., that were
+   originally shipped as built-ins). Restores the drawings from
+   FACTORY_TEMPLATES while keeping the user's renamed name if they
+   changed it (the user can re-rename if they want the original name).
+   Creates a new version entry so history is preserved. */
+function resetTplToFactory(tid){
+  const t = getTemplate(tid);
+  if (!t || !t.seeded){ showNotif('Cannot reset', 'This template was not originally seeded from the factory.'); return false; }
+  const factory = FACTORY_TEMPLATES.find(f => f.id === tid);
+  if (!factory){ showNotif('Cannot reset', 'No factory snapshot found for this template.'); return false; }
+  if (!confirm('Reset template "' + t.name + '" to factory drawings?\n\nYour current drawings will be replaced with the original factory list. The template name and your previous versions are preserved in history. This cannot be undone.')) return false;
+  const factoryDrawings = JSON.parse(JSON.stringify(
+    factory.versions.find(v => v.version === factory.activeVersion)?.drawings || []
+  ));
+  const me = (typeof currentUser === 'function') ? currentUser() : null;
+  const newVer = bumpVersion(t.activeVersion || '1.0.0', 'minor');
+  t.versions.push({
+    version: newVer,
+    publishedAt: toISO(new Date()),
+    publishedBy: me ? me.id : '',
+    changeNote: 'Reset to factory v' + (factory.activeVersion || '1.0.0'),
+    drawings: factoryDrawings
+  });
+  t.activeVersion = newVer;
+  scheduleSave({immediate:true});
+  if (typeof addAudit === 'function'){
+    addAudit('template-reset', 'Template reset to factory', tid + ' v' + newVer);
+  }
+  if (typeof renderDrwTemplateListFiltered === 'function' && document.getElementById('drw-tpl-ov')){
+    renderDrwTemplateListFiltered();
+  }
+  showNotif('✓ Reset to factory', t.name + ' restored to factory drawings as v' + newVer);
+  return true;
+}
+
+/* v101.27 — Confirm-and-delete helper. Pulled out of the inline onclick
+   to keep the template-row markup readable and the escaping sane. */
+function confirmDeleteTemplate(tid){
+  const t = getTemplate(tid);
+  if (!t) return;
+  const usingCount = (typeof PROJS !== 'undefined') ? PROJS.filter(p => p.templateId === tid).length : 0;
+  let msg = 'Delete template "' + (t.name || tid) + '"?\n\nThis cannot be undone.';
+  if (usingCount > 0){
+    msg += '\n\nWarning: ' + usingCount + ' project' + (usingCount !== 1 ? 's' : '') +
+           ' currently use this template. They will lose their template binding but keep their drawings.';
+  }
+  if (t.seeded){
+    msg += '\n\nNote: this is a seeded template. You can recreate it later via "Reset to factory" if a fresh copy still exists in the source code.';
+  }
+  if (!confirm(msg)) return;
+  if (deleteTemplate(tid)){
+    scheduleSave({immediate:true});
+    _drwTplExpanded = null;
+    if (typeof renderDrwTemplateListFiltered === 'function' && document.getElementById('drw-tpl-ov')){
+      renderDrwTemplateListFiltered();
+    }
+    showNotif('Deleted', 'Template "' + (t.name || tid) + '" removed');
+  }
+}
+
+/* v101.26 — Rename templates. v101.27 — works on every template. */
+function renameTemplate(tid){
+  const t = getTemplate(tid);
+  if(!t) return false;
+  // v101.27 — all templates renamable now.
+  const newName = prompt('New name for this template:', t.name || '');
+  if(newName === null) return false;
+  const trimmed = newName.trim();
+  if(!trimmed){ showNotif('Name required', 'Template name cannot be empty.'); return false; }
+  if(trimmed === t.name) return false;
+  if(trimmed.length > 80){ showNotif('Too long', 'Keep template names under 80 characters.'); return false; }
+  t.name = trimmed;
+  scheduleSave({immediate:true});
+  if(typeof addAudit === 'function'){
+    addAudit('template-rename', 'Template renamed', tid + ' → "' + trimmed + '"');
+  }
+  // Refresh the list using the active filter
+  if(typeof renderDrwTemplateListFiltered === 'function' && document.getElementById('drw-tpl-ov')){
+    renderDrwTemplateListFiltered();
+  }
+  showNotif('Renamed', '"' + trimmed + '"');
+  return true;
+}
+
 /* Delete a custom template. Built-ins cannot be deleted.            */
 function deleteTemplate(tid){
   const t = getTemplate(tid);
   if(!t) return false;
-  if(t.builtin){ showNotif('Cannot delete','Built-in templates can only be hidden, not deleted.'); return false; }
+  // v101.27 — all templates deletable now. Seeded ones can be restored
+  // via "Reset to factory" if accidentally deleted (so long as the seed
+  // source still exists in FACTORY_TEMPLATES).
   // Warn if any project uses it
   const using = PROJS.filter(p=>p.templateId===tid);
   if(using.length){
@@ -11485,10 +11736,11 @@ function onProjTypeChange(){
     selectedDiscs={};[...pt.mandatoryDisc,...(pt.optionalDisc||[])].forEach(d=>{selectedDiscs[d]=true;});
   }
   // Disc toggles
+  // v101.27 — discipline toggles wrap removed from modal HTML; defensive null-checks
   const wrap=document.getElementById('ap-disc-toggles-wrap');
   const tog=document.getElementById('ap-disc-toggles');
-  wrap.style.display='block';
-  tog.innerHTML=DISC.filter(d=>pt.drawingTemplate[d.id]).map(d=>{
+  if (wrap) wrap.style.display='none';
+  if (tog) tog.innerHTML=DISC.filter(d=>pt.drawingTemplate[d.id]).map(d=>{
     const isMand=pt.mandatoryDisc.includes(d.id);
     const isOn=selectedDiscs[d.id]!==false;
     return `<label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid ${isOn?d.color+'66':'var(--bd)'};border-radius:6px;cursor:pointer;font-size:11px;background:${isOn?d.color+'11':'transparent'}">
@@ -11498,7 +11750,7 @@ function onProjTypeChange(){
     </label>`;
   }).join('');
   renderRecommendedTemplate(pt.id);
-  renderTemplatePreview(pt);
+  // v101.27 — legacy preview removed (no discipline-based drawings anymore)
 
   // v101.19 — apply typology default building config when type changes.
   if (typeof s62ApplyTypologyDefaults === "function"){
@@ -11611,27 +11863,10 @@ function submitProject(){
         addAudit('template-apply', 'Multi-template create',
           tmplIds.length+' templates applied at create → '+pid+' · '+totalCreated+' drawings');
       }
-    } else if(pt){
-      DISC.forEach(disc=>{
-        if(!selectedDiscs[disc.id])return;
-        const tmpl=pt.drawingTemplate[disc.id];if(!tmpl)return;
-        const prefix={ARCH:'A',INT:'I',STRUCT:'S',ELEC:'E',PLMB:'P',LTG:'L',HVAC:'H',LAND:'LA',SPEC:'SP'}[disc.id]||'X';
-                // Discipline → RIBA stage mapping for date anchoring
-        const _dsMap={ARCH:'CD',INT:'CD',STRUCT:'CD',ELEC:'CD',PLMB:'CD',LTG:'CD',HVAC:'CD',LAND:'DD',SPEC:'CA'};
-        const _dStage=_dsMap[disc.id]||'CD';
-        const _so=stages[_dStage]||{};
-        const _bn=new Date();
-        const _ss=_so.start?new Date(_so.start):(start?new Date(start):_bn);
-        const _se=_so.end?new Date(_so.end):(end?new Date(end):new Date(_ss.getTime()+365*24*60*60*1000));
-        tmpl.forEach((title,ti)=>{
-          const _dur=Math.max(_se-_ss,14*24*60*60*1000);
-          const _drwD=new Date(_ss.getTime()+Math.round((ti/Math.max(tmpl.length-1,1))*_dur));
-          const _td=new Date();_td.setHours(0,0,0,0);
-          const _cl=_drwD<_td?new Date(_td.getTime()+(ti+1)*7*24*60*60*1000):_drwD;
-          const dueDate=toISO(_cl);
-          DRAWINGS.push({id:`${pid}-${prefix}-${String(ti+1).padStart(3,'0')}`,proj:pid,title,drwType:inferDrawingType(title),disc:disc.id,stage:_dStage,status:'nst',rev:'-',tgt:dueDate,due:dueDate,setby:'',pct:0,hrs:0,sid:'',pkg:''});
-        });
-      });
+    } else {
+      // v101.27 — no legacy discipline-based fallback. If no templates were
+      // selected, the drawing register starts empty; the user can apply
+      // templates later from the project's drawings panel.
     }
     showNotif(`Project created — ${DRAWINGS.filter(d=>d.proj===pid).length} drawings`,
       `${name} added with `+(tmplIds.length
@@ -14779,7 +15014,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.25',
+    appVersion: 'S62-v101.29',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -14837,17 +15072,17 @@ function unpackData(data) {
   if(data.notifications!==undefined){ NOTIFICATIONS=data.notifications; }
   if(data.transmittals!==undefined){ TRANSMITTALS=data.transmittals; }
   if(data.drwTemplates!==undefined && Array.isArray(data.drwTemplates) && data.drwTemplates.length){
-    // v99 — merge synced templates with built-in seeds.
-    // v101.1 — STRICT filter: exclude ALL builtins from cloud merge.
-    //   Built-in templates are CANONICAL from the local seed and should never
-    //   be overwritten by stale cloud copies. This prevents older saved data
-    //   (e.g. from v99/v100 with broken appliesTo values) from clobbering the
-    //   v101.1 corrections to tmpl_arch_residential, tmpl_arch_civic,
-    //   tmpl_int_residential, tmpl_int_commercial.
-    //   Custom templates (forks, blank-created) ARE merged from cloud since
-    //   they're user-owned data.
-    const customIncoming = data.drwTemplates.filter(t => !t.builtin);
+    // v101.27 — All templates are now first-class editable. The cloud merge
+    // accepts every template (no more !t.builtin filter). Old saved data
+    // with builtin:true is migrated on load by s62MigrateSeedTemplates.
+    const customIncoming = data.drwTemplates;
     customIncoming.forEach(incoming=>{
+      // Migrate any legacy builtin:true entries on the way in
+      if (incoming.builtin === true){
+        incoming.builtin = false;
+        incoming.seeded = true;
+        incoming.seedSourceId = incoming.id;
+      }
       const existing = DRW_TEMPLATES.find(t=>t.id===incoming.id);
       if(existing){
         // Merge versions — keep all unique
@@ -18330,6 +18565,25 @@ let _vnFinal      = '';
 let _vnLang       = '';
 let _vnMeetingId  = null;
 let _vnMode       = 'B';  // 'A' = live, 'B' = record-then-process
+
+
+/* v101.29 — Claude API model strings used by the voice-note cleanup pipeline.
+   Pulled out as module constants so future model swaps are a one-line change
+   instead of grepping through inline strings. To switch models, edit these
+   two values — nothing else needs to change.
+
+     VN_PRIMARY_MODEL   tried first. Haiku 4.5 is ~67% cheaper than Sonnet
+                        and faster on simple classification/summarization
+                        tasks like voice-note cleanup.
+     VN_FALLBACK_MODEL  used automatically if primary returns 4xx/5xx.
+                        Sonnet 4.6 is the current general-purpose default
+                        if you want maximum reliability over savings.
+
+   Model IDs verified against Anthropic docs on 2026-05-06.
+   See https://docs.claude.com for the current list of supported models. */
+const VN_PRIMARY_MODEL  = 'claude-haiku-4-5-20251001';
+const VN_FALLBACK_MODEL = 'claude-sonnet-4-6';
+let _vnLastModelUsed   = '';  /* set by the processor, read by the commit helper */
 let _vnMicCheckPromise = null;  // cached navigator.mediaDevices presence
 
 /* ── Tiny utilities ─────────────────────────────────────────────────── */
@@ -18770,21 +19024,46 @@ async function vnCallClaudeAPI(rawTranscript, langCode, formatId){
 
   const userPrompt = 'Context:\n' + projContext + '\n' + meetingContext + '\n\nFormat instructions:\n' + fmtPrompt + '\n\nTranscript:\n"""\n' + rawTranscript + '\n"""\n\nOutput the formatted minutes now.';
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1500,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }]
-    })
-  });
+  // v101.29 — primary model with one-shot Sonnet fallback on failure.
+  // Voice note cleanup is classification + summarization (Haiku\'s sweet spot)
+  // and Haiku 4.5 is 67% cheaper and typically faster than Sonnet for this
+  // class of task. If Haiku ever returns a 4xx/5xx (transient availability,
+  // rate limit, etc.) we retry once with Sonnet 4.6 so the voice note
+  // pipeline never silently fails.
+  async function _vnCallClaude(modelName){
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: modelName,
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    return r;
+  }
+
+  let response = await _vnCallClaude(VN_PRIMARY_MODEL);
+  let modelUsed = VN_PRIMARY_MODEL;
+  if (!response.ok){
+    console.warn('[v101.29] voice notes: primary model '+VN_PRIMARY_MODEL+
+                 ' returned '+response.status+' — retrying with fallback '+VN_FALLBACK_MODEL);
+    response = await _vnCallClaude(VN_FALLBACK_MODEL);
+    modelUsed = VN_FALLBACK_MODEL;
+  }
   if (!response.ok){
     const txt = await response.text().catch(()=>'');
     throw new Error('API '+response.status+': '+(txt.slice(0,200)||response.statusText));
   }
   const data = await response.json();
+  // Stash which model actually answered onto the returned data so the
+  // caller can persist it. (Anthropic\'s response also includes model
+  // but it can normalize the string, so we record what we asked for.)
+  data._vnModelUsed = modelUsed;
+  // v101.29 — also expose to module scope so the commit helper can record
+  // it without changing the processor\'s return signature.
+  _vnLastModelUsed = modelUsed;
   // Extract text from the content blocks
   const text = (data.content||[])
     .filter(b => b.type === 'text')
@@ -18937,7 +19216,10 @@ function vnBuildRecord(rawText, outputText, formatId, langCode){
       format: formatId,
       output: outputText,
       processedAt: new Date().toISOString(),
-      modelUsed: 'claude-sonnet-4-20250514',
+      // v101.29 — record the actual model that produced this output.
+      // Defaults to the primary model when not provided (i.e., from older
+      // code paths). New code paths pass _vnModelUsed in via the processor.
+      modelUsed: (typeof _vnLastModelUsed === 'string' && _vnLastModelUsed) || VN_PRIMARY_MODEL,
       pathVersion: 2  // Path 2 (browser + Claude recovery)
     } : null,
     committed: !!outputText,
@@ -24149,30 +24431,25 @@ function openDrwTemplatesModal(){
   div.id = 'drw-tpl-ov';
   div.className = 'ov show';
   const totalCount = DRW_TEMPLATES.length;
-  const builtinCount = DRW_TEMPLATES.filter(t=>t.builtin).length;
-  const customCount = totalCount - builtinCount;
+  const seededCount = DRW_TEMPLATES.filter(t=>t.seeded).length;
   div.innerHTML = `<div class="modal" style="max-width:780px;max-height:85vh;display:flex;flex-direction:column">
     <button class="mclose" onclick="closeModal('drw-tpl-ov')" aria-label="Close">✕</button>
     <div class="mtitle">📐 Drawing Templates
       <span style="font-family:var(--fm);font-size:11px;font-weight:500;background:var(--blu);color:#fff;padding:3px 10px;border-radius:12px;margin-left:10px;letter-spacing:.04em">${totalCount} total</span>
+      <span style="font-family:var(--fm);font-size:9px;font-weight:600;background:var(--gold);color:#1a1a1a;padding:2px 8px;border-radius:10px;margin-left:6px;letter-spacing:.04em" title="If you don\'t see this label, your browser is serving cached older code. Hard-reload with Ctrl+Shift+R / Cmd+Shift+R.">v101.27</span>
     </div>
     <div class="msub" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <span><strong style="color:var(--tx)">${builtinCount}</strong> built-in</span>
-      <span style="color:var(--txd)">·</span>
-      <span><strong style="color:var(--tx)">${customCount}</strong> custom</span>
+      <span><strong style="color:var(--tx)">${totalCount}</strong> templates · all editable</span>
       <span style="color:var(--txd)">·</span>
       <span>IS 962 + COA aligned</span>
       <span style="color:var(--txd)">·</span>
-      <span>${canEditTemplate() ? 'You can edit' : 'View-only (Principal/Associate/PA can edit)'}</span>
+      <span>${canEditTemplate() ? 'You can edit, rename, delete any template' : 'View-only (Principal/Associate/PA can edit)'}</span>
     </div>
 
-    <!-- v101.2 — Filter tabs to separate builtin/custom views -->
-    <div style="display:flex;gap:6px;margin-top:12px;border-bottom:1px solid var(--bd2);padding-bottom:0">
-      <button class="tpl-filter-tab on" data-filter="all" onclick="setTplFilter('all')" style="background:transparent;border:none;border-bottom:2px solid var(--blu);padding:8px 14px;cursor:pointer;font-family:var(--fm);font-size:11px;color:var(--tx);font-weight:500">All <span style="opacity:.6">(${totalCount})</span></button>
-      <button class="tpl-filter-tab" data-filter="builtin" onclick="setTplFilter('builtin')" style="background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;font-family:var(--fm);font-size:11px;color:var(--txm)">Built-in <span style="opacity:.6">(${builtinCount})</span></button>
-      <button class="tpl-filter-tab" data-filter="custom" onclick="setTplFilter('custom')" style="background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 14px;cursor:pointer;font-family:var(--fm);font-size:11px;color:var(--txm)">Custom <span style="opacity:.6">(${customCount})</span></button>
-      <div style="flex:1"></div>
-      <input type="text" id="tpl-search" placeholder="Search templates…" oninput="renderDrwTemplateListFiltered()" style="background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:5px 10px;color:var(--tx);font-family:var(--fm);font-size:11px;outline:none;align-self:center;margin-bottom:6px" />
+    <!-- v101.27 — search bar only, tabs removed since all templates are first-class -->
+    <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
+      <input type="text" id="tpl-search" placeholder="Search templates by name…" oninput="renderDrwTemplateListFiltered()" style="flex:1;background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:8px 12px;color:var(--tx);font-family:var(--fm);font-size:11px;outline:none" />
+      <span style="font-family:var(--fm);font-size:9.5px;color:var(--txd)" id="tpl-count-badge">${totalCount}</span>
     </div>
 
     <div style="overflow-y:auto;flex:1;margin:0 0 14px 0;padding:10px 6px 0 0;position:relative" id="drw-tpl-list-wrap">
@@ -24191,54 +24468,41 @@ function openDrwTemplatesModal(){
   document.body.appendChild(div);
 }
 
-/* v101.2 — Filter tab handler */
+/* v101.27 — single template list, no tabs. setTplFilter kept as a no-op
+   alias so any stale onclick handler from a cached page reload doesn't
+   throw. New code paths just call renderDrwTemplateListFiltered directly. */
 let _drwTplFilter = 'all';
 function setTplFilter(f){
-  _drwTplFilter = f;
-  document.querySelectorAll('.tpl-filter-tab').forEach(b=>{
-    if(b.dataset.filter===f){
-      b.style.borderBottom = '2px solid var(--blu)';
-      b.style.color = 'var(--tx)';
-      b.style.fontWeight = '500';
-    } else {
-      b.style.borderBottom = '2px solid transparent';
-      b.style.color = 'var(--txm)';
-      b.style.fontWeight = '400';
-    }
-  });
+  // No tabs anymore; just refresh the search-filtered list
   renderDrwTemplateListFiltered();
 }
 
 function renderDrwTemplateListFiltered(){
-  // v101.25 — direct filtered render. The previous version swapped
-  // window.DRW_TEMPLATES then called renderDrwTemplateList(), but
-  // DRW_TEMPLATES is `let`-declared at module scope so the renderer
-  // ignored the swap. Now renderDrwTemplateList accepts an optional
-  // filtered list parameter.
-  const search = (document.getElementById('tpl-search')?.value || '').toLowerCase();
+  // v101.27 — search-only filter. No more builtin/custom tabs.
+  const search = (document.getElementById('tpl-search')?.value || '').toLowerCase().trim();
   let templates = DRW_TEMPLATES;
-  if(_drwTplFilter==='builtin') templates = templates.filter(t=>t.builtin);
-  else if(_drwTplFilter==='custom') templates = templates.filter(t=>!t.builtin);
-  if(search){
-    templates = templates.filter(t=>(t.name||'').toLowerCase().includes(search) || (t.description||'').toLowerCase().includes(search));
+  if (search){
+    templates = templates.filter(t =>
+      (t.name||'').toLowerCase().includes(search) ||
+      (t.description||'').toLowerCase().includes(search)
+    );
   }
   const listEl = document.getElementById('drw-tpl-list');
   if(!listEl) return;
   if(!templates.length){
-    listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;font-family:var(--fm);font-size:11px;color:var(--txd)">No templates match this filter.</div>';
+    listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;font-family:var(--fm);font-size:11px;color:var(--txd)">No templates match "'+search+'". <a href="#" onclick="document.getElementById(\'tpl-search\').value=\'\';renderDrwTemplateListFiltered();return false" style="color:var(--gold)">Clear search</a></div>';
   } else {
     listEl.innerHTML = renderDrwTemplateList(templates);
   }
-  // Update count summary in footer
-  const _tplSummary = document.getElementById('tpl-count-summary');
-  if (_tplSummary){
-    const filterLabel = _drwTplFilter === 'all' ? 'all' : _drwTplFilter;
-    _tplSummary.textContent = 'Showing ' + templates.length + ' ' + (filterLabel === 'all' ? '' : filterLabel + ' ') + 'template' + (templates.length !== 1 ? 's' : '');
+  const badge = document.getElementById('tpl-count-badge');
+  if (badge){
+    badge.textContent = search ? (templates.length + ' match' + (templates.length !== 1 ? 'es' : '')) : (templates.length);
   }
   const summary = document.getElementById('tpl-count-summary');
-  if(summary){
-    summary.textContent = 'Showing '+templates.length+' template'+(templates.length!==1?'s':'')+
-      (_drwTplFilter!=='all'?' ('+_drwTplFilter+')':'')+(search?' matching "'+search+'"':'');
+  if (summary){
+    summary.textContent = search
+      ? 'Showing ' + templates.length + ' of ' + DRW_TEMPLATES.length + ' templates matching "' + search + '"'
+      : 'Showing all ' + templates.length + ' templates';
   }
 }
 
@@ -24258,7 +24522,7 @@ function renderDrwTemplateList(filteredList){
         <span style="font-size:24px">${t.icon||'📐'}</span>
         <div style="flex:1">
           <div style="font-weight:600;color:var(--tx);font-size:13px">${t.name}
-            ${t.builtin?'<span style="font-family:var(--fm);font-size:8px;font-weight:600;background:var(--sf3);color:var(--txm);padding:2px 6px;border-radius:3px;margin-left:6px">BUILT-IN</span>':''}
+${t.seeded?'<span title="Seeded from factory on first run; you can still edit, rename, or delete it. Use ↻ Reset to factory in the expanded view to restore the original." style="font-family:var(--fm);font-size:8px;font-weight:600;background:rgba(186,117,23,.15);color:var(--gold);padding:2px 6px;border-radius:3px;margin-left:6px;letter-spacing:.04em">SEEDED</span>':''}
           </div>
           <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">${t.description||''}</div>
           <div style="font-family:var(--fm);font-size:10px;color:var(--txm);margin-top:4px">
@@ -24307,11 +24571,12 @@ function renderDrwTplDetail(t){
 
   const usingProjs = PROJS.filter(p=>p.templateId===t.id);
   const editButtons = canEditTemplate() ? `
-    <button class="btn bg bsm" onclick="editDrwTemplate('${t.id}')" style="font-size:10px;padding:5px 10px" title="${t.builtin ? 'Built-in templates auto-fork on edit so the original is preserved. The Custom tab is where your editable copy lives.' : 'Edit this template'}">${t.builtin ? '✏ Edit (creates editable copy)' : '✏ Edit drawings'}</button>
+    <button class="btn bg bsm" onclick="editDrwTemplate('${t.id}')" style="font-size:10px;padding:5px 10px" title="Edit this template">✏ Edit drawings</button>
+    <button class="btn bg bsm" onclick="renameTemplate('${t.id}')" style="font-size:10px;padding:5px 10px" title="Rename this template">✎ Rename</button>
+    <button class="btn bg bsm" onclick="forkDrwTemplate('${t.id}')" style="font-size:10px;padding:5px 10px" title="Create a copy of this template">⎘ Duplicate</button>
     ${usingProjs.length > 0 ? `<button class="btn bg bsm" onclick="openBulkResyncModal('${t.id}')" style="font-size:10px;padding:5px 10px;color:var(--blu)">🔄 Bulk Re-sync · ${usingProjs.length} project${usingProjs.length!==1?'s':''}</button>` : ''}
-    ${t.builtin
-      ? ''
-      : `<button class="btn bg bsm" onclick="if(confirm('Delete template &quot;${(t.name||'').replace(/'/g,"\\'").replace(/&/g,'&amp;').replace(/</g,'&lt;')}&quot;? This cannot be undone.') && deleteTemplate('${t.id}')){scheduleSave({immediate:true});_drwTplExpanded=null;renderDrwTemplateListFiltered();showNotif('Deleted','Template removed');}" style="font-size:10px;padding:5px 10px;color:var(--red)">🗑 Delete</button>`}` : '';
+    ${t.seeded ? `<button class="btn bg bsm" onclick="resetTplToFactory('${t.id}')" style="font-size:10px;padding:5px 10px;color:var(--txd)" title="Restore this template's original drawings from the factory snapshot">↻ Reset to factory</button>` : ''}
+    <button class="btn bg bsm" onclick="confirmDeleteTemplate('${t.id}')" style="font-size:10px;padding:5px 10px;color:var(--red)">🗑 Delete</button>` : '';
 
   const versionList = t.versions.length > 1 ? `
     <div style="margin-top:10px;padding:8px 12px;background:var(--sf3);border-radius:4px">
@@ -24363,26 +24628,9 @@ function forkDrwTemplate(tid){
 function editDrwTemplate(tid){
   if(!canEditTemplate()){ showNotif('Access denied','Principal/Associate/PA only.'); return; }
   const t = getTemplate(tid); if(!t) return;
-  if(t.builtin){
-    // v101.14 — built-ins auto-fork on edit. The original built-in stays as
-    // the canonical seed (and is reseeded from source code on every load); the
-    // edit goes into a new custom copy that the user immediately starts
-    // editing. No confirm dialog — clicking Edit means "edit this".
-    const newT = forkTemplate(tid);
-    if(!newT){ showNotif('Fork failed','Could not create editable copy.'); return; }
-    scheduleSave({immediate:true});
-    _drwTplExpanded = newT.id;
-    // v101.25 — auto-switch to Custom tab so the new editable copy is visible
-    if (typeof setTplFilter === 'function' && document.getElementById('drw-tpl-ov')){
-      setTplFilter('custom');
-    } else {
-      const listEl = document.getElementById('drw-tpl-list');
-      if(listEl) listEl.innerHTML = renderDrwTemplateList();
-    }
-    showNotif('Editing custom copy', t.name+' was forked — original built-in preserved');
-    openDrwTemplateEditor(newT.id);
-    return;
-  }
+  // v101.27 — every template is editable directly. No more auto-fork.
+  // (The forkTemplate function is preserved for the explicit "Duplicate"
+  // workflow if a user wants to keep an original and edit a copy.)
   openDrwTemplateEditor(tid);
 }
 
@@ -25874,7 +26122,7 @@ function renderMultiApplyTemplateList(proj, alreadyApplied){
           ${t.name}
           ${matches?'<span style="font-family:var(--fm);font-size:8px;font-weight:700;color:var(--gold);margin-left:6px;letter-spacing:.04em">★ MATCHES TYPE</span>':''}
           ${wasApplied?'<span style="font-family:var(--fm);font-size:8px;font-weight:700;color:var(--blu);margin-left:6px;letter-spacing:.04em">✓ APPLIED EARLIER</span>':''}
-          ${t.builtin?'<span style="font-family:var(--fm);font-size:8px;font-weight:600;background:var(--sf3);color:var(--txm);padding:1px 5px;border-radius:3px;margin-left:6px">BUILT-IN</span>':''}
+          ${t.seeded?'<span style="font-family:var(--fm);font-size:8px;font-weight:600;background:rgba(186,117,23,.15);color:var(--gold);padding:1px 5px;border-radius:3px;margin-left:6px">SEEDED</span>':''}
         </div>
         <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-top:1px">${t.description||''}</div>
         <div style="font-family:var(--fm);font-size:9.5px;color:var(--txm);margin-top:2px">v${t.activeVersion} · ${drwCount} drawings · ~${totalHrs}h</div>
@@ -27328,14 +27576,10 @@ function updateVisBadge(){
     <div id="ap-tmpl-card" style="margin-top:12px"></div>
     <div id="ap-template-preview" style="margin-top:16px"></div>
 
-    <!-- Discipline toggles -->
-    <div class="frow" id="ap-disc-toggles-wrap" style="display:none">
-      <label class="flbl">Include Disciplines</label>
-      <div id="ap-disc-toggles" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
-    </div>
+    <!-- v101.27 — discipline toggles removed; templates are the only path now -->
 
     <div style="display:flex;gap:10px;margin-top:6px">
-      <button class="btn bp" style="flex:1;justify-content:center;padding:11px" id="ap-btn" onclick="submitProject()">Create Project with Drawing Register</button>
+      <button class="btn bp" style="flex:1;justify-content:center;padding:11px" id="ap-btn" onclick="submitProject()">Create Project</button>
       <button class="btn bg" style="padding:11px 16px" onclick="closeModal('add-proj-ov')">Cancel</button>
     </div>
   </div>
