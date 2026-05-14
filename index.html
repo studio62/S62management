@@ -4098,15 +4098,22 @@ async function fbStartListener(){
       _fbApplying = false;
     }
   }, err=>{
+    // v101.32 — fixed. Previously a separate 4th-arg callback was being
+    // passed which Firebase interpreted as a `this`-context object and
+    // threw "Query.on failed: context argument must be a valid context
+    // object". The permission_denied detection is now merged into this
+    // (the correct 3rd-arg cancel callback) which fires on listener
+    // errors anyway.
     console.error('S62 Firebase listener error:', err);
     _fbConnected = false;
     updateSyncStatusBar();
-  }, function(err){
-    console.warn('[v101.28] listener error:', err && err.message || err);
+    // v101.28/32 — permission_denied recovery from listener path
     const m = String(err && err.message || '').toLowerCase();
     if (m.indexOf('permission_denied') >= 0 || m.indexOf('permission denied') >= 0){
       _pendingResave = true;
-      s62MaybeAutoReconnect('listener permission_denied');
+      if (typeof s62MaybeAutoReconnect === 'function'){
+        s62MaybeAutoReconnect('listener permission_denied');
+      }
     }
   });
 
@@ -6356,7 +6363,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.31 — sync safety chip · startup conflict check · type s62Diagnose() for state · s62Reconnect() to refresh sync · voice notes on Haiku 4.5');
+console.log('S62 v101.32 — Query.on fix · 2-stage startup recovery · sync safety chip · startup conflict check · type s62Diagnose() · s62Reconnect()');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -15223,7 +15230,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.31',
+    appVersion: 'S62-v101.32',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -17049,6 +17056,21 @@ updateCloudSyncBtn(); // Show/hide cloud button based on config + user
 if(isCloudConfigured()){
   setTimeout(()=>fbAutoConnect(), 600);
   setTimeout(()=>{ if (typeof s62StartSyncChipTick === 'function') s62StartSyncChipTick(); }, 1200);
+  // v101.32 — second-chance reconnect at T+8s. If sync is still failing at
+  // this point, the first reconnect didn\'t clear the stale socket. Force
+  // another reconnect, bypassing the cooldown (this is a scheduled retry,
+  // not auto-detected). Only fires if state is still bad.
+  setTimeout(() => {
+    try {
+      const stillFailing = (_saveState === 'error' || _saveState === 'cloud-error' || _pendingResave || !_fbConnected);
+      if (stillFailing && typeof s62ForceReconnect === 'function'){
+        console.log('[v101.32] second-chance reconnect — first attempt did not clear sync state');
+        s62ForceReconnect('second-chance-startup');
+      } else {
+        console.log('[v101.32] second-chance reconnect — skipped (sync already healthy)');
+      }
+    } catch(e){ console.warn('[v101.32] second-chance error:', e); }
+  }, 8000);
 }
 
 // v96 Option B — beforeunload guard against closing while a save is pending
