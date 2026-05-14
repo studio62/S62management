@@ -4543,6 +4543,17 @@ function updateVersionIndicator(){
    the rate limit. ───────────────────────────────────────────────────── */
 let _lastAutoReconnect = 0;
 const _AUTO_RECONNECT_COOLDOWN_MS = 60 * 1000;
+// v101.30 — during startup-grace (first 30s after page load) use a shorter
+// cooldown so multiple reconnect attempts can fire if the first one didn\'t
+// fully restore the connection. After grace ends we settle to the normal
+// 60s cooldown to prevent reconnect storms in long-running sessions.
+const _STARTUP_GRACE_MS = 30 * 1000;
+const _STARTUP_COOLDOWN_MS = 15 * 1000;
+const _s62PageLoadTime = Date.now();
+function _s62CurrentCooldown(){
+  const sinceLoad = Date.now() - _s62PageLoadTime;
+  return (sinceLoad < _STARTUP_GRACE_MS) ? _STARTUP_COOLDOWN_MS : _AUTO_RECONNECT_COOLDOWN_MS;
+}
 
 /* v101.28 — Manual reconnect callable from the browser console.
    Users can type s62Reconnect() in DevTools if Sync failed shows up
@@ -4561,22 +4572,26 @@ function s62ForceReconnect(reason){
     }
     const db = firebase.database(_fbApp);
     db.goOffline();
-    // Brief pause so the socket fully closes before reopening
+    // v101.30 — wait 1500ms (was 200ms) so the socket fully closes AND the
+    // new connection has time to re-establish the auth state before we
+    // bring it back online. 200ms was too aggressive on slower networks.
     setTimeout(() => {
       try {
         db.goOnline();
-        console.log('[v101.28] Reconnect cycle complete');
-        // After reconnect, re-run any pending save so user changes land
+        console.log('[v101.30] Reconnect cycle complete — waiting for socket to settle');
+        // After reconnect, give it 2500ms (was 1500ms) for the WebSocket
+        // to fully re-authenticate before retrying the pending save. If we
+        // retry too soon the new socket may still be in handshake state.
         if (_pendingResave){
           setTimeout(() => {
             if (_pendingResave && _fbConnected){
               _pendingResave = false;
-              cloudSave().catch(e => console.warn('[v101.28] post-reconnect resave:', e));
+              cloudSave().catch(e => console.warn('[v101.30] post-reconnect resave:', e));
             }
-          }, 1500);
+          }, 2500);
         }
-      } catch(e2){ console.warn('[v101.28] goOnline failed:', e2); }
-    }, 200);
+      } catch(e2){ console.warn('[v101.30] goOnline failed:', e2); }
+    }, 1500);
     return true;
   } catch(err){
     console.warn('[v101.28] reconnect failed:', err);
@@ -4586,8 +4601,12 @@ function s62ForceReconnect(reason){
 
 function s62MaybeAutoReconnect(reason){
   const now = Date.now();
-  if (now - _lastAutoReconnect < _AUTO_RECONNECT_COOLDOWN_MS){
-    console.log('[v101.28] auto-reconnect throttled (cooldown), reason:', reason);
+  // v101.30 — dynamic cooldown: shorter during startup grace, normal after.
+  const cooldown = _s62CurrentCooldown();
+  if (now - _lastAutoReconnect < cooldown){
+    const inGrace = (now - _s62PageLoadTime) < _STARTUP_GRACE_MS;
+    console.log('[v101.30] auto-reconnect throttled ('+(inGrace?'startup':'normal')+
+                ' cooldown='+cooldown+'ms), reason:', reason);
     return false;
   }
   _lastAutoReconnect = now;
@@ -4947,6 +4966,17 @@ async function fbAutoConnect(){
     }
   }catch(e){
     console.error('S62 Firebase initial load:', e);
+    // v101.30 — if the initial load hit permission_denied, the persistent
+    // WebSocket is most likely holding a stale auth/permission state from
+    // a previous session. Trigger the standard reconnect recovery path
+    // so the user doesn\'t need to type s62Reconnect() in the console.
+    const msg = String(e && e.message || e || '').toLowerCase();
+    if (msg.indexOf('permission_denied') >= 0 || msg.indexOf('permission denied') >= 0){
+      console.log('[v101.30] initial-load permission_denied detected — triggering recovery');
+      if (typeof s62MaybeAutoReconnect === 'function'){
+        s62MaybeAutoReconnect('initial-load');
+      }
+    }
   }finally{
     _fbApplying = false;
   }
@@ -6150,7 +6180,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.29 — type s62Diagnose() for state · s62Reconnect() to refresh sync · voice notes on Haiku 4.5');
+console.log('S62 v101.30 — startup auto-recovery · type s62Diagnose() for state · s62Reconnect() to refresh sync · voice notes on Haiku 4.5');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -15014,7 +15044,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.29',
+    appVersion: 'S62-v101.30',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
