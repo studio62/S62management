@@ -1824,7 +1824,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       <!-- v101.8 — Topbar "🔐 PIN" button removed because the PIN lock
            feature was disabled firm-wide. Without the lock screen, a
            change-PIN button opens a modal that does nothing useful. -->
-      <button class="btn bg bsm" id="cloud-sync-btn" onclick="openCloudSetupModal()" style="font-size:9px;color:var(--gold)" title="Firebase live sync">↻ Connecting</button>
+      <button class="btn bg bsm" id="cloud-sync-btn" onclick="openCloudSetupModal()" style="font-size:10px;font-weight:500;padding:5px 12px;color:var(--gold);background:rgba(186,117,23,.15);border:1px solid rgba(186,117,23,.4);border-radius:6px;letter-spacing:.02em" title="Firebase live sync status — click for details">↻ Connecting</button>
       <span id="save-indicator" style="font-family:var(--fm);font-size:9px;color:var(--txd);white-space:nowrap" title="Auto-save status">● Not saved</span>
       <button class="btn bg bsm" onclick="exportData()" title="Export all data to JSON file" style="font-size:9px">⬇ Export Data</button>
       <button class="btn bg bsm" onclick="importData()" title="Load data from JSON file" style="font-size:9px">📂 Load Data</button>
@@ -4709,6 +4709,7 @@ async function cloudSave(){
       _saveState = 'cloud-saved';   // v96
       _pendingResave = false;       // v101.13 — clear retry flag
       updateSaveIndicator('cloud-saved');
+      _lastCloudSaveAt = Date.now();  // v101.31 — track for chip display
       updateSyncStatusBar();
     } else {
       console.warn('S62: save failed after 3 attempts');
@@ -4792,32 +4793,195 @@ function updateSyncStatusBar(){
   // updateSaveIndicator(), so we don't overwrite it here. Otherwise an
   // in-flight "○ Pending" gets clobbered by "● Live" the moment a remote
   // listener tick arrives, lying to the user about save durability.
-  if(configured && _fbConnected){
-    if(btn){ btn.style.color='var(--grn)'; btn.textContent='● Live'; btn.title='Live sync active — all changes sync instantly'; }
-    // If _saveState is idle/cloud-saved, refresh indicator to clear any stale state
-    if(_saveState === 'idle' || _saveState === 'cloud-saved'){
-      if(ind){ ind.textContent='● Synced'; ind.style.color='var(--grn)'; ind.title='Latest change is in Firebase. Safe to close.'; }
+  // v101.31 — derive sync state and apply color-coded chip styling.
+  // States: 'live' (green), 'saving' (blue), 'stale' (orange), 'failed' (red), 'connecting' (gold)
+  let chipState, chipLabel, chipTooltip;
+
+  if (_saveState === 'error' || _saveState === 'cloud-error'){
+    chipState = 'failed';
+    chipLabel = '⚠ Sync failed';
+    chipTooltip = 'Last save did not reach Firebase. Click to retry or check status.';
+  } else if (configured && _fbConnected){
+    if (_saveState === 'cloud-saving' || _saveState === 'pending'){
+      chipState = 'saving';
+      chipLabel = '↻ Saving…';
+      chipTooltip = 'Pushing your changes to Firebase';
+    } else {
+      // Check for staleness: connected but last cloud save was long ago AND we have local changes
+      const now = Date.now();
+      const sinceLastSave = _lastCloudSaveAt ? (now - _lastCloudSaveAt) : Infinity;
+      if (_pendingResave && sinceLastSave > 60 * 1000){
+        chipState = 'stale';
+        chipLabel = '⚠ Stale — ' + _fmtRelTime(sinceLastSave) + ' ago';
+        chipTooltip = 'Pending changes have not synced for over a minute. Click to retry.';
+      } else if (_lastCloudSaveAt){
+        chipState = 'live';
+        chipLabel = '✓ Synced · ' + _fmtRelTime(sinceLastSave) + ' ago';
+        chipTooltip = 'Latest change is in Firebase. Safe to close. Click for sync details.';
+      } else {
+        chipState = 'live';
+        chipLabel = '● Live';
+        chipTooltip = 'Live sync active — all changes sync instantly';
+      }
     }
-    if(banner) banner.style.display='none';
+    if (banner) banner.style.display = 'none';
     updateVersionIndicator();
-  } else if(configured && _fbInitDone){
-    if(btn){ btn.style.color='var(--gold)'; btn.textContent='↻ Connecting…'; }
-    if(ind && (_saveState === 'idle' || _saveState === 'cloud-saved')){
-      ind.textContent='↻ Connecting'; ind.style.color='var(--gold)'; ind.title='Connecting to Firebase…';
-    }
-  } else if(configured){
-    if(btn){ btn.style.color='var(--gold)'; btn.textContent='↻ Firebase'; btn.title='Firebase configured — connecting'; }
-    if(banner) banner.style.display='none';
+  } else if (configured && _fbInitDone){
+    chipState = 'connecting';
+    chipLabel = '↻ Connecting…';
+    chipTooltip = 'Connecting to Firebase…';
+  } else if (configured){
+    chipState = 'connecting';
+    chipLabel = '↻ Firebase';
+    chipTooltip = 'Firebase configured — connecting';
+    if (banner) banner.style.display = 'none';
   } else {
-    // This branch is now unreachable with hardcoded credentials, but kept as safety net
-    if(btn){ btn.style.color='var(--gold)'; btn.textContent='↻ Firebase'; btn.title='Reconnecting…'; }
-    if(banner){
-      banner.style.display='flex';
-      if(bannerTitle) bannerTitle.textContent='● Reconnecting to Studio 62 Firebase…';
-      if(bannerSub) bannerSub.textContent='studio62-ca1b7.asia-southeast1';
-      if(bannerBtn){ bannerBtn.textContent='☁ Sync Settings'; bannerBtn.onclick=openCloudSetupModal; }
+    chipState = 'connecting';
+    chipLabel = '↻ Firebase';
+    chipTooltip = 'Reconnecting…';
+    if (banner){
+      banner.style.display = 'flex';
+      if (bannerTitle) bannerTitle.textContent = '● Reconnecting to Studio 62 Firebase…';
+      if (bannerSub) bannerSub.textContent = 'studio62-ca1b7.asia-southeast1';
+      if (bannerBtn){ bannerBtn.textContent = '☁ Sync Settings'; bannerBtn.onclick = openCloudSetupModal; }
     }
   }
+
+  // Apply the chip styling based on state. The chip is always visible.
+  if (btn){
+    btn.textContent = chipLabel;
+    btn.title = chipTooltip;
+    btn.dataset.syncState = chipState;
+    let bg, border, color;
+    switch (chipState){
+      case 'live':
+        color = 'var(--grn)'; bg = 'rgba(82,201,122,.12)'; border = 'rgba(82,201,122,.45)'; break;
+      case 'saving':
+        color = 'var(--blu)'; bg = 'rgba(82,133,224,.12)'; border = 'rgba(82,133,224,.45)'; break;
+      case 'stale':
+        color = '#f0a83a'; bg = 'rgba(240,168,58,.15)'; border = 'rgba(240,168,58,.55)'; break;
+      case 'failed':
+        color = 'var(--red)'; bg = 'rgba(224,82,82,.15)'; border = 'rgba(224,82,82,.55)'; break;
+      default: // connecting
+        color = 'var(--gold)'; bg = 'rgba(186,117,23,.15)'; border = 'rgba(186,117,23,.4)';
+    }
+    btn.style.color = color;
+    btn.style.background = bg;
+    btn.style.borderColor = border;
+  }
+
+  // Mirror simple status into save-indicator (legacy element kept for compatibility)
+  if (ind && (_saveState === 'idle' || _saveState === 'cloud-saved')){
+    if (chipState === 'live'){ ind.textContent = '● Synced'; ind.style.color = 'var(--grn)'; ind.title = 'Latest change is in Firebase.'; }
+    else if (chipState === 'failed'){ ind.textContent = '✗ Failed'; ind.style.color = 'var(--red)'; }
+    else if (chipState === 'stale'){ ind.textContent = '⚠ Stale'; ind.style.color = '#f0a83a'; }
+    else { ind.textContent = '↻ Connecting'; ind.style.color = 'var(--gold)'; }
+  }
+}
+
+/* v101.31 — Format a duration in milliseconds as a short human-readable
+   relative time. Examples: "3s", "47s", "2m", "14m", "1h", "3h". */
+function _fmtRelTime(ms){
+  if (!isFinite(ms) || ms < 0) return '?';
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + 'm';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h';
+  return Math.floor(h / 24) + 'd';
+}
+
+/* v101.31 — Startup conflict prompt. Shown when local data's savedAt is
+   more than 1 hour newer than cloud's savedAt at startup. Three actions:
+     "Push Local to Cloud"   — current behavior. Overwrites cloud with local.
+     "Pull Cloud, Discard Local" — fetches cloud, replaces local state.
+                                   Local unsynced edits are LOST. Confirmation
+                                   dialog requires confirmation typing.
+     "Decide Later"          — closes the prompt without doing anything.
+                               Default behavior continues (last-write-wins).
+   This is non-blocking. The user can dismiss and the app keeps working. */
+function s62ShowStartupConflictPrompt(localTime, cloudTime, cloudData){
+  // Bail if a prompt is already open or app is in a transient state
+  if (document.getElementById('s62-conflict-ov')) return;
+  if (!document.body) return;
+
+  const diffMs = localTime - cloudTime;
+  const diffStr = _fmtRelTime(diffMs);
+  const localDate = new Date(localTime).toLocaleString();
+  const cloudDate = new Date(cloudTime).toLocaleString();
+
+  const ov = document.createElement('div');
+  ov.id = 's62-conflict-ov';
+  ov.className = 'ov show';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px';
+  ov.innerHTML = '' +
+    '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:24px;max-width:540px;width:100%;box-shadow:0 12px 36px rgba(0,0,0,.5)">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+        '<span style="font-size:24px">⚠</span>' +
+        '<div style="font-family:var(--fh);font-size:16px;font-weight:600;color:var(--tx)">Sync conflict detected</div>' +
+      '</div>' +
+      '<div style="font-family:var(--fm);font-size:11.5px;color:var(--txm);line-height:1.6;margin-bottom:16px">' +
+        'Local data on this browser is <strong style="color:var(--tx)">' + diffStr + '</strong> newer than what\'s in Firebase. This usually means edits were made while sync was failing or while offline.' +
+      '</div>' +
+      '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:10px 14px;margin-bottom:18px;font-family:var(--fm);font-size:10.5px;color:var(--tx)">' +
+        '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--txm)">Local saved:</span><span>' + localDate + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span style="color:var(--txm)">Cloud saved:</span><span>' + cloudDate + '</span></div>' +
+      '</div>' +
+      '<div style="font-family:var(--fm);font-size:10.5px;color:var(--txd);margin-bottom:18px;line-height:1.55">' +
+        'Choose how to reconcile. <strong style="color:#f0a83a">Pulling cloud will permanently discard local edits.</strong>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' +
+        '<button onclick="s62ConflictResolve(\'push\')" style="background:var(--grn);color:#fff;border:none;border-radius:6px;padding:10px 14px;font-family:var(--fm);font-size:11px;font-weight:500;cursor:pointer;text-align:left">' +
+          '<div>↑ Push local to cloud  <span style="opacity:.85;font-weight:400">(recommended)</span></div>' +
+          '<div style="font-size:9.5px;opacity:.85;margin-top:2px;font-weight:400">Overwrites Firebase with your local edits. Other devices will load this version next time.</div>' +
+        '</button>' +
+        '<button onclick="s62ConflictResolve(\'pull\')" style="background:var(--sf3);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:10px 14px;font-family:var(--fm);font-size:11px;font-weight:500;cursor:pointer;text-align:left">' +
+          '<div style="color:var(--red)">↓ Pull cloud, discard local</div>' +
+          '<div style="font-size:9.5px;opacity:.75;margin-top:2px;font-weight:400">Replaces local data with cloud version. Your offline edits are lost.</div>' +
+        '</button>' +
+        '<button onclick="s62ConflictResolve(\'later\')" style="background:transparent;color:var(--txd);border:1px solid var(--bd2);border-radius:6px;padding:9px 14px;font-family:var(--fm);font-size:10.5px;cursor:pointer">' +
+          'Decide later' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+}
+
+/* v101.31 — Handle the user\'s choice from the conflict prompt. */
+function s62ConflictResolve(action){
+  const ov = document.getElementById('s62-conflict-ov');
+  if (action === 'push'){
+    if (ov) ov.remove();
+    // Trigger an immediate cloud save with current local state
+    try {
+      if (typeof showNotif === 'function') showNotif('↑ Pushing local to cloud', 'Your offline edits will overwrite Firebase');
+      if (typeof cloudSave === 'function') cloudSave().catch(e => console.warn('[v101.31] push failed:', e));
+    } catch(e){ console.warn('[v101.31] push handler:', e); }
+  } else if (action === 'pull'){
+    // Require a confirmation since data loss is permanent
+    if (!confirm('PERMANENTLY DISCARD local edits and replace with cloud data?\n\nThis cannot be undone. Make sure you\'ve exported any unsynced work first.\n\nContinue?')) return;
+    if (ov) ov.remove();
+    try {
+      if (typeof showNotif === 'function') showNotif('↓ Pulling cloud data', 'Reloading to apply cloud state');
+      // Wipe local and reload — fbAutoConnect on next boot will pull cloud
+      try { localStorage.removeItem(S62_LS_KEY); } catch(_){}
+      setTimeout(() => { window.location.reload(); }, 800);
+    } catch(e){ console.warn('[v101.31] pull handler:', e); }
+  } else {
+    if (ov) ov.remove();
+    if (typeof showNotif === 'function') showNotif('Reminder', 'You can revisit this from Firm Settings → Force resync');
+  }
+}
+
+/* v101.31 — Refresh the sync chip every 10 seconds so the "X seconds ago"
+   relative time stays current even without other state changes. */
+let _s62SyncChipTickTimer = null;
+function s62StartSyncChipTick(){
+  if (_s62SyncChipTickTimer) return;
+  _s62SyncChipTickTimer = setInterval(() => {
+    if (typeof updateSyncStatusBar === 'function') updateSyncStatusBar();
+  }, 10 * 1000);
 }
 
 // Alias for callers that use updateCloudSyncBtn
@@ -4938,6 +5102,18 @@ async function fbAutoConnect(){
     const snap = await _fbRef.once('value');
     const data = snap.val();
     if(data && data.projs){
+      // v101.31 — startup conflict check. Compare local savedAt against
+      // cloud savedAt. If local is more than 1 hour ahead of cloud, the
+      // user has unsynced offline edits — surface the choice.
+      try {
+        const localTime = window._s62LocalSavedAt || 0;
+        const cloudTime = data.savedAt ? new Date(data.savedAt).getTime() : 0;
+        if (localTime && cloudTime && (localTime - cloudTime) > (60 * 60 * 1000)){
+          // Don\'t block — set a deferred prompt that surfaces after the listener attaches
+          setTimeout(() => s62ShowStartupConflictPrompt(localTime, cloudTime, data), 800);
+        }
+      } catch(_){}
+
       const remoteVersion = data.version||0;
       const localVersion  = _fbLocalVersion||0;
       if(remoteVersion > localVersion){
@@ -6180,7 +6356,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.30 — startup auto-recovery · type s62Diagnose() for state · s62Reconnect() to refresh sync · voice notes on Haiku 4.5');
+console.log('S62 v101.31 — sync safety chip · startup conflict check · type s62Diagnose() for state · s62Reconnect() to refresh sync · voice notes on Haiku 4.5');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -14915,6 +15091,9 @@ let _lastSaveTime = null;
 let _dataLoaded = false; // true once real data has been loaded
 // v96 Option B — three-state save tracking
 let _saveState = 'idle';      // 'idle' | 'pending' | 'local-saved' | 'cloud-saving' | 'cloud-saved' | 'error' | 'offline'
+// v101.31 — Timestamp (ms since epoch) of the last successful cloud save.
+// 0 means no cloud save has succeeded this session yet.
+let _lastCloudSaveAt = 0;
 let _pendingSinceMs = 0;      // when did the last user mutation happen
 let _saveStateInterval = null; // tick to update countdown text in 'pending' state
 
@@ -15044,7 +15223,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.30',
+    appVersion: 'S62-v101.31',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -15283,6 +15462,12 @@ function loadFromLocalStorage() {
     data = migrateData(data);
     unpackData(data);
     _dataLoaded = true;
+    // v101.31 — capture savedAt from local data so we can compare it
+    // against the cloud savedAt when Firebase loads, to detect the case
+    // where local has unsynced edits newer than cloud.
+    if (data.savedAt){
+      try { window._s62LocalSavedAt = new Date(data.savedAt).getTime(); } catch(_){}
+    }
     try{console.log('S62: loaded (schema v'+data.schemaVersion+', saved '+(data.savedAt||'unknown')+(raw.startsWith('LZ1:')?', compressed':'')+')');}catch(_){}
     return true;
   } catch(e) {
@@ -16863,6 +17048,7 @@ updateCloudSyncBtn(); // Show/hide cloud button based on config + user
 // Auto-connect to Firebase on startup — loads latest data + starts live listener
 if(isCloudConfigured()){
   setTimeout(()=>fbAutoConnect(), 600);
+  setTimeout(()=>{ if (typeof s62StartSyncChipTick === 'function') s62StartSyncChipTick(); }, 1200);
 }
 
 // v96 Option B — beforeunload guard against closing while a save is pending
