@@ -6389,7 +6389,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.36 — vendor save fix · listener overwrite protection · removed Next Followup · SVR cleanup');
+console.log('S62 v101.37 — PHASE 1 SHIP 1: merge-by-id listener (no more local-only record loss) · v101.36 protections retained');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -15431,7 +15431,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.36',
+    appVersion: 'S62-v101.37',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -15474,20 +15474,78 @@ function packData() {
 }
 
 /* ── UNPACK: apply loaded data to all live state variables ─── */
+/* ──────────────────────────────────────────────────────────────────
+   v101.37 PHASE 1, SHIP 1 — Merge-by-id helper.
+
+   Replaces the wholesale-replace pattern (VENDORS = data.vendors) that
+   caused the "vendor disappears" symptom when two users edited different
+   records concurrently.
+
+   Strategy:
+     - For records present in cloud → cloud wins (cloud is the merged
+       source of truth across all users)
+     - For records present LOCALLY ONLY → preserve them (they're either
+       newly created locally and not yet synced, or recently saved and
+       not yet acknowledged back to us)
+
+   This produces a union: local + cloud, cloud wins on overlap.
+
+   Trade-off: a record deleted by user A will be preserved on user B's
+   browser until B saves (then B's state propagates the deletion).
+   Resurrection is recoverable; overwrite-loss is not. Phase 2 will
+   solve this properly with tombstones.
+
+   Performance: O(local + cloud) — uses a Set for O(1) lookups so even
+   thousands of records merge in milliseconds.
+
+   Skip gracefully if either input is missing or malformed.
+   ──────────────────────────────────────────────────────────────── */
+function s62MergeById(localArr, cloudArr, debugName){
+  // Bail on bad inputs — fall back to cloud (current behavior)
+  if (!Array.isArray(cloudArr)) return Array.isArray(localArr) ? localArr : [];
+  if (!Array.isArray(localArr) || localArr.length === 0) return cloudArr.slice();
+
+  // Build set of cloud IDs for O(1) lookup
+  const cloudIds = new Set();
+  cloudArr.forEach(r => { if (r && r.id !== undefined && r.id !== null) cloudIds.add(r.id); });
+
+  // Find local-only records (preserve these)
+  const localOnly = localArr.filter(r => {
+    if (!r || r.id === undefined || r.id === null) return false; // skip malformed
+    return !cloudIds.has(r.id);
+  });
+
+  if (localOnly.length > 0 && debugName){
+    console.log('[v101.37 merge] '+debugName+': '+localOnly.length+' local-only record(s) preserved · '+cloudArr.length+' from cloud');
+  }
+
+  // Result: cloud records + local-only records
+  return cloudArr.concat(localOnly);
+}
+
 function unpackData(data) {
-  if(data.projs        !== undefined) { PROJS        = data.projs;        }
-  if(data.drawings     !== undefined) { DRAWINGS      = data.drawings;     }
-  if(data.staff        !== undefined) { STAFF         = data.staff;        }
-  if(data.tsEntries    !== undefined) { TS_ENTRIES    = data.tsEntries;    }
+  // v101.37 — All array collections now use merge-by-id when cloud sync
+  // is applying remote data. During localStorage load (not from cloud) the
+  // local arrays are empty so merge degenerates to plain assignment.
+  // Detection: _fbApplying is true ONLY during cloud listener apply.
+  // (_fbApplying = false during initial localStorage load and during
+  // explicit fbAutoConnect first-load. In those cases there's nothing
+  // to merge against anyway.)
+  const _mergeOn = !!_fbApplying;
+
+  if(data.projs        !== undefined) { PROJS        = _mergeOn ? s62MergeById(PROJS, data.projs, 'projs') : data.projs; }
+  if(data.drawings     !== undefined) { DRAWINGS     = _mergeOn ? s62MergeById(DRAWINGS, data.drawings, 'drawings') : data.drawings; }
+  if(data.staff        !== undefined) { STAFF        = _mergeOn ? s62MergeById(STAFF, data.staff, 'staff') : data.staff; }
+  if(data.tsEntries    !== undefined) { TS_ENTRIES   = _mergeOn ? s62MergeById(TS_ENTRIES, data.tsEntries, 'tsEntries') : data.tsEntries; }
   if(data.tsWeekStatus !== undefined) { TS_WEEK_STATUS= data.tsWeekStatus; }
-  if(data.schedTasks   !== undefined) { SCHED_TASKS   = data.schedTasks;   }
-  if(data.drwPackages  !== undefined) { DRW_PACKAGES  = data.drwPackages;  }
-  if(data.sentEmails   !== undefined) { SENT_EMAILS   = data.sentEmails;   }
-  if(data.pipeline     !== undefined) { PIPELINE      = data.pipeline;     }
-  if(data.consultantLogs!==undefined) { CONSULTANT_LOGS=data.consultantLogs;}
-  if(data.invoices!==undefined){ INVOICES=data.invoices; }
-  if(data.notifications!==undefined){ NOTIFICATIONS=data.notifications; }
-  if(data.transmittals!==undefined){ TRANSMITTALS=data.transmittals; }
+  if(data.schedTasks   !== undefined) { SCHED_TASKS  = _mergeOn ? s62MergeById(SCHED_TASKS, data.schedTasks, 'schedTasks') : data.schedTasks; }
+  if(data.drwPackages  !== undefined) { DRW_PACKAGES = _mergeOn ? s62MergeById(DRW_PACKAGES, data.drwPackages, 'drwPackages') : data.drwPackages; }
+  if(data.sentEmails   !== undefined) { SENT_EMAILS  = _mergeOn ? s62MergeById(SENT_EMAILS, data.sentEmails, 'sentEmails') : data.sentEmails; }
+  if(data.pipeline     !== undefined) { PIPELINE     = data.pipeline; }  /* PIPELINE is object, not id-keyed */
+  if(data.consultantLogs!==undefined) { CONSULTANT_LOGS = _mergeOn ? s62MergeById(CONSULTANT_LOGS, data.consultantLogs, 'consultantLogs') : data.consultantLogs; }
+  if(data.invoices!==undefined){ INVOICES = _mergeOn ? s62MergeById(INVOICES, data.invoices, 'invoices') : data.invoices; }
+  if(data.notifications!==undefined){ NOTIFICATIONS = _mergeOn ? s62MergeById(NOTIFICATIONS, data.notifications, 'notifications') : data.notifications; }
+  if(data.transmittals!==undefined){ TRANSMITTALS = _mergeOn ? s62MergeById(TRANSMITTALS, data.transmittals, 'transmittals') : data.transmittals; }
   if(data.drwTemplates!==undefined && Array.isArray(data.drwTemplates) && data.drwTemplates.length){
     // v101.27 — All templates are now first-class editable. The cloud merge
     // accepts every template (no more !t.builtin filter). Old saved data
@@ -15515,9 +15573,9 @@ function unpackData(data) {
       }
     });
   }
-  if(data.visuals!==undefined){ VISUALS=data.visuals; }
+  if(data.visuals!==undefined){ VISUALS = _mergeOn ? s62MergeById(VISUALS, data.visuals, 'visuals') : data.visuals; }
   if(data.firmConfig&&data.firmConfig.name){ Object.assign(FIRM_CONFIG,data.firmConfig); applyFirmTheme(); }
-  if(data.auditLog!==undefined){ AUDIT_LOG=data.auditLog; }
+  if(data.auditLog!==undefined){ AUDIT_LOG = _mergeOn ? s62MergeById(AUDIT_LOG, data.auditLog, 'auditLog') : data.auditLog; }
   if(data.drwCols      !== undefined) { Object.assign(drwCols, data.drwCols); }
   // Don't overwrite CURRENT_USER_ID from Firebase — each browser/staff member
   // has their own identity from Google sign-in or local session.
@@ -15538,7 +15596,7 @@ function unpackData(data) {
   // v101.6 A1 FIX: tsViewMode / tsWeekOffset moved up next to activeProjId
   // and gated on !_fbApplying so cloud sync no longer changes them.
   // Meetings module
-  if(data.meetings&&Array.isArray(data.meetings)) MEETINGS=data.meetings;
+  if(data.meetings&&Array.isArray(data.meetings)) MEETINGS = _mergeOn ? s62MergeById(MEETINGS, data.meetings, 'meetings') : data.meetings;
   if(data.gcalCfg&&data.gcalCfg.clientId) _gcalCfg=data.gcalCfg;
   // Performance & review data
   if(data.perfScores && typeof data.perfScores==='object'){
@@ -15548,19 +15606,19 @@ function unpackData(data) {
     });
   }
   if(Array.isArray(data.dqAssessments) && data.dqAssessments.length){
-    DQ_ASSESSMENTS = data.dqAssessments;
+    DQ_ASSESSMENTS = _mergeOn ? s62MergeById(DQ_ASSESSMENTS, data.dqAssessments, 'dqAssessments') : data.dqAssessments;
   }
   if(data.reviews && typeof data.reviews==='object'){
-    if(Array.isArray(data.reviews.daily))  REVIEWS.daily  = data.reviews.daily;
-    if(Array.isArray(data.reviews.weekly)) REVIEWS.weekly = data.reviews.weekly;
+    if(Array.isArray(data.reviews.daily))  REVIEWS.daily  = _mergeOn ? s62MergeById(REVIEWS.daily, data.reviews.daily, 'reviews.daily')  : data.reviews.daily;
+    if(Array.isArray(data.reviews.weekly)) REVIEWS.weekly = _mergeOn ? s62MergeById(REVIEWS.weekly, data.reviews.weekly, 'reviews.weekly') : data.reviews.weekly;
   }
-  // Construction Administration data
-  if(Array.isArray(data.caSvr))        CA_SVR        = data.caSvr;
-  if(Array.isArray(data.caRfis))       CA_RFIS       = data.caRfis;
-  if(Array.isArray(data.caSubmittals)) CA_SUBMITTALS = data.caSubmittals;
-  if(Array.isArray(data.caSnags))      CA_SNAGS      = data.caSnags;
-  if(Array.isArray(data.caAis))        CA_AIS        = data.caAis;
-  if(Array.isArray(data.vendors))      VENDORS       = data.vendors;
+  // Construction Administration data — all id-keyed, all merged
+  if(Array.isArray(data.caSvr))        CA_SVR        = _mergeOn ? s62MergeById(CA_SVR, data.caSvr, 'caSvr')               : data.caSvr;
+  if(Array.isArray(data.caRfis))       CA_RFIS       = _mergeOn ? s62MergeById(CA_RFIS, data.caRfis, 'caRfis')             : data.caRfis;
+  if(Array.isArray(data.caSubmittals)) CA_SUBMITTALS = _mergeOn ? s62MergeById(CA_SUBMITTALS, data.caSubmittals, 'caSubmittals') : data.caSubmittals;
+  if(Array.isArray(data.caSnags))      CA_SNAGS      = _mergeOn ? s62MergeById(CA_SNAGS, data.caSnags, 'caSnags')           : data.caSnags;
+  if(Array.isArray(data.caAis))        CA_AIS        = _mergeOn ? s62MergeById(CA_AIS, data.caAis, 'caAis')                : data.caAis;
+  if(Array.isArray(data.vendors))      VENDORS       = _mergeOn ? s62MergeById(VENDORS, data.vendors, 'vendors')           : data.vendors;
 }
 
 /* ── MIGRATE: upgrade old schema data to current version ─────
