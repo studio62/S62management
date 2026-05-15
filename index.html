@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- v101.34 — cache control: prevent the browser from showing a cached
+     old version of index.html when users type s62.space. The HTML itself
+     should always be fetched fresh because we ship updates frequently.
+     This adds ~200ms to cold load but eliminates the "flash of stale
+     content" where users would see an older version for 1-2 seconds. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Studio 62 — Drawing OS</title>
 <meta name="description" content="Studio 62 Drawing OS — architectural practice management. Drawings, timesheets, QA, transmittals, staff scheduling and financials.">
 <meta name="theme-color" content="#c9a96e" id="pwa-theme-color">
@@ -6363,7 +6371,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.32 — Query.on fix · 2-stage startup recovery · sync safety chip · startup conflict check · type s62Diagnose() · s62Reconnect()');
+console.log('S62 v101.35 — SVR cleanup (vendor picker, voice notes, no auto-schedule) · no-cache · sync diagnostic');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -6408,6 +6416,69 @@ function s62MigrateSeedTemplates(){
   }
 }
 s62MigrateSeedTemplates();
+
+/* v101.33 — Auto-repair any template data corruption.
+   Defensive: scan all templates and ensure each one has the minimum
+   required structure. Fixes problems caused by:
+     - Partial saves during sync failures
+     - Custom templates created without all fields initialized
+     - Data migrations that dropped fields between versions
+   Each repaired template logs a console warning so we can track how
+   often this fires in real-world use. */
+function s62RepairTemplates(){
+  let fixed = 0;
+  if (!Array.isArray(DRW_TEMPLATES)) return;
+  DRW_TEMPLATES.forEach((t, i) => {
+    if (!t || typeof t !== 'object'){
+      console.warn('[v101.33] template at index '+i+' is invalid — skipping');
+      return;
+    }
+    // Ensure versions array exists
+    if (!Array.isArray(t.versions)){
+      console.warn('[v101.33] template '+t.id+' missing versions array — initializing empty');
+      t.versions = [];
+      fixed++;
+    }
+    // Ensure each version has a drawings array
+    t.versions.forEach((v, vi) => {
+      if (!v || typeof v !== 'object') return;
+      if (!Array.isArray(v.drawings)){
+        console.warn('[v101.33] template '+t.id+' version '+(v.version||vi)+' missing drawings array — initializing empty');
+        v.drawings = [];
+        fixed++;
+      }
+    });
+    // Ensure activeVersion points to an existing version
+    if (t.activeVersion && t.versions.length > 0){
+      const exists = t.versions.find(v => v && v.version === t.activeVersion);
+      if (!exists){
+        const latest = t.versions[t.versions.length - 1];
+        if (latest && latest.version){
+          console.warn('[v101.33] template '+t.id+' activeVersion '+t.activeVersion+' does not exist — falling back to '+latest.version);
+          t.activeVersion = latest.version;
+          fixed++;
+        }
+      }
+    }
+    // If no versions at all, create a minimal placeholder so renders don't crash
+    if (t.versions.length === 0){
+      console.warn('[v101.33] template '+t.id+' has no versions — adding minimal placeholder');
+      t.versions.push({
+        version: '1.0.0',
+        publishedAt: new Date().toISOString(),
+        publishedBy: 'auto-repair',
+        changeNote: 'Auto-created by v101.33 repair (template was missing all versions)',
+        drawings: []
+      });
+      t.activeVersion = '1.0.0';
+      fixed++;
+    }
+  });
+  if (fixed > 0){
+    console.warn('[v101.33] Template auto-repair: fixed '+fixed+' issue(s). Save will normalise the data on next sync.');
+  }
+}
+s62RepairTemplates();
 
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -6731,6 +6802,118 @@ function saveTemplateVersion(tid, newDrawings, changeNote, bump){
   t.activeVersion = newVer;
   return newVer;
 }
+
+/* v101.33 — Comprehensive sync diagnostic.
+   Run from console: s62DiagnoseSync()
+   Auto-runs once at T+30s if sync is still failing.
+   Prints a multi-section report covering auth, connection, rules, and
+   a raw HTTP smoke-test to determine the actual root cause when
+   reconnect-based recovery has been unable to clear the issue. */
+async function s62DiagnoseSync(){
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('S62 SYNC DIAGNOSTIC (v101.33)');
+  console.log('═══════════════════════════════════════════════════════════');
+
+  console.log('\n— SECTION 1: App state —');
+  console.log('  appVersion:        ', (function(){ try { return packData().appVersion; } catch(_){ return '?'; } })());
+  console.log('  pageLoadAge:       ', _fmtRelTime ? _fmtRelTime(Date.now() - _s62PageLoadTime) : '?');
+  console.log('  _saveState:        ', typeof _saveState !== 'undefined' ? _saveState : 'undefined');
+  console.log('  _fbConnected:      ', typeof _fbConnected !== 'undefined' ? _fbConnected : 'undefined');
+  console.log('  _fbInitDone:       ', typeof _fbInitDone !== 'undefined' ? _fbInitDone : 'undefined');
+  console.log('  _pendingResave:    ', typeof _pendingResave !== 'undefined' ? _pendingResave : 'undefined');
+  console.log('  _lastCloudSaveAt:  ', _lastCloudSaveAt ? new Date(_lastCloudSaveAt).toLocaleString() : 'never');
+
+  console.log('\n— SECTION 2: Firebase config —');
+  try {
+    console.log('  databaseURL:       ', _fbApp?.options?.databaseURL || 'NOT SET');
+    console.log('  projectId:         ', _fbApp?.options?.projectId || 'NOT SET');
+    console.log('  apiKey present:    ', _fbApp?.options?.apiKey ? 'yes' : 'no');
+  } catch(e){ console.log('  ERROR:', e.message); }
+
+  console.log('\n— SECTION 3: Auth state —');
+  try {
+    const u = _fbAuth?.currentUser;
+    if (!u){ console.log('  NOT SIGNED IN — this is the problem.'); return; }
+    console.log('  email:             ', u.email);
+    console.log('  uid:               ', u.uid);
+    console.log('  emailVerified:     ', u.emailVerified);
+    console.log('  provider:          ', u.providerData[0]?.providerId);
+    const t = await u.getIdTokenResult();
+    console.log('  token issued:      ', new Date(t.issuedAtTime).toLocaleString());
+    console.log('  token expires:     ', new Date(t.expirationTime).toLocaleString());
+    const expiresInMs = new Date(t.expirationTime).getTime() - Date.now();
+    console.log('  token expires in:  ', _fmtRelTime ? _fmtRelTime(expiresInMs) : (Math.round(expiresInMs / 60000) + 'm'));
+    if (expiresInMs < 0){
+      console.warn('  ⚠ TOKEN IS EXPIRED — this explains the permission_denied. Try signing out and back in.');
+    }
+  } catch(e){ console.log('  AUTH ERROR:', e.message); return; }
+
+  console.log('\n— SECTION 4: Raw HTTP smoke-test —');
+  try {
+    const token = await _fbAuth.currentUser.getIdToken(true);
+    const dbUrl = _fbApp.options.databaseURL;
+
+    // Test 1: Read root via raw HTTP
+    const r1 = await fetch(dbUrl + '/.json?auth=' + token);
+    const r1text = await r1.text();
+    console.log('  Read /.json status:', r1.status, r1.status === 200 ? '✓ OK' : '✗ FAIL');
+    if (r1.status !== 200) console.log('  Read /.json body:  ', r1text.substring(0, 200));
+
+    // Test 2: Write a scratch value
+    const scratchKey = '_diag_' + Date.now();
+    const r2 = await fetch(dbUrl + '/' + scratchKey + '.json?auth=' + token, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({test: 'diagnostic', ts: Date.now()})
+    });
+    const r2text = await r2.text();
+    console.log('  Write test status: ', r2.status, r2.status === 200 ? '✓ OK' : '✗ FAIL');
+    if (r2.status !== 200) console.log('  Write test body:   ', r2text.substring(0, 200));
+
+    // Cleanup: delete the scratch value
+    if (r2.status === 200){
+      await fetch(dbUrl + '/' + scratchKey + '.json?auth=' + token, {method: 'DELETE'});
+    }
+
+    // Conclusions
+    console.log('\n— SECTION 5: Diagnosis —');
+    if (r1.status === 200 && r2.status === 200){
+      console.warn('  Raw HTTP works fine for both reads and writes.');
+      console.warn('  → Rules and auth are CORRECT.');
+      console.warn('  → The SDK\'s persistent WebSocket is in a stuck state.');
+      console.warn('  → Recommendation: type s62Reconnect() to force a fresh socket.');
+      console.warn('  → If that does not work after 2 attempts, hard-reload the page.');
+    } else if (r1.status === 401 || r2.status === 401){
+      console.error('  ✗ Raw HTTP also fails with auth error.');
+      console.error('  → This is NOT a stale socket issue. Auth token is invalid or rules are wrong.');
+      console.error('  → Recommendation: sign out and sign in again, or check Firebase rules.');
+    } else if (r1.status === 403 || r2.status === 403){
+      console.error('  ✗ Raw HTTP returns 403 Forbidden.');
+      console.error('  → App Check is likely enforced and blocking requests.');
+      console.error('  → Recommendation: check App Check settings at firebase.google.com');
+    } else {
+      console.error('  ✗ Unexpected status codes: read=', r1.status, ' write=', r2.status);
+      console.error('  → Recommendation: check Firebase console for service status.');
+    }
+  } catch(e){
+    console.error('  SMOKE TEST ERROR:', e.message);
+  }
+  console.log('═══════════════════════════════════════════════════════════');
+}
+if (typeof window !== 'undefined') window.s62DiagnoseSync = s62DiagnoseSync;
+
+/* v101.33 — Auto-fire the diagnostic at T+30s if sync is still failing.
+   This guarantees that if recovery doesn\'t work, the user has full
+   diagnostic info in the console without having to ask for it. */
+setTimeout(() => {
+  try {
+    const stillFailing = (_saveState === 'error' || _saveState === 'cloud-error' || (_pendingResave && !_fbConnected));
+    if (stillFailing){
+      console.warn('[v101.33] sync still failing 30s after page load — auto-running diagnostic');
+      s62DiagnoseSync();
+    }
+  } catch(e){ console.warn('[v101.33] auto-diagnose error:', e); }
+}, 30 * 1000);
 
 /* v101.27 — Reset a seeded template to its factory snapshot.
    Only works on templates where t.seeded === true (i.e., that were
@@ -15230,7 +15413,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.32',
+    appVersion: 'S62-v101.35',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -23428,7 +23611,7 @@ function openCASVRModal(id){
   const projId=caFilteredProj()==='ALL'?(r?.projId||PROJS[0]?.id||''):(caFilteredProj());
   const div=document.createElement('div');div.id='ca-svr-ov';div.className='ov show';
   const staffOpts=STAFF.filter(s=>s.type!=='contractor').map(s=>'<option value="'+s.id+'" '+(( r?.visitedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
-  const weather=['Sunny','Partly Cloudy','Overcast','Rain','Hot & Humid','Windy'];
+  // v101.35 — weather dropdown removed from SVR modal
   const stages=['SD','DD','CD','CA'];
   const issHtml=(r?.issues||[]).map((iss,i)=>'<div id="iss-row-'+i+'" style="background:var(--sf3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'
     +'<div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:start">'
@@ -23449,10 +23632,30 @@ function openCASVRModal(id){
       +'<div class="frow"><label class="flbl">Stage</label><select class="fsel" id="svr-stage">'+stages.map(s=>'<option value="'+s+'" '+((r?.stage||'CA')===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>'
       +'<div class="frow"><label class="flbl" for="svr-date">Visit Date</label><input class="finp" type="date" id="svr-date" value="'+(r?.date||caToday())+'"></div>'
       +'<div class="frow"><label class="flbl" for="svr-time">Visit Time</label><input class="finp" type="time" id="svr-time" value="'+(r?.time||'09:00')+'"></div>'
-      +'<div class="frow"><label class="flbl" for="svr-weather">Weather</label><select class="fsel" id="svr-weather">'+weather.map(w=>'<option value="'+w+'" '+((r?.weather||'Sunny')===w?'selected':'')+'>'+w+'</option>').join('')+'</select></div>'
       +'<div class="frow"><label class="flbl" for="svr-pct">% Complete (Overall)</label><input class="finp" type="number" min="0" max="100" id="svr-pct" value="'+(r?.progressPct||0)+'" style="width:80px"></div>'
       +'<div class="frow"><label class="flbl" for="svr-cpresent">Contractor Present</label><select class="fsel" id="svr-cpresent"><option value="yes" '+(r?.contractorPresent!==false?'selected':'')+'>Yes</option><option value="no" '+(r?.contractorPresent===false?'selected':'')+'>No</option></select></div>'
-      +'<div class="frow"><label class="flbl" for="svr-cname">Contractor / Site Supervisor</label><input class="finp" id="svr-cname" value="'+(r?.contractorName||'')+'" placeholder="Contractor name / foreman"></div>'
+      // v101.35 — Contractor field now a vendor dropdown + custom text. If
+      // the existing contractorName matches a known vendor, it\'s pre-selected.
+      // Otherwise the value flows into the custom input below.
+      +(function(){
+        const activeVendors = (typeof VENDORS !== 'undefined' && Array.isArray(VENDORS))
+          ? VENDORS.filter(v => v && v.status !== 'blacklisted')
+          : [];
+        const existingName = r?.contractorName || '';
+        const matchedVendor = activeVendors.find(v => (v.companyName||'') === existingName);
+        const selectedId = matchedVendor ? matchedVendor.id : '';
+        return '<div class="frow"><label class="flbl" for="svr-cvendor">Contractor / Vendor</label>'
+          +'<select class="fsel" id="svr-cvendor" onchange="(function(){var sel=document.getElementById(\'svr-cvendor\');var custom=document.getElementById(\'svr-cname\');if(sel.value===\'__custom\'){custom.style.display=\'\';custom.focus();}else if(sel.value===\'\'){custom.style.display=\'none\';custom.value=\'\';}else{custom.style.display=\'none\';var v=VENDORS.find(x=>x.id===sel.value);if(v)custom.value=v.companyName;}})()">'
+            +'<option value="">— None / not present —</option>'
+            +activeVendors.map(v => {
+              const cat = (typeof VENDOR_CATEGORIES !== 'undefined') ? (VENDOR_CATEGORIES.find(c=>c.id===v.primaryCategory)?.icon||'') : '';
+              return '<option value="'+v.id+'" '+(selectedId===v.id?'selected':'')+'>'+cat+' '+(v.companyName||'(unnamed)')+(v.contactPerson?' — '+v.contactPerson:'')+'</option>';
+            }).join('')
+            +'<option value="__custom" '+(existingName && !matchedVendor ? 'selected' : '')+'>+ Custom (not in vendor list)…</option>'
+          +'</select>'
+          +'<input class="finp" id="svr-cname" value="'+existingName+'" placeholder="Contractor name / foreman" style="margin-top:6px;display:'+((existingName && !matchedVendor)?'':'none')+'">'
+        +'</div>';
+      })()
     +'</div>'
     +'<div class="frow"><label class="flbl" for="svr-cstage">Construction Stage</label><input class="finp" id="svr-cstage" value="'+(r?.constructionStage||'')+'" placeholder="e.g. Roof slab shuttering in progress, blockwork ground floor complete"></div>'
 
@@ -23480,28 +23683,43 @@ function openCASVRModal(id){
       +'<div id="svr-issues-list">'+issHtml+'</div></div>'
     +'<div class="frow"><label class="flbl">Instructions Given on Site</label><textarea class="ftarea" id="svr-instr" rows="2" placeholder="Verbal or written instructions to contractor issued during this visit…">'+(r?.instructions||'')+'</textarea></div>'
 
-    // ── NEXT VISIT ────────────────────────────────────────────
-    +'<div style="background:rgba(82,133,224,.06);border:1px solid rgba(82,133,224,.15);border-radius:8px;padding:12px 14px;margin-top:6px">'
-      +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--blu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
-        +'📅 Next site visit — auto-schedules meeting &amp; blocks staff calendar'
-      +'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">'
-        +'<div class="frow" style="margin:0"><label class="flbl" for="svr-nextdate">Next Visit Date</label><input class="finp" type="date" id="svr-nextdate" value="'+(r?.nextVisitDate||caAddDays(caToday(),14))+'"></div>'
-        +'<div class="frow" style="margin:0"><label class="flbl" for="svr-nexttime">Planned Time</label><input class="finp" type="time" id="svr-nexttime" value="'+(r?.nextVisitTime||'09:00')+'"></div>'
-      +'</div>'
-      +'<div class="frow" style="margin:0"><label class="flbl" for="rfi-date">Staff for Next Visit</label>'
-        +'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">'
-        +STAFF.filter(s=>s.type!=='contractor').map(s=>{
-          const nxtAttendees=r?.nextVisitAttendees||(r?.visitedBy?[r.visitedBy]:[CURRENT_USER_ID]);
-          const checked=nxtAttendees.includes(s.id);
-          return '<label style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--blu)':'var(--bd)')+'" id="nva-lbl-'+s.id+'">'
-            +'<input type="checkbox" id="nva-'+s.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'nva-lbl-'+s.id+'\').style.borderColor=this.checked?\'var(--blu)\':\' var(--bd)\'">'
-            +'<div style="width:16px;height:16px;border-radius:50%;background:'+s.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:6px;color:#0a0a0f;flex-shrink:0">'+s.first[0]+s.last[0]+'</div>'
-            +s.first+'</label>';
-        }).join('')
+    // ── VOICE NOTES (saved SVRs only) ─────────────────────────
+    // v101.35 — voice notes attach to the meeting that this SVR creates.
+    // For new (unsaved) reports we show a hint; for edits we show the actual
+    // voice-note UI from the meetings module.
+    +(isEdit && id ? (function(){
+      // Find the linked meeting (one is auto-created when SVR is saved)
+      const linkedMtg = MEETINGS.find(m => m.svrSourceId === id);
+      if (!linkedMtg){
+        return '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;margin-top:6px;font-family:var(--fm);font-size:10px;color:var(--txd)">🎙 Voice notes will appear here once the report is linked to a meeting.</div>';
+      }
+      const vnCount = (linkedMtg.voiceNotes||[]).length;
+      return '<div style="background:rgba(186,117,23,.06);border:1px solid rgba(186,117,23,.18);border-radius:8px;padding:12px 14px;margin-top:6px">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+          +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">'
+            +'🎙 Voice notes ('+vnCount+')'
+          +'</div>'
+          +'<button class="btn bp bsm" onclick="closeModal(\'ca-svr-ov\');vnStartCapture(\''+linkedMtg.id+'\');" style="font-size:10px;padding:5px 10px">+ Record Voice Note</button>'
         +'</div>'
-      +'</div>'
-    +'</div>'
+        +(vnCount > 0
+          ? '<div style="font-family:var(--fm);font-size:10px;color:var(--txm);line-height:1.5">'
+              +(linkedMtg.voiceNotes||[]).slice(-3).map(v=>{
+                const when = v.createdAt ? new Date(v.createdAt).toLocaleString() : '';
+                const fmt = v.processed?.format || v.mode || 'note';
+                const preview = (v.processed?.output || v.rawTranscript || '').slice(0, 80);
+                return '<div style="padding:4px 0;border-top:1px solid var(--bd2)">'
+                  +'<span style="color:var(--gold);font-weight:500">'+fmt+'</span> · '+when
+                  +'<div style="font-size:9.5px;color:var(--txd);margin-top:2px">'+preview+(preview.length>=80?'…':'')+'</div>'
+                  +'</div>';
+              }).join('')
+            +'</div>'
+          : '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);font-style:italic">No voice notes yet — click + Record above to capture site observations by voice.</div>')
+        +'</div>';
+    })() : '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;margin-top:6px;font-family:var(--fm);font-size:10px;color:var(--txd);font-style:italic">🎙 Voice notes will be available after this report is saved.</div>')
+
+    // v101.35 — Next visit auto-scheduling removed. Site visits are now
+    // scheduled manually via the Meetings panel. A small reminder below.
+    +'<div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);text-align:center;margin-top:8px;font-style:italic">Schedule the next site visit manually from <strong>Meetings → + Schedule Meeting</strong></div>'
 
     +'<div style="display:flex;gap:8px;margin-top:12px">'
       +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="saveCASVR('+(isEdit?'\''+id+'\'':"''")+')">'+( isEdit?'💾 Save Changes':'✓ Save &amp; Sync')+'</button>'
@@ -23554,16 +23772,30 @@ function saveCASVR(editId){
     stage:document.getElementById('svr-stage')?.value||'CA',
     weather:document.getElementById('svr-weather')?.value||'',
     contractorPresent:document.getElementById('svr-cpresent')?.value==='yes',
-    contractorName:document.getElementById('svr-cname')?.value||'',
+    // v101.35 — derive contractorName from vendor dropdown when not custom
+    contractorName:(function(){
+      const sel = document.getElementById('svr-cvendor');
+      const cnameEl = document.getElementById('svr-cname');
+      if (!sel) return cnameEl?.value || '';
+      if (sel.value === '' || sel.value === '__custom') return cnameEl?.value || '';
+      const v = (typeof VENDORS !== 'undefined') ? VENDORS.find(x => x.id === sel.value) : null;
+      return v ? (v.companyName || '') : (cnameEl?.value || '');
+    })(),
+    contractorVendorId:(function(){
+      const sel = document.getElementById('svr-cvendor');
+      if (!sel || sel.value === '' || sel.value === '__custom') return '';
+      return sel.value;
+    })(),
     constructionStage:document.getElementById('svr-cstage')?.value||'',
     progressPct:parseInt(document.getElementById('svr-pct')?.value)||0,
     drawingsChecked:drwsRaw,
     observations:document.getElementById('svr-obs')?.value||'',
     issues,
     instructions:document.getElementById('svr-instr')?.value||'',
-    nextVisitDate:document.getElementById('svr-nextdate')?.value||'',
-    nextVisitTime:document.getElementById('svr-nexttime')?.value||'09:00',
-    nextVisitAttendees:STAFF.filter(s=>document.getElementById('nva-'+s.id)?.checked).map(s=>s.id),
+    // v101.35 — next visit fields removed from UI; preserve as empty for schema compatibility
+    nextVisitDate:'',
+    nextVisitTime:'',
+    nextVisitAttendees:[],
     createdAt:new Date().toISOString()
   };
   if(editId){const idx=CA_SVR.findIndex(x=>x.id===editId);if(idx>=0)CA_SVR[idx]=entry;else CA_SVR.push(entry);}
@@ -23622,10 +23854,10 @@ function saveCASVR(editId){
     });
   }
 
-  // ── AUTO-CREATE / UPDATE NEXT SITE VISIT IN MEETINGS ─────────
-  if(entry.nextVisitDate){
+  // v101.35 — AUTO-CREATE NEXT SITE VISIT removed. Next visits are
+  // scheduled manually from the Meetings panel.
+  if(false && entry.nextVisitDate){
     const proj=PROJS.find(p=>p.id===projId);
-    // Use multi-staff next visit attendees, fall back to current visitor
     const visitStaff=(entry.nextVisitAttendees&&entry.nextVisitAttendees.length)
       ? entry.nextVisitAttendees
       : [entry.visitedBy].filter(Boolean);
@@ -24788,9 +25020,19 @@ function toggleDrwTplExpand(tid){
 function renderDrwTplDetail(t){
   const tv = getTemplateVersion(t.id);
   if(!tv) return '';
+  // v101.33 — defensive guard: in some legacy/corrupted saves a version
+  // can land with no `drawings` array. Treat as empty rather than
+  // crashing the entire template list render.
+  if (!Array.isArray(tv.drawings)){
+    console.warn('[v101.33] template '+t.id+' active version '+tv.version+' has no drawings array — treating as empty');
+    tv.drawings = [];
+  }
   const stages = ['SD','DD','CD','CA'];
   const byStage = {SD:[],DD:[],CD:[],CA:[]};
-  tv.drawings.forEach(d=>{ (byStage[d.stage]||byStage.CD).push(d); });
+  tv.drawings.forEach(d=>{
+    if (!d) return;
+    (byStage[d.stage]||byStage.CD).push(d);
+  });
   const tableBody = stages.map(s=>{
     if(!byStage[s].length) return '';
     const stageLabel = {SD:'Schematic Design (Stage 1-2)',DD:'Design Development / Statutory (Stage 3)',CD:'Construction Documents / Working (Stage 4-5)',CA:'Construction Admin / GFC / As-Built (Stage 6-11)'}[s];
