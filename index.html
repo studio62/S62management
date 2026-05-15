@@ -4806,8 +4806,17 @@ async function cloudLoad(silent){
 /* ── DEBOUNCED AUTO-SAVE ───────────────────────────────── */
 function scheduleCloudSave(){
   if(!isCloudConfigured()) return;
+  // v101.38 — Secondary tab blocks cloud saves (writes only from primary).
+  if (typeof s62IsReadOnlyTab === 'function' && s62IsReadOnlyTab()){
+    return;
+  }
   if(_fbSaveTimer) clearTimeout(_fbSaveTimer);
-  _fbSaveTimer = setTimeout(()=>{ cloudSave(); }, 800);
+  // v101.38 — increased from 800ms to 2000ms. Coalesces rapid changes so
+  // typing/dragging produces ONE cloud save when the user pauses, not
+  // many. Combined with local debounce of 3s this means ~5 seconds total
+  // delay before a change reaches Firebase. Trade-off accepted: visible
+  // sync lag is small, Firebase write count drops dramatically.
+  _fbSaveTimer = setTimeout(()=>{ cloudSave(); }, 2000);
 }
 
 /* ── SYNC STATUS BAR ───────────────────────────────────── */
@@ -6389,7 +6398,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.37 — PHASE 1 SHIP 1: merge-by-id listener (no more local-only record loss) · v101.36 protections retained');
+console.log('S62 v101.38 — SHIP 1: data reset · 2s startup delay · multi-tab detection · slower debounce · s62FullReset() · s62TakeOver()');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -6434,6 +6443,58 @@ function s62MigrateSeedTemplates(){
   }
 }
 s62MigrateSeedTemplates();
+
+/* v101.38 — Clear in-code demo data when an auto-reset was scheduled.
+   PROJS, DRAWINGS, MEETINGS, etc. are seeded with hardcoded demo
+   content in their module-level initializers. The reset wipes
+   localStorage but the in-code seeds re-populate on every load.
+   
+   This is deferred via setTimeout(0) so it runs AFTER the auto-reset
+   block (which is later in the script) has set the flag. setTimeout(0)
+   yields to the event loop, letting all synchronous module init finish
+   first. */
+setTimeout(() => {
+  if (typeof window !== 'undefined' && window._s62NeedsPostInitClear){
+    console.log('[v101.38] Post-init: clearing in-code demo data for clean state');
+    try {
+      // Clear test work data but PRESERVE STAFF (the firm\'s team)
+      // and PROJECTS (you may want to keep these as starting templates).
+      // Actually clear projects too — user asked for clean slate.
+      PROJS.length = 0;
+      DRAWINGS.length = 0;
+      if (typeof MEETINGS !== 'undefined') MEETINGS.length = 0;
+      // Keep STAFF — that\'s the firm\'s team, not test data
+      if (typeof TS_ENTRIES !== 'undefined') TS_ENTRIES.length = 0;
+      if (typeof SCHED_TASKS !== 'undefined') SCHED_TASKS.length = 0;
+      if (typeof DRW_PACKAGES !== 'undefined') DRW_PACKAGES.length = 0;
+      if (typeof CONSULTANT_LOGS !== 'undefined') CONSULTANT_LOGS.length = 0;
+      if (typeof INVOICES !== 'undefined') INVOICES.length = 0;
+      if (typeof NOTIFICATIONS !== 'undefined') NOTIFICATIONS.length = 0;
+      if (typeof TRANSMITTALS !== 'undefined') TRANSMITTALS.length = 0;
+      if (typeof VISUALS !== 'undefined') VISUALS.length = 0;
+      if (typeof AUDIT_LOG !== 'undefined') AUDIT_LOG.length = 0;
+      if (typeof VENDORS !== 'undefined') VENDORS.length = 0;
+      if (typeof CA_SVR !== 'undefined') CA_SVR.length = 0;
+      if (typeof CA_RFIS !== 'undefined') CA_RFIS.length = 0;
+      if (typeof CA_SUBMITTALS !== 'undefined') CA_SUBMITTALS.length = 0;
+      if (typeof CA_SNAGS !== 'undefined') CA_SNAGS.length = 0;
+      if (typeof CA_AIS !== 'undefined') CA_AIS.length = 0;
+      if (typeof DQ_ASSESSMENTS !== 'undefined') DQ_ASSESSMENTS.length = 0;
+      if (typeof SENT_EMAILS !== 'undefined') SENT_EMAILS.length = 0;
+      if (typeof REVIEWS !== 'undefined'){ if (REVIEWS.daily) REVIEWS.daily.length = 0; if (REVIEWS.weekly) REVIEWS.weekly.length = 0; }
+      window._s62NeedsPostInitClear = false;
+      // Force a save so the cleared state persists
+      if (typeof scheduleSave === 'function'){
+        scheduleSave({immediate: true});
+      }
+      // Don't force re-renders here — they may depend on STAFF having
+      // entries (currentUser() etc.) which will only be populated when
+      // the user signs in via Google. The natural render cycle on first
+      // user interaction will handle this correctly.
+      console.log('[v101.38] Demo data cleared (staff preserved). Sign in with Google to begin using the app.');
+    } catch(e){ console.warn('[v101.38] Demo clear error:', e); }
+  }
+}, 0);
 
 /* v101.33 — Auto-repair any template data corruption.
    Defensive: scan all templates and ensure each one has the minimum
@@ -15292,7 +15353,315 @@ function manualSyncHours(){
 
 const S62_SCHEMA_VERSION = 8;
 const S62_LS_KEY = 's62_data_v1';
-const S62_SAVE_DEBOUNCE_MS = 2000;
+
+/* ──────────────────────────────────────────────────────────────────────
+   v101.38 — One-time data reset on first boot of this version.
+
+   The app is pre-deployment. You\'re alone testing. Reset clears all
+   test data and starts fresh with seeded defaults. After this runs
+   once, the flag s62_v38_reset_done is set in localStorage so the
+   reset never fires again — even if you reload.
+
+   To trigger another reset in the future, call s62FullReset() from
+   the console. That:
+     - Wipes localStorage
+     - Wipes Firebase /s62data path
+     - Removes the reset-done flag so seeded defaults regenerate
+     - Reloads the page
+
+   Firm config (name, logo, theme) is preserved across reset.
+   ────────────────────────────────────────────────────────────────── */
+const S62_V38_RESET_FLAG = 's62_v38_reset_done';
+
+function s62FullReset(){
+  try {
+    if (!confirm('FULL RESET will wipe all local data AND Firebase data.\n\nFirm config (name, logo) will be preserved.\nAll projects, drawings, vendors, meetings, etc. will be DELETED.\n\nContinue?')) return;
+    console.log('[v101.38] s62FullReset — starting full reset');
+
+    // Preserve firm config before wipe (we\'ll restore it after reload)
+    try {
+      const raw = localStorage.getItem(S62_LS_KEY);
+      if (raw){
+        const payload = raw.startsWith('LZ1:') && typeof LZString !== 'undefined'
+          ? LZString.decompressFromUTF16(raw.slice(4))
+          : raw;
+        const data = JSON.parse(payload);
+        if (data && data.firmConfig){
+          localStorage.setItem('s62_preserved_firmConfig', JSON.stringify(data.firmConfig));
+          console.log('[v101.38] firm config preserved for restoration');
+        }
+      }
+    } catch(e){ console.warn('[v101.38] could not preserve firmConfig:', e); }
+
+    // Wipe localStorage
+    localStorage.removeItem(S62_LS_KEY);
+    localStorage.removeItem(S62_V38_RESET_FLAG);
+    console.log('[v101.38] localStorage wiped');
+
+    // Wipe Firebase /s62data path
+    if (typeof _fbRef !== 'undefined' && _fbRef && typeof _fbAuth !== 'undefined' && _fbAuth.currentUser){
+      _fbAuth.currentUser.getIdToken(true).then(token => {
+        const dbUrl = _fbApp.options.databaseURL;
+        return fetch(dbUrl + '/s62data.json?auth=' + token, {method: 'DELETE'});
+      }).then(r => {
+        console.log('[v101.38] Firebase /s62data wiped, status:', r.status);
+        setTimeout(() => window.location.reload(), 500);
+      }).catch(e => {
+        console.warn('[v101.38] Firebase wipe failed:', e);
+        setTimeout(() => window.location.reload(), 500);
+      });
+    } else {
+      setTimeout(() => window.location.reload(), 500);
+    }
+  } catch(err){
+    console.error('[v101.38] reset error:', err);
+    alert('Reset failed: ' + err.message + '\n\nReloading anyway.');
+    setTimeout(() => window.location.reload(), 500);
+  }
+}
+if (typeof window !== 'undefined') window.s62FullReset = s62FullReset;
+
+/* ──────────────────────────────────────────────────────────────────────
+   v101.38 — Multi-tab detection via BroadcastChannel.
+
+   Multiple tabs of s62.space at the same time used to fight each other —
+   each tab\'s localStorage save would overwrite the other\'s, plus their
+   Firebase listeners would echo updates back and forth. The merge-by-id
+   listener in v101.37 helps but doesn\'t fully eliminate the issue.
+
+   How this works:
+     - Each tab generates a random tabId on load
+     - First tab announces itself on the channel, becomes "primary"
+     - Subsequent tabs see existing primary, become "secondary" → banner shown
+     - Primary heartbeats every 3s
+     - If primary heartbeat stops for >8s (closed tab), oldest secondary
+       promotes to primary automatically
+
+   Secondary tabs:
+     - Read-only banner at top of page
+     - Block all writes (cloudSave, scheduleSave become no-ops)
+     - Still receive listener updates and render normally
+     - Click "Take over" button on banner to manually become primary
+   ────────────────────────────────────────────────────────────────── */
+let _s62TabId = 's62tab_' + Math.random().toString(36).substring(2, 12);
+let _s62TabRole = 'primary'; // 'primary' | 'secondary'
+let _s62TabChannel = null;
+let _s62KnownTabs = new Map(); // tabId → {role, lastHeartbeat}
+let _s62PrimaryHeartbeatTimer = null;
+let _s62PrimaryWatchdogTimer = null;
+const _S62_HEARTBEAT_INTERVAL = 3000;
+const _S62_HEARTBEAT_TIMEOUT = 8000;
+
+function s62InitMultiTab(){
+  if (typeof BroadcastChannel === 'undefined'){
+    console.warn('[v101.38] BroadcastChannel not supported in this browser — multi-tab safety disabled');
+    return;
+  }
+  try {
+    _s62TabChannel = new BroadcastChannel('s62_tab_channel');
+    _s62TabChannel.onmessage = s62OnTabMessage;
+
+    // Announce ourselves and listen
+    s62BroadcastTab('hello', {});
+
+    // After 500ms, decide our role based on whether anyone else responded
+    setTimeout(() => {
+      const otherPrimary = Array.from(_s62KnownTabs.values()).some(t => t.role === 'primary');
+      if (otherPrimary){
+        s62BecomeSecondary();
+      } else {
+        s62BecomePrimary();
+      }
+    }, 500);
+
+    // Cleanup on tab close
+    window.addEventListener('beforeunload', () => {
+      try { s62BroadcastTab('goodbye', {}); _s62TabChannel.close(); } catch(_){}
+    });
+  } catch(err){
+    console.warn('[v101.38] BroadcastChannel init failed:', err);
+  }
+}
+
+function s62BroadcastTab(type, payload){
+  if (!_s62TabChannel) return;
+  try {
+    _s62TabChannel.postMessage({
+      type, tabId: _s62TabId, role: _s62TabRole, at: Date.now(), payload: payload || {}
+    });
+  } catch(_){}
+}
+
+function s62OnTabMessage(ev){
+  const msg = ev.data;
+  if (!msg || msg.tabId === _s62TabId) return;
+
+  if (msg.type === 'hello'){
+    _s62KnownTabs.set(msg.tabId, {role: msg.role, lastHeartbeat: msg.at});
+    // Respond so the new tab knows about us
+    s62BroadcastTab('here', {});
+  } else if (msg.type === 'here' || msg.type === 'heartbeat'){
+    _s62KnownTabs.set(msg.tabId, {role: msg.role, lastHeartbeat: msg.at});
+  } else if (msg.type === 'goodbye'){
+    _s62KnownTabs.delete(msg.tabId);
+    // If a primary went away and we\'re secondary, check if we should promote
+    if (_s62TabRole === 'secondary'){
+      setTimeout(s62MaybePromoteToPrimary, 200);
+    }
+  } else if (msg.type === 'take_over'){
+    // Another tab is taking over. If we\'re primary, step down.
+    if (_s62TabRole === 'primary' && msg.payload.newPrimary === msg.tabId){
+      console.log('[v101.38] another tab took over as primary — stepping down');
+      s62BecomeSecondary();
+    }
+  }
+}
+
+function s62BecomePrimary(){
+  _s62TabRole = 'primary';
+  console.log('[v101.38] this tab is now PRIMARY — full read/write enabled');
+  s62RemoveSecondaryBanner();
+  // Start heartbeat
+  if (_s62PrimaryHeartbeatTimer) clearInterval(_s62PrimaryHeartbeatTimer);
+  _s62PrimaryHeartbeatTimer = setInterval(() => s62BroadcastTab('heartbeat', {}), _S62_HEARTBEAT_INTERVAL);
+}
+
+function s62BecomeSecondary(){
+  _s62TabRole = 'secondary';
+  console.log('[v101.38] this tab is now SECONDARY — read-only mode');
+  if (_s62PrimaryHeartbeatTimer){ clearInterval(_s62PrimaryHeartbeatTimer); _s62PrimaryHeartbeatTimer = null; }
+  s62ShowSecondaryBanner();
+  // Start watchdog: if primary disappears, promote
+  if (_s62PrimaryWatchdogTimer) clearInterval(_s62PrimaryWatchdogTimer);
+  _s62PrimaryWatchdogTimer = setInterval(s62MaybePromoteToPrimary, 2000);
+}
+
+function s62MaybePromoteToPrimary(){
+  if (_s62TabRole === 'primary') return;
+  const now = Date.now();
+  const livingPrimaries = Array.from(_s62KnownTabs.entries()).filter(([id, t]) =>
+    t.role === 'primary' && (now - t.lastHeartbeat) < _S62_HEARTBEAT_TIMEOUT
+  );
+  if (livingPrimaries.length === 0){
+    console.log('[v101.38] no living primary detected — promoting to primary');
+    if (_s62PrimaryWatchdogTimer){ clearInterval(_s62PrimaryWatchdogTimer); _s62PrimaryWatchdogTimer = null; }
+    s62BecomePrimary();
+  }
+}
+
+function s62TakeOver(){
+  if (_s62TabRole === 'primary') return;
+  console.log('[v101.38] user clicked Take Over — promoting to primary');
+  s62BroadcastTab('take_over', {newPrimary: _s62TabId});
+  setTimeout(s62BecomePrimary, 200);
+}
+if (typeof window !== 'undefined') window.s62TakeOver = s62TakeOver;
+
+function s62ShowSecondaryBanner(){
+  if (document.getElementById('s62-secondary-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 's62-secondary-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#f0a83a;color:#1a1a1a;padding:8px 16px;font-family:var(--fm,sans-serif);font-size:12px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+  banner.innerHTML =
+    '<div><strong>⚠ Read-only:</strong> Studio 62 OS is already open in another tab. To prevent data conflicts, this tab is view-only.</div>' +
+    '<button onclick="s62TakeOver()" style="background:#1a1a1a;color:#f0a83a;border:none;padding:6px 14px;border-radius:4px;font-family:inherit;font-size:11px;cursor:pointer;font-weight:600">Take over →</button>';
+  if (document.body){
+    document.body.appendChild(banner);
+    document.body.style.paddingTop = '40px';
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.appendChild(banner);
+      document.body.style.paddingTop = '40px';
+    });
+  }
+}
+
+function s62RemoveSecondaryBanner(){
+  const b = document.getElementById('s62-secondary-banner');
+  if (b){
+    b.remove();
+    if (document.body) document.body.style.paddingTop = '';
+  }
+}
+
+function s62IsReadOnlyTab(){
+  return _s62TabRole === 'secondary';
+}
+if (typeof window !== 'undefined') window.s62IsReadOnlyTab = s62IsReadOnlyTab;
+
+// Kick off multi-tab detection on load — wait for DOM ready
+if (typeof window !== 'undefined'){
+  if (document.readyState === 'complete' || document.readyState === 'interactive'){
+    setTimeout(s62InitMultiTab, 100);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(s62InitMultiTab, 100));
+  }
+}
+
+/* Run the one-time auto-reset if the flag isn\'t set yet. Synchronous
+   so it happens BEFORE loadFromLocalStorage runs. We don\'t reload
+   here — we just clear localStorage, set the flag, and let the normal
+   boot proceed with empty state. */
+(function s62V38AutoReset(){
+  try {
+    if (localStorage.getItem(S62_V38_RESET_FLAG)){
+      return; // already done
+    }
+    console.log('[v101.38] First boot of v101.38 — performing one-time data reset');
+
+    // Preserve firm config
+    let preservedFirm = null;
+    try {
+      const raw = localStorage.getItem(S62_LS_KEY);
+      if (raw){
+        const payload = raw.startsWith('LZ1:') && typeof LZString !== 'undefined'
+          ? LZString.decompressFromUTF16(raw.slice(4))
+          : raw;
+        const data = JSON.parse(payload);
+        if (data && data.firmConfig){
+          preservedFirm = data.firmConfig;
+          console.log('[v101.38] firm config preserved');
+        }
+      }
+    } catch(e){ console.warn('[v101.38] firmConfig preservation:', e); }
+
+    // Wipe and re-seed minimal payload (firmConfig only)
+    localStorage.removeItem(S62_LS_KEY);
+    if (preservedFirm){
+      // Write a minimal payload so loadFromLocalStorage restores firmConfig.
+      // Other arrays will be empty / seeded defaults will populate.
+      const minimal = {
+        schemaVersion: 8,
+        savedAt: new Date().toISOString(),
+        appVersion: 'S62-v101.38',
+        firmConfig: preservedFirm,
+        projs: [], drawings: [], staff: [], tsEntries: [], tsWeekStatus: {},
+        schedTasks: [], drwPackages: [], sentEmails: [], pipeline: {},
+        consultantLogs: [], invoices: [], notifications: [], transmittals: [],
+        visuals: [], auditLog: [], drwCols: {},
+        meetings: [], dqAssessments: [], reviews: {daily: [], weekly: []},
+        caSvr: [], caRfis: [], caSubmittals: [], caSnags: [], caAis: [],
+        vendors: []
+        // Note: NO drwTemplates field — let s62MigrateSeedTemplates seed 19 defaults
+      };
+      localStorage.setItem(S62_LS_KEY, JSON.stringify(minimal));
+    }
+
+    localStorage.setItem(S62_V38_RESET_FLAG, new Date().toISOString());
+    console.log('[v101.38] Auto-reset complete. Templates will be seeded by s62MigrateSeedTemplates on init.');
+    // v101.38 — Schedule a post-init clear of the in-code demo data
+    // arrays (PROJS, DRAWINGS, MEETINGS are seeded with hardcoded demo
+    // content in module init). The user asked for a CLEAN slate.
+    window._s62NeedsPostInitClear = true;
+  } catch(err){
+    console.error('[v101.38] auto-reset error:', err);
+  }
+})();
+
+// v101.38 — increased from 2000ms to 3000ms so rapid typing doesn\'t
+// produce a save on every short pause. Net effect: one local save per
+// 3 seconds of activity, one cloud save per ~5 seconds.
+const S62_SAVE_DEBOUNCE_MS = 3000;
 
 let _saveTimer = null;
 let _lastSaveTime = null;
@@ -15431,7 +15800,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.37',
+    appVersion: 'S62-v101.38',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -15647,6 +16016,13 @@ function migrateData(data) {
 
 /* ── AUTO-SAVE to localStorage (debounced 2s) ─────────────── */
 function scheduleSave(opts) {
+  // v101.38 — Secondary tab blocks all writes to prevent multi-tab conflicts.
+  // The primary tab handles all saves; secondary just renders incoming changes.
+  if (typeof s62IsReadOnlyTab === 'function' && s62IsReadOnlyTab()){
+    console.log('[v101.38] scheduleSave blocked — this is a secondary read-only tab');
+    return;
+  }
+
   // v96 Option A — accept options object: { immediate: true } bypasses both
   // local and cloud debounces for high-stakes actions like assignments,
   // approvals, status changes. Backward compatible: scheduleSave() with no
@@ -17313,8 +17689,13 @@ updateNavBadges();
 updateCloudSyncBtn(); // Show/hide cloud button based on config + user
 // Auto-connect to Firebase on startup — loads latest data + starts live listener
 if(isCloudConfigured()){
-  setTimeout(()=>fbAutoConnect(), 600);
-  setTimeout(()=>{ if (typeof s62StartSyncChipTick === 'function') s62StartSyncChipTick(); }, 1200);
+  // v101.38 — Increased delay from 600ms to 2000ms. Auth state from
+  // onAuthStateChanged needs time to fully propagate before we open the
+  // WebSocket, otherwise the SDK socket establishes with stale auth and
+  // throws permission_denied. 2 seconds is consistent with what other
+  // Firebase apps use to avoid this race.
+  setTimeout(()=>fbAutoConnect(), 2000);
+  setTimeout(()=>{ if (typeof s62StartSyncChipTick === 'function') s62StartSyncChipTick(); }, 2200);
   // v101.32 — second-chance reconnect at T+8s. If sync is still failing at
   // this point, the first reconnect didn\'t clear the stale socket. Force
   // another reconnect, bypassing the cooldown (this is a scheduled retry,
