@@ -4712,7 +4712,10 @@ async function cloudSave(){
           ...payload,
           version:     _fbLocalVersion,
           savedAt:     new Date().toISOString(),
-          lastSavedBy: me.first+' '+me.last,
+          // v101.39 — defensive: me could be undefined if STAFF is empty
+          // or CURRENT_USER_ID doesn\'t match (right after reset, before
+          // Google sign-in completes).
+          lastSavedBy: (me && me.first ? me.first+' '+(me.last||'') : 'Unknown'),
           saveKey,
         };
       }, (err, committed_flag, snap)=>{
@@ -5230,7 +5233,12 @@ const ROLES = [
   { role:'Consultant',            rank:7, color:'#8a52e0', bg:'rgba(138,82,224,.12)',  canReview:false, canForecast:false, canSchedule:false },
 ];
 function rd(role){return ROLES.find(r=>r.role===role)||{role,rank:5,color:'var(--txm)',bg:'rgba(122,120,136,.15)',canReview:false,canForecast:false,canSchedule:false}}
-function canSchedule(){ return rd(currentUser().role).canSchedule; }
+function canSchedule(){
+  // v101.39 — defensive: currentUser() is now guaranteed non-undefined.
+  // But if .role is somehow missing, rd() handles it with its fallback.
+  const u = currentUser();
+  return rd(u && u.role || 'Architect').canSchedule;
+}
 
 /* ── canCreate() — any active staff member can create records ─────
    Used for: meetings, site reports (SVR), RFIs, submittals, snags,
@@ -6398,7 +6406,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.38 — SHIP 1: data reset · 2s startup delay · multi-tab detection · slower debounce · s62FullReset() · s62TakeOver()');
+console.log('S62 v101.39 — HOTFIX: defensive guards for empty data state · TX_PURPOSES TDZ fix · v101.38 features retained');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -6491,6 +6499,15 @@ setTimeout(() => {
       // entries (currentUser() etc.) which will only be populated when
       // the user signs in via Google. The natural render cycle on first
       // user interaction will handle this correctly.
+      // v101.39 — Ensure CURRENT_USER_ID points to a valid STAFF entry so
+      // currentUser() returns a real person, not the anon fallback. The
+      // Google sign-in will overwrite this when the user authenticates.
+      if (typeof CURRENT_USER_ID !== 'undefined' && (!CURRENT_USER_ID || !STAFF.find(s=>s.id===CURRENT_USER_ID))){
+        if (STAFF && STAFF.length > 0){
+          CURRENT_USER_ID = STAFF[0].id;
+          console.log('[v101.39] CURRENT_USER_ID defaulted to STAFF[0]:', STAFF[0].id, STAFF[0].first);
+        }
+      }
       console.log('[v101.38] Demo data cleared (staff preserved). Sign in with Google to begin using the app.');
     } catch(e){ console.warn('[v101.38] Demo clear error:', e); }
   }
@@ -7233,7 +7250,13 @@ function copyPw(){
   setTimeout(()=>{const el=document.getElementById('pwr-pw');if(el)el.style.background='';},1200);
 }
 
-function currentUser(){ return STAFF.find(s=>s.id===CURRENT_USER_ID)||STAFF[0]; }
+function currentUser(){
+  // v101.39 — defensive: never return undefined. Returns a safe fallback
+  // when STAFF is empty or CURRENT_USER_ID doesn\'t match. Callers can
+  // check the .role to know if it\'s a real user.
+  const u = STAFF.find(s=>s.id===CURRENT_USER_ID) || STAFF[0];
+  return u || {id:'_anon', first:'Anon', last:'User', role:'Architect', color:'#888'};
+}
 function canReview(){ return rd(currentUser().role).canReview; }
 
 function changeUser(id){
@@ -15628,21 +15651,22 @@ if (typeof window !== 'undefined'){
     // Wipe and re-seed minimal payload (firmConfig only)
     localStorage.removeItem(S62_LS_KEY);
     if (preservedFirm){
-      // Write a minimal payload so loadFromLocalStorage restores firmConfig.
-      // Other arrays will be empty / seeded defaults will populate.
+      // v101.39 — Write ONLY firmConfig in the minimal payload. The in-code
+      // STAFF seed and other initializers stay intact. The post-init
+      // clear (setTimeout below) then clears the in-memory arrays for
+      // a clean state, EXCEPT STAFF which we preserve as the firm\'s team.
+      //
+      // Why minimal-payload only contains firmConfig: when unpackData runs
+      // with empty arrays, it overwrites the in-code seeds. By NOT writing
+      // those fields, unpackData skips them (due to the !== undefined guard),
+      // and the in-code seeds survive. Then the post-init clear runs in
+      // setTimeout and clears the in-memory arrays correctly.
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.38',
-        firmConfig: preservedFirm,
-        projs: [], drawings: [], staff: [], tsEntries: [], tsWeekStatus: {},
-        schedTasks: [], drwPackages: [], sentEmails: [], pipeline: {},
-        consultantLogs: [], invoices: [], notifications: [], transmittals: [],
-        visuals: [], auditLog: [], drwCols: {},
-        meetings: [], dqAssessments: [], reviews: {daily: [], weekly: []},
-        caSvr: [], caRfis: [], caSubmittals: [], caSnags: [], caAis: [],
-        vendors: []
-        // Note: NO drwTemplates field — let s62MigrateSeedTemplates seed 19 defaults
+        appVersion: 'S62-v101.39',
+        firmConfig: preservedFirm
+        // No other fields — preserves in-code seeds during boot
       };
       localStorage.setItem(S62_LS_KEY, JSON.stringify(minimal));
     }
@@ -15800,7 +15824,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.38',
+    appVersion: 'S62-v101.39',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -21211,7 +21235,9 @@ function renderFreeBusyResult(data, atts, date, meetTime, dur){
    ════════════════════════════════════════════════════════ */
 
 function canSeeFin(){
-  return rd(currentUser().role).canForecast; // Principal, Associate Principal, Lead Architect
+  // v101.39 — defensive against undefined currentUser
+  const u = currentUser();
+  return rd(u && u.role || 'Architect').canForecast;
 }
 
 function isRelevantNotif(n){
@@ -21937,6 +21963,15 @@ function renderTransmittals(){
 
 /* ── REGISTER VIEW ── */
 function renderTxRegister(){
+  // v101.39 — defensive: TX_PURPOSES is declared later in the script (const
+  // declarations have a temporal dead zone). If renderTxRegister is called
+  // before TX_PURPOSES is initialized, we get a ReferenceError. Bail
+  // gracefully and retry on the next tick.
+  if (typeof TX_PURPOSES === 'undefined'){
+    console.warn('[v101.39] renderTxRegister called before TX_PURPOSES initialized — retrying in 100ms');
+    setTimeout(()=>{ try { renderTxRegister(); } catch(_){} }, 100);
+    return;
+  }
   const body = document.getElementById('tx-register-body'); if(!body) return;
   const projF  = document.getElementById('tx-proj-filter')?.value  || 'ALL';
   const statF  = document.getElementById('tx-status-filter')?.value|| 'ALL';
