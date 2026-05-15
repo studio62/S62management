@@ -4076,6 +4076,24 @@ async function fbStartListener(){
       // Still apply the data update underneath
     }
 
+    // v101.36 — CRITICAL: do not overwrite unsynced local edits. If we
+    // have a pending save that hasn\'t reached Firebase yet AND the remote
+    // version we\'re about to apply does NOT include our local changes,
+    // wholesale replacement would silently wipe the user\'s work. The
+    // symptom users see: "I created a vendor, it appeared, then it
+    // disappeared a second later."
+    if (_pendingResave){
+      console.warn('[v101.36] listener received remote update while local changes are unsynced (_pendingResave=true). SKIPPING wholesale replace to protect local edits. Will resave shortly.');
+      // Schedule the resave on the next idle tick so our changes win.
+      setTimeout(() => {
+        if (_pendingResave && _fbConnected && typeof cloudSave === 'function'){
+          _pendingResave = false;
+          cloudSave().catch(e => console.warn('[v101.36] protective resave failed:', e));
+        }
+      }, 800);
+      return;
+    }
+
     _fbApplying = true;
     const prevUserId = CURRENT_USER_ID;
     try{
@@ -6371,7 +6389,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.35 — SVR cleanup (vendor picker, voice notes, no auto-schedule) · no-cache · sync diagnostic');
+console.log('S62 v101.36 — vendor save fix · listener overwrite protection · removed Next Followup · SVR cleanup');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -15413,7 +15431,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.35',
+    appVersion: 'S62-v101.36',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -22941,14 +22959,13 @@ function openVendorEdit(id){
     +'</div>'
     +'<div class="frow"><label class="flbl" for="vd-references">References (other architects who recommended)</label><input class="finp" id="vd-references" value="'+(v?.references||'')+'" placeholder="Recommended by Studio X, used on Project Y"></div>'
     +'<div class="frow"><label class="flbl" for="vd-notes">Notes</label><textarea class="ftarea" id="vd-notes" rows="2" placeholder="Anything else worth remembering">'+(v?.notes||'')+'</textarea></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
       +'<div class="frow"><label class="flbl" for="vd-status">Status</label><select class="fsel" id="vd-status">'
         +'<option value="active" '+((v?.status||'active')==='active'?'selected':'')+'>🟢 Active</option>'
         +'<option value="onhold" '+(v?.status==='onhold'?'selected':'')+'>🟡 On Hold</option>'
         +'<option value="blacklisted" '+(v?.status==='blacklisted'?'selected':'')+'>🔴 Blacklisted</option>'
       +'</select></div>'
       +'<div class="frow"><label class="flbl" for="vd-lastEngaged">Last Engaged</label><input class="finp" type="date" id="vd-lastEngaged" value="'+(v?.lastEngaged||'')+'"></div>'
-      +'<div class="frow"><label class="flbl" for="vd-nextFollowup">Next Followup</label><input class="finp" type="date" id="vd-nextFollowup" value="'+(v?.nextFollowup||'')+'"></div>'
     +'</div>'
 
     +'<div style="display:flex;gap:8px;margin-top:14px">'
@@ -23016,7 +23033,9 @@ function saveVendor(editId){
     notes:         document.getElementById('vd-notes')?.value || '',
     status:        document.getElementById('vd-status')?.value || 'active',
     lastEngaged:   document.getElementById('vd-lastEngaged')?.value || '',
-    nextFollowup:  document.getElementById('vd-nextFollowup')?.value || '',
+    // v101.36 — nextFollowup field removed from UI; preserve existing value
+    // on edit, empty string on create. Schema compatibility maintained.
+    nextFollowup:  (editId && existing) ? (existing.nextFollowup || '') : '',
     rates:         existing?.rates    || [],
     reviews:       existing?.reviews  || [],
     linkedProjectIds: existing?.linkedProjectIds || [],
@@ -23036,7 +23055,15 @@ function saveVendor(editId){
   closeModal('vendor-edit-ov');
   // Refresh view
   if(_activeVendorId === editId){ renderCAVendors(); } else { renderVendorList(); }
-  showNotif('Vendor saved', companyName);
+  // v101.36 — be honest about sync state in the toast. If cloud is down
+  // the local save still works, but the user should know it hasn\'t synced.
+  if (typeof _fbConnected !== 'undefined' && !_fbConnected){
+    showNotif('Saved locally', companyName + ' · will sync when connection restores');
+  } else if (typeof _saveState !== 'undefined' && (_saveState === 'error' || _saveState === 'cloud-error')){
+    showNotif('Saved locally', companyName + ' · cloud sync failing — see top-bar status');
+  } else {
+    showNotif('Vendor saved', companyName);
+  }
 }
 
 function deleteVendor(id){
