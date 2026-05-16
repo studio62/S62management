@@ -1916,38 +1916,32 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     <div class="card" style="padding:0;overflow:hidden"><div id="mw-2week" style="overflow-x:auto"></div></div>
   </div>
 
-  <!-- Row 4: My Drawings (3/5) + My Calendar (2/5) — day-filter aware -->
-  <div class="dash-row-halves" style="display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:12px">
-    <div>
-      <div class="sechd">
-        <div class="sectitle">📐 My Drawings <span id="mw-drw-filter-tag" style="font-family:var(--fm);font-size:10px;color:var(--blu);margin-left:6px"></span></div>
-        <div style="display:flex;gap:6px">
-          <button class="btn bg bsm mw-dtab on" data-mw-dtab="all" onclick="setMyDrawingTab('all',this)" style="font-size:10px">All</button>
-          <button class="btn bg bsm mw-dtab" data-mw-dtab="ip" onclick="setMyDrawingTab('ip',this)" style="font-size:10px" title="Drawings assigned to me">Mine</button>
-          <button class="btn bg bsm mw-dtab" data-mw-dtab="chk" onclick="setMyDrawingTab('chk',this)" style="font-size:10px" title="Drawings awaiting my QA review">Checking</button>
-          <button class="btn bg bsm" onclick="go('drawings',null)" style="font-size:10px">All →</button>
-        </div>
+  <!-- ── v101.53 A+B WORK QUEUE ─────────────────────────────────
+       Row 4 replaces the three-panel split (Drawings | Calendar | CA)
+       with a single unified Work Queue. Tabs filter by type; within
+       each tab, rows are sorted by urgency first (overdue → today →
+       this week → later) then by priority (high → normal → low).
+       Each row shows: type icon · title · project tag · due tag
+       · priority tag (only when non-normal).
+       ──────────────────────────────────────────────────────────── -->
+  <div style="margin-bottom:12px">
+    <div class="sechd">
+      <div class="sectitle">📋 My Work Queue <span id="mw-queue-filter-tag" style="font-family:var(--fm);font-size:10px;color:var(--blu);margin-left:6px"></span></div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <button class="btn bg bsm mw-qtab on" data-mw-qtab="all"      onclick="setMyQueueTab('all',this)"      style="font-size:10px">All</button>
+        <button class="btn bg bsm mw-qtab"    data-mw-qtab="drw"      onclick="setMyQueueTab('drw',this)"      style="font-size:10px" title="Drawings assigned to me">Drawings</button>
+        <button class="btn bg bsm mw-qtab"    data-mw-qtab="review"   onclick="setMyQueueTab('review',this)"   style="font-size:10px" title="Drawings awaiting my QA check">Reviewing</button>
+        <button class="btn bg bsm mw-qtab"    data-mw-qtab="visuals"  onclick="setMyQueueTab('visuals',this)"  style="font-size:10px" title="Visuals assigned to me">Visuals</button>
+        <button class="btn bg bsm mw-qtab"    data-mw-qtab="site"     onclick="setMyQueueTab('site',this)"     style="font-size:10px" title="Site visits I'm attending or visiting">Site visits</button>
+        <button class="btn bg bsm mw-qtab"    data-mw-qtab="ca"       onclick="setMyQueueTab('ca',this)"       style="font-size:10px" title="CA items assigned to me (RFIs/snags/submittals/AIs)">CA</button>
+        <button class="btn bg bsm mw-qtab"    data-mw-qtab="meetings" onclick="setMyQueueTab('meetings',this)" style="font-size:10px" title="Meetings I'm attending">Meetings</button>
       </div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="mw-drawings" style="max-height:300px;overflow-y:auto"></div></div>
     </div>
-    <div>
-      <div class="sechd">
-        <div class="sectitle">📅 My Calendar <span id="mw-cal-filter-tag" style="font-family:var(--fm);font-size:10px;color:var(--blu);margin-left:6px"></span></div>
-        <button class="btn bg bsm" onclick="goMeetings()" style="font-size:10px">All →</button>
-      </div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="mw-calendar" style="max-height:300px;overflow-y:auto"></div></div>
-    </div>
+    <div class="card" style="padding:0;overflow:hidden"><div id="mw-queue" style="max-height:480px;overflow-y:auto"></div></div>
   </div>
 
-  <!-- Row 5: My CA Items (1/2) + My Hours This Week (1/2) -->
+  <!-- Row 5: My Hours This Week + Recently Created — compact footer -->
   <div class="dash-row-halves" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-    <div>
-      <div class="sechd">
-        <div class="sectitle">🏗 My Open CA Items <span id="mw-ca-filter-tag" style="font-family:var(--fm);font-size:10px;color:var(--blu);margin-left:6px"></span></div>
-        <button class="btn bg bsm" onclick="go('ca',null)" style="font-size:10px">All →</button>
-      </div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="mw-ca" style="max-height:240px;overflow-y:auto"></div></div>
-    </div>
     <div>
       <div class="sechd">
         <div class="sectitle">⏱ My Hours This Week</div>
@@ -1955,17 +1949,9 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       </div>
       <div class="card" style="padding:14px 16px"><div id="mw-hours"></div></div>
     </div>
-  </div>
-
-  <!-- Row 6: My Recent Activity (3/5) + Recently Created (2/5) — compact footer -->
-  <div class="dash-row-halves" style="display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:12px">
     <div>
       <div class="sechd"><div class="sectitle">📋 Recently Created by Me</div></div>
       <div class="card" style="padding:0;overflow:hidden"><div id="mw-mine" style="max-height:200px;overflow-y:auto"></div></div>
-    </div>
-    <div>
-      <div class="sechd"><div class="sectitle">↻ Activity Stream</div></div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="mw-activity-stream" style="max-height:200px;overflow-y:auto;padding:14px 16px;font-family:var(--fm);font-size:10.5px;color:var(--txd);font-style:italic">Track of edits, completions, and assignments will appear here.</div></div>
     </div>
   </div>
 
@@ -2421,6 +2407,14 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
         <select class="fsel" id="drw-phase-filter" style="width:auto" onchange="renderDrawings()">
           <option value="ALL">All Phases</option>
           <option>SD</option><option>DD</option><option>CD</option><option>CA</option>
+        </select>
+        <!-- v101.53 — priority filter. Lets you focus on just high-priority
+             drawings when you need to triage. -->
+        <select class="fsel" id="drw-priority-filter" style="width:auto" onchange="renderDrawings()" title="Filter by priority">
+          <option value="ALL">All Priority</option>
+          <option value="high">🔴 High only</option>
+          <option value="normal">Normal only</option>
+          <option value="low">↓ Low only</option>
         </select>
         <div style="flex:1"></div>
         <!-- Bulk bar -->
@@ -7415,7 +7409,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.52 — sync architecture fix: tombstone tracking + immediate-save on critical mutations + force-rebase + wipe-except-staff recovery tools');
+console.log('S62 v101.53 — persistence fix (immediate-save on 27 create/delete sites) + drawing priority + client contact on projects + My Work A+B tabbed queue');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -7792,6 +7786,11 @@ function applyTemplateToProject(projId, tid, vstr, options){
       hrs: 0,
       sid: '',          // unassigned by default — drafter assigned later
       pkg: '',
+      // v101.53 — Copy priority from template. Previously the template had a
+      // priority field but it never made it into the actual drawing record,
+      // so every drawing showed up as "normal" regardless of urgency. Now
+      // inherited at create; editable later via the detail modal.
+      priority: td.priority || 'normal',
       revHistory: [],
       qaHistory: [],
       // v99 template tracking
@@ -9296,7 +9295,7 @@ function savePipelineLead(){
   }
   closeModal('pipeline-add-ov');
   showNotif(editId?'Lead updated':'Lead added',name+' in pipeline');
-  renderPipeline();scheduleSave();
+  renderPipeline();scheduleSave({immediate:true});  // v101.53 — pipeline create/edit
 }
 
 function deletePipelineLead(id){
@@ -9306,9 +9305,10 @@ function deletePipelineLead(id){
     return;
   }
   PIPELINE=PIPELINE.filter(x=>x.id!==id);
+  scheduleSave({immediate:true});  // v101.53
   closeModal('pipeline-add-ov');
   showNotif('Lead removed','Removed from pipeline');
-  renderPipeline();scheduleSave();
+  renderPipeline();
 }
 
 
@@ -9764,7 +9764,7 @@ function generateInvoicePDF(projId,numLines){
   // Save invoice record
   INVOICES.push({id:'INV-'+Date.now(),projId,number:invNum,date:invDate,
     status:'draft',lineItems:lines,subtotal,gst,total,client,notes});
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — invoice create
 
   const html=`<!DOCTYPE html>
 <html lang="en">
@@ -10701,6 +10701,17 @@ function sendStudioEmail(type){
    ═══════════════════════════════════════════════════════════════════ */
 let _mwDrawingTab = 'all';
 
+// v101.53 — Active tab for the unified Work Queue (A+B layout). Values:
+//   'all' · 'drw' · 'review' · 'visuals' · 'site' · 'ca' · 'meetings'
+let _mwQueueTab = 'all';
+
+function setMyQueueTab(tab, btn){
+  _mwQueueTab = tab;
+  document.querySelectorAll('.mw-qtab').forEach(b => b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  if(typeof renderMyQueue === 'function') renderMyQueue();
+}
+
 // v101.48 — selected day in the 2-week schedule. When set (YYYY-MM-DD),
 // the drawings / calendar / CA panels below filter to that day. Null = no
 // filter. Toggled via mwSelectDay() and mwClearDayFilter().
@@ -10899,12 +10910,14 @@ function renderMyWork(){
   syncSchedTasks();
   if(typeof updateCloudSyncBtn==='function') updateCloudSyncBtn();
   renderMyQuickActions();
-  renderMyTodayHero();  // v101.48 — new Today hero panel (A+B layout)
+  renderMyTodayHero();  // v101.48 — Today hero (A+B layout)
   renderMyKPIs();
-  renderMy2Week();       // v101.48 — order: schedule before drawings (it now filters them)
-  renderMyDrawings();
-  renderMyCalendar();
-  renderMyCA();
+  renderMy2Week();       // v101.48 — 2-week schedule (clickable day filter)
+  // v101.53 — Unified Work Queue replaces the old three-panel split
+  // (renderMyDrawings + renderMyCalendar + renderMyCA). Those legacy
+  // functions still exist and are harmless — their target DOM nodes are
+  // gone, so they early-return.
+  renderMyQueue();
   renderMyHours();
   renderMine();
 }
@@ -11008,6 +11021,328 @@ function setMyDrawingTab(tab, btn){
   _mwDrawingTab = tab;
   document.querySelectorAll('.mw-dtab').forEach(b=>b.classList.toggle('on', b.dataset.mwDtab===tab));
   renderMyDrawings();
+}
+
+/* ════════════════════════════════════════════════════════════
+   v101.53 — UNIFIED MY WORK QUEUE (A+B LAYOUT)
+   ════════════════════════════════════════════════════════════
+   Collects every kind of work item assigned to "me" across the
+   app and merges into one list, sorted by urgency then priority.
+
+   Tabs:
+     all      — everything below combined
+     drw      — drawings where sid===me.id and status!=='done'
+     review   — drawings where checkedBy===me.id and status==='chk'
+     visuals  — VISUALS where assignedTo===me.id and status!=='del'
+     site     — CA_SVR where visitedBy===me.id OR attendees.includes(me.id)
+                                                  AND status!=='completed'
+     ca       — RFIs / snags / submittals / AIs where assignedTo===me.id
+     meetings — MEETINGS where attendees.includes(me.id) AND date>=today
+
+   Sort within tab:
+     1) Urgency bucket (overdue → today → this week → this month → later)
+     2) Priority within bucket (high → normal → low)
+     3) Due date ascending within priority
+
+   Each row in the visible list is built from a unified Item object:
+     { id, type, icon, color, title, projId, projName, dueDate (Date|null),
+       dueLabel (string), priority ('high'|'normal'|'low'), onclick }
+   ─────────────────────────────────────────────────────────── */
+
+function _mwUrgencyBucket(date, today, weekEnd, monthEnd){
+  if(!date) return 4; // no date → "later"
+  if(date < today) return 0;          // overdue
+  if(date.getTime() === today.getTime()) return 1;  // today
+  if(date <= weekEnd) return 2;       // this week
+  if(date <= monthEnd) return 3;      // this month
+  return 4;                            // later
+}
+
+function _mwPriorityRank(p){
+  if(p === 'high') return 0;
+  if(p === 'low') return 2;
+  return 1;
+}
+
+function _mwDateForCAItem(r){
+  // CA records use different field names. Return the soonest meaningful date.
+  const candidates = [r.responseDue, r.targetDate, r.dueDate].filter(Boolean);
+  if(!candidates.length) return null;
+  // Pick the earliest of the candidate dates
+  let earliest = null;
+  candidates.forEach(s => {
+    const d = parseDue(s);
+    if(d && (!earliest || d < earliest)) earliest = d;
+  });
+  return earliest;
+}
+
+function _mwBuildQueueItems(meId){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const items = [];
+
+  // ── Drawings assigned to me ─────────────────────────────────
+  DRAWINGS.forEach(d => {
+    if(!d || d.sid !== meId) return;
+    if(d.status === 'done') return;
+    const due = parseDue(d.tgt);
+    const proj = PROJS.find(p => p.id === d.proj);
+    let lbl = d.tgt ? fmtDate(due || d.tgt) : 'TBC';
+    if(due && due < today) lbl = 'Overdue ' + Math.ceil((today-due)/(24*60*60*1000)) + 'd';
+    else if(due && due.getTime() === today.getTime()) lbl = 'Today';
+    // Rejected drawings get a special icon
+    const isReturned = d.rejectedAt && d.status === 'ip' && d.pct < 100;
+    items.push({
+      id: d.id,
+      type: isReturned ? 'returned' : 'drw',
+      icon: isReturned ? '↺' : '📐',
+      color: isReturned ? 'var(--red)' : 'var(--gold)',
+      title: (isReturned ? 'Returned: ' : '') + (d.title || d.id),
+      projId: d.proj,
+      projName: proj?.name || d.proj,
+      dueDate: due,
+      dueLabel: lbl,
+      priority: d.priority || 'normal',
+      onclick: "openDrwDetail('"+d.id+"')"
+    });
+  });
+
+  // ── Drawings I'm reviewing (QA queue) ───────────────────────
+  DRAWINGS.forEach(d => {
+    if(!d || d.checkedBy !== meId || d.status !== 'chk') return;
+    const due = parseDue(d.tgt);
+    const proj = PROJS.find(p => p.id === d.proj);
+    items.push({
+      id: 'rev_'+d.id,
+      type: 'review',
+      icon: '◈',
+      color: 'var(--pur)',
+      title: 'Review: ' + (d.title || d.id),
+      projId: d.proj,
+      projName: proj?.name || d.proj,
+      dueDate: due,
+      dueLabel: due ? fmtDate(due) : '',
+      priority: d.priority || 'normal',
+      onclick: "openDrwDetail('"+d.id+"')"
+    });
+  });
+
+  // ── Visuals assigned to me ──────────────────────────────────
+  if(typeof VISUALS !== 'undefined' && Array.isArray(VISUALS)){
+    VISUALS.forEach(v => {
+      if(!v || v.assignedTo !== meId) return;
+      if(v.status === 'del' || v.status === 'delivered') return;
+      const due = parseDue(v.tgt);
+      const proj = PROJS.find(p => p.id === v.projId);
+      let lbl = v.tgt ? fmtDate(due || v.tgt) : '';
+      if(due && due < today) lbl = 'Overdue ' + Math.ceil((today-due)/(24*60*60*1000)) + 'd';
+      else if(due && due.getTime() === today.getTime()) lbl = 'Today';
+      items.push({
+        id: v.id,
+        type: 'visual',
+        icon: '🎬',
+        color: 'var(--blu)',
+        title: v.title || v.id,
+        projId: v.projId,
+        projName: proj?.name || v.projId,
+        dueDate: due,
+        dueLabel: lbl,
+        priority: v.priority || 'normal',
+        onclick: "go('visuals',null)"
+      });
+    });
+  }
+
+  // ── Site visits (CA_SVR) where I'm visitor or in attendees ──
+  if(typeof CA_SVR !== 'undefined' && Array.isArray(CA_SVR)){
+    CA_SVR.forEach(r => {
+      if(!r) return;
+      const mine = (r.visitedBy === meId) || (Array.isArray(r.attendees) && r.attendees.includes(meId));
+      if(!mine) return;
+      // Show scheduled future visits + open visits with unresolved issues
+      const isScheduled = r.status === 'scheduled';
+      const hasOpenIss = Array.isArray(r.issues) && r.issues.some(i => i.status !== 'resolved');
+      if(!isScheduled && !hasOpenIss) return;
+      const due = parseDue(r.date);
+      const proj = PROJS.find(p => p.id === r.projId);
+      let lbl = r.date ? fmtDate(due || r.date) : '';
+      if(due && due < today && isScheduled) lbl = 'Overdue ' + Math.ceil((today-due)/(24*60*60*1000)) + 'd';
+      else if(due && due.getTime() === today.getTime()) lbl = 'Today';
+      items.push({
+        id: r.id,
+        type: 'site',
+        icon: '🏗',
+        color: 'var(--gold)',
+        title: (isScheduled ? 'Site visit ' : 'SVR ') + (r.num||r.id),
+        projId: r.projId,
+        projName: proj?.name || r.projId,
+        dueDate: due,
+        dueLabel: lbl,
+        priority: hasOpenIss ? 'high' : 'normal',
+        onclick: "go('ca',null);setTimeout(()=>{if(typeof openCASVRDetail==='function')openCASVRDetail('"+r.id+"');},200)"
+      });
+    });
+  }
+
+  // ── CA: RFIs / snags / submittals / AIs assigned to me ──────
+  function pushCA(arr, opts){
+    if(!Array.isArray(arr)) return;
+    arr.forEach(r => {
+      if(!r || r.assignedTo !== meId) return;
+      if(opts.closedStatuses.includes(r.status)) return;
+      const due = _mwDateForCAItem(r);
+      const proj = PROJS.find(p => p.id === r.projId);
+      let lbl = due ? fmtDate(due) : '';
+      if(due && due < today) lbl = 'Overdue ' + Math.ceil((today-due)/(24*60*60*1000)) + 'd';
+      else if(due && due.getTime() === today.getTime()) lbl = 'Today';
+      items.push({
+        id: r.id,
+        type: opts.type,
+        icon: opts.icon,
+        color: opts.color,
+        title: opts.titlePrefix + ' ' + (r.num||r.id) + (r.title ? ' · ' + r.title : ''),
+        projId: r.projId,
+        projName: proj?.name || r.projId,
+        dueDate: due,
+        dueLabel: lbl,
+        priority: r.priority || 'normal',
+        onclick: "go('ca',null)"
+      });
+    });
+  }
+  pushCA(typeof CA_RFIS!=='undefined'?CA_RFIS:[],       {type:'rfi',  icon:'❓', color:'var(--blu)',  titlePrefix:'RFI',       closedStatuses:['closed','resolved']});
+  pushCA(typeof CA_SNAGS!=='undefined'?CA_SNAGS:[],     {type:'snag', icon:'⚠',  color:'var(--gold)', titlePrefix:'Snag',      closedStatuses:['resolved']});
+  pushCA(typeof CA_SUBMITTALS!=='undefined'?CA_SUBMITTALS:[], {type:'sub',  icon:'⊕',  color:'var(--pur)',  titlePrefix:'Submittal', closedStatuses:['approved','rejected']});
+  pushCA(typeof CA_AIS!=='undefined'?CA_AIS:[],         {type:'ai',   icon:'✎',  color:'var(--gold)', titlePrefix:'AI',        closedStatuses:['closed','resolved']});
+
+  // ── Meetings I'm attending (today + future) ─────────────────
+  MEETINGS.forEach(m => {
+    if(!m || m.status === 'cancelled') return;
+    if(!Array.isArray(m.attendees) || !m.attendees.includes(meId)) return;
+    const md = m.date ? new Date(m.date) : null;
+    if(!md || md < today) return; // skip past meetings
+    const proj = PROJS.find(p => p.id === m.proj);
+    let lbl = m.date ? fmtDate(md) : '';
+    if(md.getTime() === today.getTime()) lbl = 'Today' + (m.time ? ' ' + m.time : '');
+    items.push({
+      id: m.id,
+      type: 'meeting',
+      icon: '📅',
+      color: 'var(--blu)',
+      title: (m.title || 'Meeting') + (m.time ? ' · ' + m.time : ''),
+      projId: m.proj,
+      projName: proj?.name || m.proj || '',
+      dueDate: md,
+      dueLabel: lbl,
+      priority: 'normal',
+      onclick: "goMeetingsOpen('"+m.id+"')"
+    });
+  });
+
+  return items;
+}
+
+function renderMyQueue(){
+  const el = document.getElementById('mw-queue');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekEnd  = new Date(today.getTime() + 7  * 24 * 60 * 60 * 1000);
+  const monthEnd = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  let items = _mwBuildQueueItems(me.id);
+
+  // Filter by tab
+  const tabFilters = {
+    all:      () => true,
+    drw:      it => it.type === 'drw' || it.type === 'returned',
+    review:   it => it.type === 'review',
+    visuals:  it => it.type === 'visual',
+    site:     it => it.type === 'site',
+    ca:       it => ['rfi','snag','sub','ai'].includes(it.type),
+    meetings: it => it.type === 'meeting'
+  };
+  const tabFn = tabFilters[_mwQueueTab] || tabFilters.all;
+  items = items.filter(tabFn);
+
+  // Apply 2-week selected-day filter if active
+  if(_mwSelectedDay){
+    items = items.filter(it => {
+      if(!it.dueDate) return false;
+      const iso = it.dueDate.getFullYear()+'-'+String(it.dueDate.getMonth()+1).padStart(2,'0')+'-'+String(it.dueDate.getDate()).padStart(2,'0');
+      return iso === _mwSelectedDay;
+    });
+    const tagEl = document.getElementById('mw-queue-filter-tag');
+    if(tagEl) tagEl.textContent = '· '+mwFmtSelectedDay();
+  } else {
+    const tagEl = document.getElementById('mw-queue-filter-tag');
+    if(tagEl) tagEl.textContent = '';
+  }
+
+  // Sort: urgency bucket → priority → due date
+  items.forEach(it => {
+    it._bucket = _mwUrgencyBucket(it.dueDate, today, weekEnd, monthEnd);
+    it._pri    = _mwPriorityRank(it.priority);
+  });
+  items.sort((a,b) => {
+    if(a._bucket !== b._bucket) return a._bucket - b._bucket;
+    if(a._pri !== b._pri) return a._pri - b._pri;
+    const ad = a.dueDate ? a.dueDate.getTime() : Number.MAX_SAFE_INTEGER;
+    const bd = b.dueDate ? b.dueDate.getTime() : Number.MAX_SAFE_INTEGER;
+    return ad - bd;
+  });
+
+  if(items.length === 0){
+    const msg = _mwSelectedDay
+      ? 'Nothing scheduled on '+mwFmtSelectedDay()+' for this view.'
+      : 'No open items in this view — nice work.';
+    el.innerHTML = '<div style="padding:32px 20px;text-align:center;color:var(--txd);font-size:11px">'+msg+'</div>';
+    return;
+  }
+
+  // Group by bucket with section dividers
+  const bucketLabels = ['Overdue', 'Today', 'This week', 'This month', 'Later'];
+  const bucketColors = ['var(--red)', 'var(--gold)', 'var(--blu)', 'var(--txm)', 'var(--txd)'];
+  let html = '';
+  let lastBucket = -1;
+  items.forEach(it => {
+    if(it._bucket !== lastBucket){
+      lastBucket = it._bucket;
+      const bucketCount = items.filter(x => x._bucket === it._bucket).length;
+      html += '<div style="padding:8px 14px 6px;background:var(--sf2);border-top:1px solid var(--ln);font-family:var(--fm);font-size:9px;color:'+bucketColors[it._bucket]+';text-transform:uppercase;letter-spacing:.07em;font-weight:700;display:flex;justify-content:space-between;align-items:center">'
+        +'<span>'+bucketLabels[it._bucket]+'</span>'
+        +'<span style="color:var(--txd);font-weight:400">'+bucketCount+'</span>'
+      +'</div>';
+    }
+
+    // Priority tag — only show when non-normal
+    let priTag = '';
+    if(it.priority === 'high'){
+      priTag = '<span style="display:inline-block;padding:1px 5px;border-radius:3px;background:rgba(224,82,82,.15);color:var(--red);font-family:var(--fm);font-size:8px;font-weight:700;letter-spacing:.04em;margin-left:6px;flex-shrink:0">HIGH</span>';
+    } else if(it.priority === 'low'){
+      priTag = '<span style="display:inline-block;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.05);color:var(--txd);font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.04em;margin-left:6px;flex-shrink:0">LOW</span>';
+    }
+
+    // Due label colour
+    const dueColor = it._bucket === 0 ? 'var(--red)'
+                   : it._bucket === 1 ? 'var(--gold)'
+                   : 'var(--txd)';
+
+    html += '<div onclick="'+it.onclick+'" style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--ln);cursor:pointer" '
+      +'onmouseover="this.style.background=\'var(--sf2)\'" onmouseout="this.style.background=\'\'">'
+      +'<span style="font-size:13px;color:'+it.color+';flex-shrink:0;width:18px;text-align:center">'+it.icon+'</span>'
+      +'<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">'
+        +'<div style="display:flex;align-items:center;gap:4px;min-width:0">'
+          +'<span style="font-size:11px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.title+'</span>'
+          +priTag
+        +'</div>'
+        +'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+it.projName+'</span>'
+      +'</div>'
+      +(it.dueLabel?'<span style="font-family:var(--fm);font-size:10px;color:'+dueColor+';flex-shrink:0">'+it.dueLabel+'</span>':'')
+    +'</div>';
+  });
+
+  el.innerHTML = html;
 }
 
 function renderMyDrawings(){
@@ -12255,7 +12590,7 @@ function submitStaff(){
     const newStaff={first,last,email};
     showPwReveal(newStaff,pw);
     showNotif(`${first} ${last} added`,`Login credentials generated — share securely.`);
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — staff create
   }
 }
 
@@ -13166,7 +13501,7 @@ function applyBulkUpdate(){
   });
   showNotif('Bulk update',count+' drawings updated');
   clearBulkSelect();renderDrawings();renderDashboard();
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — bulk update
 }
 
 /* ── DETAIL PANEL ── */
@@ -13270,6 +13605,33 @@ function openDrwDetail(id){
     +(d.checkDate?' · '+fmtDate(parseDue(d.checkDate)||d.checkDate):'')+'</span></div>':'')
   +'</div>'
 
+  // v101.53 — Priority selector. Editable inline for admins; read-only chip
+  // for everyone else. Sets d.priority and immediately saves (so a sync
+  // mid-edit can't drop the change). Uses the same colour scheme as the
+  // register row left-bar: red for high, default for normal, grey for low.
+  +(function(){
+    const pri = d.priority || 'normal';
+    const colMap = { high:'var(--red)', normal:'var(--tx)', low:'var(--txd)' };
+    const lblMap = { high:'🔴 High', normal:'● Normal', low:'↓ Low' };
+    const editable = (typeof canSchedule==='function' && canSchedule());
+    if(!editable){
+      return '<div class="drw-dp-section" style="display:flex;align-items:center;gap:8px">'
+        +'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em">Priority</span>'
+        +'<span style="font-family:var(--fm);font-size:10px;font-weight:600;color:'+colMap[pri]+'">'+lblMap[pri]+'</span>'
+      +'</div>';
+    }
+    return '<div class="drw-dp-section" style="display:flex;align-items:center;gap:8px">'
+      +'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;min-width:60px">Priority</span>'
+      +'<select id="ddp-priority-'+d.id+'" onchange="setDrwPriority(\''+d.id+'\',this.value)" '
+        +'style="background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;color:'+colMap[pri]+';'
+        +'font-family:var(--fm);font-size:10px;font-weight:600;outline:none;cursor:pointer">'
+        +'<option value="high"   '+(pri==='high'?'selected':'')+'>🔴 High</option>'
+        +'<option value="normal" '+(pri==='normal'?'selected':'')+'>● Normal</option>'
+        +'<option value="low"    '+(pri==='low'?'selected':'')+'>↓ Low</option>'
+      +'</select>'
+    +'</div>';
+  })()
+
   // ── Progress bar ──
   +'<div class="drw-dp-section">'
   +'<div style="background:var(--sf3);border-radius:4px;height:7px;overflow:hidden">'
@@ -13355,6 +13717,8 @@ function renderDrawings(){
   const phaseF  =document.getElementById('drw-phase-filter')?.value||'ALL';
   const discF   =document.getElementById('drw-disc-filter')?.value||'ALL';
   const statusF =document.getElementById('drw-status-filter')?.value||'ALL';
+  // v101.53 — priority filter
+  const priorityF = document.getElementById('drw-priority-filter')?.value || 'ALL';
   const today   =new Date();
 
   // Stats bar (global across all drawings)
@@ -13456,6 +13820,12 @@ function renderDrawings(){
       if(discF!=='ALL'&&d.disc!==discF)return false;
       if(statusF!=='ALL'&&d.status!==statusF)return false;
       if(phaseF!=='ALL'){if(proj.phase!==phaseF)return false;}
+      // v101.53 — priority filter. Defaults missing priority to 'normal' so
+      // legacy drawings created before v101.53 still match the "normal" filter.
+      if(priorityF!=='ALL'){
+        const dpri = d.priority || 'normal';
+        if(dpri !== priorityF) return false;
+      }
       if(search&&!d.title.toLowerCase().includes(search)&&!d.id.toLowerCase().includes(search))return false;
       return true;
     });
@@ -13784,16 +14154,34 @@ function buildDrwTable(proj, rows, disc){
     const isSelected=drwSelected.has(r.id);
     const isDone=r.status==='done';
 
+    // v101.53 — Priority left-bar. The row already has a 3px left-border
+    // for the "done" state (green). For active drawings, encode priority:
+    //   high   → red bar (3px)
+    //   normal → no bar (default — no visual noise)
+    //   low    → grey bar (3px, lighter)
+    // Done state still wins so completed work always reads as green.
+    const pri = r.priority || 'normal';
+    let priBar = '';
+    if(!isDone){
+      if(pri === 'high')      priBar = 'border-left:3px solid var(--red);';
+      else if(pri === 'low')  priBar = 'border-left:3px solid rgba(255,255,255,.12);';
+    }
+
     // Staff dropdown (admin only) vs read-only name
     const staffOpts=STAFF.filter(s=>s.type!=='contractor').map(x=>'<option value="'+x.id+'" '+(x.id===r.sid?'selected':'')+'>'+x.first+' '+x.last+'</option>').join('');
 
-    h+='<tr id="drw-row-'+r.id+'" data-drw-id="'+r.id+'" class="'+(isSelected?'drw-row-selected':'')+'" style="'+(isDone?'background:rgba(82,201,122,.06);border-left:3px solid var(--grn);':'')+'">'
+    h+='<tr id="drw-row-'+r.id+'" data-drw-id="'+r.id+'" class="'+(isSelected?'drw-row-selected':'')+'" style="'+(isDone?'background:rgba(82,201,122,.06);border-left:3px solid var(--grn);':priBar)+'">'
 
     // Checkbox
     +'<td style="padding:7px 6px"><input type="checkbox" class="drw-cb" '+(isSelected?'checked':'')+' onchange="toggleBulkSelect(\''+r.id+'\',this)"></td>'
 
     // Dwg ID — sticky
-    +(c.id?'<td class="col-id"><span style="font-family:var(--fm);font-size:10px;font-weight:600;color:'+discForRow.color+'">'+r.id+'</span></td>':'')
+    +(c.id?'<td class="col-id"><span style="font-family:var(--fm);font-size:10px;font-weight:600;color:'+discForRow.color+'">'+r.id+'</span>'
+      // v101.53 — tiny priority tag, only shown when non-default. Compact so
+      // it doesn't bloat the column. Tooltips explain the field.
+      +(pri==='high'?'<span title="High priority" style="display:inline-block;margin-left:5px;padding:1px 5px;border-radius:3px;background:rgba(224,82,82,.18);color:var(--red);font-family:var(--fm);font-size:8px;font-weight:700;letter-spacing:.04em;vertical-align:1px">HIGH</span>':'')
+      +(pri==='low' ?'<span title="Low priority"  style="display:inline-block;margin-left:5px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.06);color:var(--txd);font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.04em;vertical-align:1px">LOW</span>':'')
+      +'</td>':'')
 
     // Discipline chip
     +(c.disc?'<td><div style="display:flex;align-items:center;gap:4px"><span class="disc-stripe" style="background:'+discForRow.color+'"></span><span style="font-family:var(--fm);font-size:9px;color:'+discForRow.color+'">'+discForRow.icon+' '+discForRow.label.split(' ')[0]+'</span></div></td>':'')
@@ -13954,6 +14342,7 @@ function submitCreatePackage(projId){
   // packages while still matching seed entries.
   DRW_PACKAGES.push({id:'PKG-'+Date.now(),projId,label:name,phase,targetDate:date,status:'pending',createdBy:currentUser().id,drawings:[]});
   closeModal('pkg-create-ov');
+  scheduleSave({immediate:true});  // v101.53 — package create
   showNotif('Package created',name+' added to '+PROJS.find(p=>p.id===projId)?.name);
   renderDrawings();
   scheduleSave();
@@ -13996,6 +14385,45 @@ function cycleDrw(id){
   const _sl={nst:'Not Started',ip:'In Progress',chk:'Ready for Review',done:'✓ Issued'};
   showNotif('Drawing updated',id+' → '+(_sl[nextStatus]||nextStatus)+' (admin)');
   renderDrawings();renderProjList();renderDashboard();updateNavBadges();
+}
+
+// v101.53 — Set a drawing's priority (high / normal / low) from the detail
+// panel. Forces immediate-save to bypass the 2.8s debounce — priority is a
+// triage signal and silent loss would defeat the purpose of marking urgency.
+function setDrwPriority(id, pri){
+  const d = DRAWINGS.find(x=>x.id===id);
+  if(!d){
+    console.warn('[v101.53] setDrwPriority — drawing not found:', id);
+    return;
+  }
+  if(!['high','normal','low'].includes(pri)) pri = 'normal';
+  const prev = d.priority || 'normal';
+  if(prev === pri) return;
+  d.priority = pri;
+
+  // Audit log
+  try {
+    addAudit('drawing', 'Priority changed',
+      d.id+' — '+(d.title||'')+' · '+prev+' → '+pri,
+      d.proj);
+  } catch(_){}
+
+  // Update the colour of the select (it's the visual feedback that the change
+  // landed before the row re-render)
+  try {
+    const sel = document.getElementById('ddp-priority-'+id);
+    if(sel){
+      const colMap = { high:'var(--red)', normal:'var(--tx)', low:'var(--txd)' };
+      sel.style.color = colMap[pri];
+    }
+  } catch(_){}
+
+  showNotif('Priority updated', d.id+' → '+pri);
+
+  // Re-render the register so the left-bar + chip update
+  try { renderDrawings(); } catch(e){ console.warn('[v101.53] renderDrawings:', e); }
+
+  scheduleSave({immediate:true});
 }
 
 function reassignDrw(id,sid){
@@ -14096,6 +14524,9 @@ function openAddProjectModal(){
   document.getElementById('ap-edit-id').value='';
   document.getElementById('ap-name').value='';
   document.getElementById('ap-client').value='';
+  // v101.53 — clear client contact fields
+  const _apCP = document.getElementById('ap-client-phone'); if(_apCP) _apCP.value='';
+  const _apCE = document.getElementById('ap-client-email'); if(_apCE) _apCE.value='';
   document.getElementById('ap-fee').value='';
   document.getElementById('ap-start').value='';
   document.getElementById('ap-end').value='';
@@ -14123,6 +14554,9 @@ function openEditProjectModal(projId){
   document.getElementById('ap-edit-id').value=projId;
   document.getElementById('ap-name').value=p.name;
   document.getElementById('ap-client').value=p.client;
+  // v101.53 — load client contact details if previously set
+  const _apCPe = document.getElementById('ap-client-phone'); if(_apCPe) _apCPe.value = p.clientPhone || '';
+  const _apCEe = document.getElementById('ap-client-email'); if(_apCEe) _apCEe.value = p.clientEmail || '';
   document.getElementById('ap-fee').value=parseFeeINR(p.fee||'0')||'';
   const _revMap={'pre':'0','briefing':'1','SD':'2','DD':'3','CD':'4','CA':'5','Handover':'6','use':'7'};
   document.getElementById('ap-phase').value=_revMap[p.phase]||p.phase;
@@ -14282,6 +14716,9 @@ function submitProject(){
   const eid=document.getElementById('ap-edit-id').value;
   const name=document.getElementById('ap-name').value.trim();
   const client=document.getElementById('ap-client').value.trim();
+  // v101.53 — Read optional client contact details. Trimmed; empty string is fine.
+  const clientPhone = (document.getElementById('ap-client-phone')?.value || '').trim();
+  const clientEmail = (document.getElementById('ap-client-email')?.value || '').trim();
   const type=document.getElementById('ap-type').value;
   const phaseRaw=document.getElementById('ap-phase').value;
   const _phaseCodeMap={'0':'pre','1':'briefing','2':'SD','3':'DD','4':'CD','5':'CA','6':'Handover','7':'use'};
@@ -14311,7 +14748,7 @@ function submitProject(){
       const _z = (typeof s62ReadZonesFromModal === 'function') ? s62ReadZonesFromModal() : null;
       if (_z) _bldgCfg.zones = _z;
     }
-    if(idx>=0)PROJS[idx]={...PROJS[idx],name,client,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg};
+    if(idx>=0)PROJS[idx]={...PROJS[idx],name,client,clientPhone,clientEmail,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg};
     showNotif('Project updated',`${name} updated.`);
   } else {
     const pid='P'+Date.now().toString().slice(-5);
@@ -14321,7 +14758,7 @@ function submitProject(){
       const _z = (typeof s62ReadZonesFromModal === 'function') ? s62ReadZonesFromModal() : null;
       if (_z) _bldgCfg.zones = _z;
     }
-    PROJS.push({id:pid,name,client,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages,bldgConfig:_bldgCfg});
+    PROJS.push({id:pid,name,client,clientPhone,clientEmail,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages,bldgConfig:_bldgCfg});
     addAudit('project','Project created',name+' ('+pid+') · '+client);
 
     // Pipeline → Project back-link: if this project was created from a Won pipeline lead,
@@ -14399,7 +14836,7 @@ function submitProject(){
   renderTimesheets();
   renderWorkload();
   updateNavBadges();
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — project create/edit must persist immediately
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -17125,7 +17562,7 @@ function applyBulkTarget(){
   closeModal('bulk-tgt-ov');
   showNotif('Bulk target set',drwSelected.size+' drawings → '+dateStr+(tasksUpdated?' (schedule synced)':''));
   clearBulkSelect();renderDrawings();renderProjList();renderDashboard();renderSchedule();updateNavBadges();
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — bulk target
 }
 
 
@@ -21322,7 +21759,7 @@ function tsRemoveEntry(entryId){
   }
   const idx=TS_ENTRIES.findIndex(x=>x.id===entryId);
   if(idx>=0){TS_ENTRIES.splice(idx,1);renderTimesheets();}
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — TS entry delete
 }
 
 function tsAddRow(staffId,weekKey){
@@ -21346,7 +21783,7 @@ function tsSubmitWeek(){
   addNotif({type:'timesheet',icon:'📋',iconBg:'rgba(82,133,224,.2)',title:me.first+' submitted timesheet',detail:'Week of '+tsFormatWeekLabel(tsGetWeekDates(tsCurrentWeekOffset))+' — awaiting approval',forRoles:['Principal Architect','Associate Principal','Lead Architect'],forStaff:null});
   renderTimesheets();
   renderDrawings();
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — TS submit must persist
 }
 
 function tsApproveStaff(staffId, weekKey){
@@ -21357,7 +21794,7 @@ function tsApproveStaff(staffId, weekKey){
   showNotif('Approved',sName+' — timesheet approved.'+(syncedS?' '+syncedS+' drawing'+(syncedS!==1?'s':'')+' updated':''));
   renderTimesheets();
   renderDrawings();
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — TS approve must persist
   renderSchedule();
 }
 
@@ -21708,7 +22145,7 @@ function saveDqAssessment(){
       notes
     });
     closeModal('dq-modal-ov');
-    scheduleSave();
+    scheduleSave({immediate:true});  // v101.53 — DQ assessment
     showNotif('Quality saved',d.id+' assessed by '+currentUser().first);
   }
 }
@@ -23293,7 +23730,7 @@ function vnDeleteAndRefreshStorage(meetingId, vnId){
 
 console.log('S62 v101.22 — voice notes ready (Path 2: Web Speech + Claude recovery)');
 
-function saveMtgNotes(id){const m=MEETINGS.find(x=>x.id===id);if(!m)return;const el=document.getElementById('mtg-notes-area');if(!el)return;m.notes=el.innerText||el.textContent||'';showNotif('Notes saved','');scheduleSave();if(m.gcalId&&isGcalConnected())gcalUpdateEvent(m);}
+function saveMtgNotes(id){const m=MEETINGS.find(x=>x.id===id);if(!m)return;const el=document.getElementById('mtg-notes-area');if(!el)return;m.notes=el.innerText||el.textContent||'';showNotif('Notes saved','');scheduleSave({immediate:true});/* v101.53 */if(m.gcalId&&isGcalConnected())gcalUpdateEvent(m);}
 function toggleAI(mid,aiId){const m=MEETINGS.find(x=>x.id===mid);if(!m)return;const ai=(m.actionItems||[]).find(a=>a.id===aiId);if(!ai)return;ai.done=!ai.done;scheduleSave();const row=document.getElementById('ai-'+aiId);if(row){const c=row.querySelector('.mtg-action-done');if(c){c.style.background=ai.done?'var(--grn)':'';c.style.borderColor=ai.done?'var(--grn)':'';c.innerHTML=ai.done?'<svg width="10" height="10" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>':'';}const tx=row.querySelectorAll('div')[1]?.querySelector('div');if(tx)tx.style.cssText=ai.done?'text-decoration:line-through;color:var(--txd)':'';}}
 function removeAI(mid,aiId){const m=MEETINGS.find(x=>x.id===mid);if(!m)return;m.actionItems=(m.actionItems||[]).filter(a=>a.id!==aiId);const row=document.getElementById('ai-'+aiId);if(row)row.remove();scheduleSave();}
 function openAddAI(mid){
@@ -23310,7 +23747,7 @@ function openAddAI(mid){
     +'<button class="btn bg" style="padding:10px 14px" onclick="closeModal(\'ai-add-ov\')">Cancel</button></div></div>';
   document.body.appendChild(div);
 }
-function submitAI(mid){const m=MEETINGS.find(x=>x.id===mid);if(!m)return;const text=(document.getElementById('ai-text')?.value||'').trim();if(!text){showNotif('Enter action text','');return;}const assignee=document.getElementById('ai-who')?.value||'';const due=document.getElementById('ai-due')?.value||'';const id='AI'+Date.now().toString().slice(-6);if(!m.actionItems)m.actionItems=[];m.actionItems.push({id,text,assignee,due,done:false});closeModal('ai-add-ov');closeModal('mtg-detail-ov');openMtgDetail(mid);scheduleSave();}
+function submitAI(mid){const m=MEETINGS.find(x=>x.id===mid);if(!m)return;const text=(document.getElementById('ai-text')?.value||'').trim();if(!text){showNotif('Enter action text','');return;}const assignee=document.getElementById('ai-who')?.value||'';const due=document.getElementById('ai-due')?.value||'';const id='AI'+Date.now().toString().slice(-6);if(!m.actionItems)m.actionItems=[];m.actionItems.push({id,text,assignee,due,done:false});closeModal('ai-add-ov');closeModal('mtg-detail-ov');openMtgDetail(mid);scheduleSave({immediate:true});/* v101.53 */}
 async function pushToGcal(id){const m=MEETINGS.find(x=>x.id===id);if(!m)return;showNotif('Pushing to Google Calendar\u2026','');const ev=await gcalCreateEvent(m);if(ev){m.gcalId=ev.id;m.meetLink=ev.hangoutLink||'';m.source='gcal';scheduleSave();closeModal('mtg-detail-ov');openMtgDetail(id);showNotif('📅 Added to Google Calendar',m.meetLink?'Meet link added':'');}}
 async function syncToGcal(id){const m=MEETINGS.find(x=>x.id===id);if(!m)return;const ok=await gcalUpdateEvent(m);showNotif(ok?'📅 Google Calendar updated':'Sync failed',ok?'':'Check connection');}
 
@@ -24790,6 +25227,7 @@ function markInvoicePaid(id){
   const inv=(INVOICES||[]).find(i=>i.id===id);
   if(!inv)return;
   inv.status='paid'; inv.paidDate=toISO(new Date());
+  scheduleSave({immediate:true});  // v101.53 — invoice paid
   addNotif({type:'timesheet',icon:'₹',iconBg:'rgba(82,201,122,.2)',title:'Invoice '+id+' marked paid',detail:inv.description+' · '+fmtINR(inv.amountNum||0),projId:inv.projId,forRoles:['Principal Architect','Associate Principal','Lead Architect']});
   showNotif('Invoice paid',inv.id+' — '+fmtINR(inv.amountNum||0));
   renderFinancials(); scheduleSave();
@@ -24807,6 +25245,7 @@ function deleteInvoice(id){
   if(idx<0)return;
   if(!confirm('Delete invoice '+id+'? This cannot be undone.')) return;
   INVOICES.splice(idx,1);
+  scheduleSave({immediate:true});  // v101.53 — delete must persist immediately
   renderFinancials(); scheduleSave();
 }
 
@@ -26572,7 +27011,7 @@ function saveVendor(editId){
     VENDORS.push(entry);
     addAudit('vendor','Vendor created', companyName);
   }
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — vendor create
   closeModal('vendor-edit-ov');
   // Refresh view
   if(_activeVendorId === editId){ renderCAVendors(); } else { renderVendorList(); }
@@ -26597,7 +27036,7 @@ function deleteVendor(id){
   if(!confirm('Delete vendor '+v.companyName+'? This will also remove all reviews and rates. This cannot be undone.')) return;
   VENDORS = VENDORS.filter(x=>x.id!==id);
   addAudit('vendor','Vendor deleted', v.companyName);
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53 — vendor delete
   closeModal('vendor-edit-ov');
   _activeVendorId = null;
   renderCAVendors();
@@ -27752,7 +28191,7 @@ function caEmailSVRVendors(svrId){
       read: true,
       svrSourceId: svrId
     });
-    scheduleSave();
+    scheduleSave({immediate:true});  // v101.53
   } catch(e){ console.warn('[v101.47] SVR email log failed:', e); }
 
   // Audit log entry — separate from sent-emails store
@@ -28419,7 +28858,7 @@ function caMarkComplete(kind,id){
       });
     }
   }
-  scheduleSave();renderCA();updateCABadges();
+  scheduleSave({immediate:true});renderCA();updateCABadges();  // v101.53 — SVR save
   if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
   s62MaybeReRenderHome(); // v101.45
   showNotif('Marked complete',r.num);
@@ -31650,7 +32089,7 @@ function submitVisModal(editId){
   closeModal('add-vis-ov');
   renderVisuals();
   updateVisBadge();
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53
 }
 
 /* ── REVISION ── */
@@ -31674,7 +32113,7 @@ function deleteVisual(visId){
   closeVisDetail();
   renderVisuals();
   updateVisBadge();
-  scheduleSave();
+  scheduleSave({immediate:true});  // v101.53
   showNotif('Visual deleted','');
 }
 
@@ -31700,6 +32139,17 @@ function updateVisBadge(){
     <div class="fgrid">
       <div class="frow"><label class="flbl" for="ap-name">Project Name</label><input class="finp" id="ap-name" placeholder="e.g. Northgate Mixed-Use Development"></div>
       <div class="frow"><label class="flbl" for="ap-client">Client / Employer</label><input class="finp" id="ap-client" placeholder="e.g. Northgate Capital Ltd."></div>
+    </div>
+
+    <!-- v101.53 — Client contact details. Optional fields; used for the
+         client communication header in transmittals/invoices and for the
+         project's contact card. Stored as project.clientPhone /
+         project.clientEmail. Email is type=email so the browser hints
+         at autocomplete + validation. Phone accepts free-form so it
+         works for Indian (+91), UK (+44), international formats. -->
+    <div class="fgrid">
+      <div class="frow"><label class="flbl" for="ap-client-phone">Client phone <span style="color:var(--txd);font-weight:400">— optional</span></label><input class="finp" id="ap-client-phone" type="tel" placeholder="e.g. +91 98400 12345"></div>
+      <div class="frow"><label class="flbl" for="ap-client-email">Client email <span style="color:var(--txd);font-weight:400">— optional</span></label><input class="finp" id="ap-client-email" type="email" placeholder="e.g. amit.sharma@northgate.in"></div>
     </div>
 
     <div class="frow"><label class="flbl" for="ap-type">Project Type</label>
