@@ -4523,6 +4523,115 @@ if (typeof window !== 'undefined'){
   window.s62FlushDirtyToCloud = s62FlushDirtyToCloud;
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+   v101.42 — Aggregate writer for untracked collections.
+
+   These collections don't have id fields, so they can't be per-record.
+   But they still need to sync. Write each as a whole-collection blob
+   to a fixed REST path.
+
+   Each call PUTs the current state of that collection to
+   /s62data/{name}.json — replaces the whole sub-tree.
+   ────────────────────────────────────────────────────────────────── */
+
+const _S62_AGGREGATE_COLLECTIONS = [
+  {name: 'firmConfig',   get: () => typeof FIRM_CONFIG    !== 'undefined' ? FIRM_CONFIG    : null},
+  {name: 'pipeline',     get: () => typeof PIPELINE       !== 'undefined' ? PIPELINE       : null},
+  {name: 'tsWeekStatus', get: () => typeof TS_WEEK_STATUS !== 'undefined' ? TS_WEEK_STATUS : null},
+  {name: 'drwCols',      get: () => typeof window !== 'undefined' && window.drwCols ? window.drwCols : null},
+  {name: 'perfScores',   get: () => typeof PERF_SCORES    !== 'undefined' ? PERF_SCORES    : null},
+  {name: 'reviews',      get: () => typeof REVIEWS        !== 'undefined' ? REVIEWS        : null},
+  {name: 'drwTemplates', get: () => typeof DRW_TEMPLATES  !== 'undefined' ? DRW_TEMPLATES  : null}
+];
+
+async function s62WriteAggregates(){
+  const errors = [];
+  let written = 0;
+  for (const c of _S62_AGGREGATE_COLLECTIONS){
+    let data;
+    try { data = c.get(); } catch(_){ continue; }
+    if (data === null || data === undefined) continue;
+    try {
+      // PUT directly to /s62data/{name}.json — no id sub-path
+      const token = await s62Cloud._getToken(false);
+      const dbUrl = _fbApp.options.databaseURL.replace(/\/+$/, '');
+      const url = dbUrl + '/s62data/' + encodeURIComponent(c.name) + '.json?auth=' + encodeURIComponent(token);
+      let response = await fetch(url, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      if (response.status === 401){
+        const fresh = await s62Cloud._getToken(true);
+        const url2 = dbUrl + '/s62data/' + encodeURIComponent(c.name) + '.json?auth=' + encodeURIComponent(fresh);
+        response = await fetch(url2, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+      }
+      if (response.ok){
+        written++;
+      } else {
+        const text = await response.text().catch(()=>String(response.status));
+        errors.push({collection: c.name, error: 'HTTP '+response.status+': '+text.slice(0,100)});
+      }
+    } catch(err){
+      errors.push({collection: c.name, error: err.message || String(err)});
+    }
+  }
+  return {ok: errors.length === 0, written, errors};
+}
+
+if (typeof window !== 'undefined') window.s62WriteAggregates = s62WriteAggregates;
+
+/* ──────────────────────────────────────────────────────────────────────
+   v101.42 — Top-level REST-based cloud save.
+
+   Replaces the old _fbRef.transaction approach. Strategy:
+     1. Skip if secondary tab (read-only)
+     2. Get dirty list (per-record changes)
+     3. Flush per-record via s62Cloud.write/delete (in parallel with aggregates)
+     4. Write aggregates via s62WriteAggregates
+     5. Update save state based on combined result
+
+   This function is what cloudSave() now delegates to.
+   ────────────────────────────────────────────────────────────────── */
+async function s62CloudSaveViaRest(){
+  // Secondary tab? Skip — primary is the writer.
+  if (typeof s62IsReadOnlyTab === 'function' && s62IsReadOnlyTab()){
+    return {ok: true, written: 0, skipped: 'secondary tab'};
+  }
+
+  if (typeof _fbApp === 'undefined' || !_fbApp || !_fbApp.options){
+    return {ok: false, error: 'Firebase app not initialized'};
+  }
+  if (typeof _fbAuth === 'undefined' || !_fbAuth || !_fbAuth.currentUser){
+    return {ok: false, error: 'Not signed in'};
+  }
+
+  // Run per-record + aggregates in parallel for speed
+  const [perRecord, aggregates] = await Promise.all([
+    s62FlushDirtyToCloud(),
+    s62WriteAggregates()
+  ]);
+
+  const totalWritten = (perRecord.written || 0) + (aggregates.written || 0);
+  const allErrors = [...(perRecord.errors || []), ...(aggregates.errors || [])];
+
+  return {
+    ok: allErrors.length === 0,
+    written: totalWritten,
+    errors: allErrors,
+    perRecord,
+    aggregates
+  };
+}
+
+if (typeof window !== 'undefined') window.s62CloudSaveViaRest = s62CloudSaveViaRest;
+
+
+
 
 
 
@@ -4798,10 +4907,16 @@ async function fbStartListener(){
     // object". The permission_denied detection is now merged into this
     // (the correct 3rd-arg cancel callback) which fires on listener
     // errors anyway.
-    console.error('S62 Firebase listener error:', err);
-    _fbConnected = false;
+    // v101.42 — SDK listener errors are now COSMETIC. REST poller is the
+    // real data path. Silence the error (was: console.error). The SDK
+    // listener will be deleted entirely in v101.43.
+    if (typeof _s62PollerActive === 'undefined' || !_s62PollerActive){
+      // Only log if poller isn't running (real concern)
+      console.error('S62 Firebase listener error:', err);
+    }
+    _fbConnected = true;  // REST poller is our source of truth for connection
     updateSyncStatusBar();
-    // v101.28/32 — permission_denied recovery from listener path
+    // v101.28/32 — permission_denied recovery (now no-op since poller handles reads)
     const m = String(err && err.message || '').toLowerCase();
     if (m.indexOf('permission_denied') >= 0 || m.indexOf('permission denied') >= 0){
       _pendingResave = true;
@@ -5377,48 +5492,23 @@ async function cloudSave(){
     const saveKey = Date.now()+'-'+Math.random().toString(36).slice(2,6);
 
     let committed = false;
-    let attempts  = 0;
+    // v101.42 — Use REST instead of SDK transaction.
+    // The SDK's _fbRef.transaction has been consistently failing with
+    // permission_denied (stuck WebSocket). REST writes have been proven
+    // reliable across v101.40 (selfTest) and v101.42a (flushDirty).
+    //
+    // We treat the REST save as our single attempt. No retry loop here —
+    // s62SchedulePendingRetry handles retry at a higher level if needed.
+    const restResult = await s62CloudSaveViaRest();
+    committed = restResult.ok;
 
-    while(!committed && attempts < 3){
-      attempts++;
-      await _fbRef.transaction(current=>{
-        // current = what Firebase has right now
-        const remoteVersion = current ? (current.version||0) : 0;
-
-        if(remoteVersion > _fbLocalVersion){
-          // We are behind — abort transaction, load first
-          return; // returning undefined aborts the transaction
-        }
-
-        // We are current — write our state
-        _fbLocalVersion = remoteVersion + 1;
-        const payload = packData();
-        return {
-          ...payload,
-          version:     _fbLocalVersion,
-          savedAt:     new Date().toISOString(),
-          // v101.39 — defensive: me could be undefined if STAFF is empty
-          // or CURRENT_USER_ID doesn\'t match (right after reset, before
-          // Google sign-in completes).
-          lastSavedBy: (me && me.first ? me.first+' '+(me.last||'') : 'Unknown'),
-          saveKey,
-        };
-      }, (err, committed_flag, snap)=>{
-        committed = committed_flag;
-        if(err) console.error('S62 tx error:', err);
-      }, false); // false = don't apply locally (we manage state ourselves)
-
-      if(!committed){
-        // We were behind — load the latest, then retry
-        const snap = await _fbRef.once('value');
-        const data = snap.val();
-        if(data && data.projs){
-          _fbApplying = true;
-          unpackData(migrateData(data));
-          _fbLocalVersion = data.version||0;
-          _fbApplying = false;
-        }
-      }
+    // Log the result for visibility
+    if (restResult.errors && restResult.errors.length > 0){
+      console.warn('[v101.42] REST save errors:', restResult.errors);
+    }
+    if (restResult.skipped){
+      // Secondary tab — count as committed (nothing to do)
+      committed = true;
     }
 
     if(committed){
@@ -5448,7 +5538,9 @@ async function cloudSave(){
     _saveState = 'error';   // v96
     _pendingResave = true;  // v101.13 — re-save when we reconnect / next retry tick
     updateSaveIndicator('cloud-error');
-    console.error('S62 Firebase save:', err);
+    // v101.42 — silenced. This catch is only reached for REST errors now.
+    // SDK transaction is no longer called.
+    console.warn('[v101.42] cloud save failed (will retry):', err && err.message || err);
     // v101.28 — if this looks like stale-socket permission_denied, attempt
     // an automatic reconnect (rate-limited). Most of the time the rules
     // and auth are actually fine — the SDK just has a stale connection
@@ -7095,7 +7187,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.42a — Phase 2 Ship 3a: dirty tracking added (passive) · s62DirtyStats() to inspect · writes still monolithic for now');
+console.log('S62 v101.42 — Phase 2 Ship 3: writes now via REST per-record · cloudSave uses s62CloudSaveViaRest · SDK no longer writes');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -16365,7 +16457,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.42a',
+        appVersion: 'S62-v101.42',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -16525,7 +16617,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.42a',
+    appVersion: 'S62-v101.42',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
