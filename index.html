@@ -3869,6 +3869,271 @@ let _fbCfg = Object.assign({}, S62_FB_DEFAULT);
 
 // Firebase state
 let _fbApp          = null;
+
+/* ──────────────────────────────────────────────────────────────────────
+   v101.40 — s62Cloud REST data layer.
+
+   This module is the future of all Firebase data access in Drawing OS.
+   Built on the Firebase REST API rather than the JS SDK's WebSocket
+   connection. The REST endpoints have been proven reliable across
+   v101.33+ diagnostics (consistent 200 OK on read and write), while
+   the SDK's persistent WebSocket has been intermittently stuck.
+
+   ARCHITECTURAL CHOICES (locked in for future portability):
+     - Path scheme: /s62data/{collection}/{id} matches Firestore patterns
+     - All writes auto-add: _v (schema version), createdAt, updatedAt
+     - All methods async, return {ok, data, error} — never throw
+     - Token cached, force-refreshed every 50 minutes
+     - No shared state — each call is independent
+     - No SDK dependency for data — only Firebase Auth still uses SDK
+
+   USAGE (will become standard in v101.41+):
+     const r = await s62Cloud.read('vendors', 'vnd_abc');
+     if (r.ok) console.log(r.data);
+     else console.error(r.error);
+
+   This ship (v101.40) only ADDS the module. The SDK still drives all
+   live behavior. You can call s62Cloud.* from the console to test:
+     await s62Cloud.list('vendors')
+     await s62Cloud.write('_test', 't1', {hello: 'world'})
+     await s62Cloud.read('_test', 't1')
+     await s62Cloud.delete('_test', 't1')
+   ────────────────────────────────────────────────────────────────── */
+
+const s62Cloud = (function(){
+
+  // ──── Token management ─────────────────────────────────────────────
+  // Cache the ID token so we're not refreshing on every call. Firebase
+  // tokens are valid for ~60 minutes; we proactively refresh at 50 min.
+  let _cachedToken = null;
+  let _tokenExpiresAt = 0;
+  const _TOKEN_REFRESH_BEFORE_MS = 10 * 60 * 1000; // refresh 10min before expiry
+
+  async function _getToken(forceRefresh){
+    const now = Date.now();
+    if (!forceRefresh && _cachedToken && (_tokenExpiresAt - now > _TOKEN_REFRESH_BEFORE_MS)){
+      return _cachedToken;
+    }
+    if (typeof firebase === 'undefined' || !firebase.auth){
+      throw new Error('Firebase Auth not loaded');
+    }
+    const user = firebase.auth().currentUser;
+    if (!user){
+      throw new Error('Not signed in');
+    }
+    // getIdTokenResult(true) forces refresh. (false) uses cached when valid.
+    const result = await user.getIdTokenResult(forceRefresh === true);
+    _cachedToken = result.token;
+    _tokenExpiresAt = new Date(result.expirationTime).getTime();
+    return _cachedToken;
+  }
+
+  // ──── URL construction ─────────────────────────────────────────────
+  function _buildUrl(collection, id, queryParams){
+    if (!_fbApp || !_fbApp.options || !_fbApp.options.databaseURL){
+      throw new Error('Firebase app not initialized');
+    }
+    const base = _fbApp.options.databaseURL.replace(/\/+$/, '');
+    let path = '/s62data/' + encodeURIComponent(collection);
+    if (id !== undefined && id !== null && id !== ''){
+      path += '/' + encodeURIComponent(id);
+    }
+    path += '.json';
+    const q = queryParams ? '&' + queryParams : '';
+    return base + path + '?auth=' + _cachedToken + q;
+  }
+
+  // ──── Core HTTP wrapper ────────────────────────────────────────────
+  // Handles: token retrieval, retry on 401, parsing, error shape.
+  async function _request(method, collection, id, body, queryParams){
+    try {
+      await _getToken(false);  // ensure we have a fresh-enough token
+      let url = _buildUrl(collection, id, queryParams);
+      const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json' }
+      };
+      if (body !== undefined && body !== null){
+        opts.body = JSON.stringify(body);
+      }
+      let response = await fetch(url, opts);
+
+      // Retry once on 401 (token may have just expired)
+      if (response.status === 401){
+        console.log('[s62Cloud] 401 received — forcing token refresh and retrying');
+        await _getToken(true);  // force refresh
+        url = _buildUrl(collection, id, queryParams);
+        response = await fetch(url, opts);
+      }
+
+      if (!response.ok){
+        const text = await response.text().catch(() => '');
+        return {
+          ok: false,
+          status: response.status,
+          error: 'HTTP ' + response.status + ': ' + (text.slice(0, 200) || response.statusText)
+        };
+      }
+      const data = await response.json();
+      return { ok: true, status: response.status, data };
+    } catch (err){
+      return { ok: false, error: err.message || String(err) };
+    }
+  }
+
+  // ──── Public methods ───────────────────────────────────────────────
+
+  /**
+   * Read a single record.
+   * @returns {ok: true, data: {...}|null} or {ok: false, error}
+   * Note: returns data:null when the record doesn't exist (HTTP 200 + body 'null').
+   */
+  async function read(collection, id){
+    return _request('GET', collection, id);
+  }
+
+  /**
+   * List all records in a collection.
+   * @returns {ok: true, data: {[id]: record}|null} — Firebase returns an object keyed by id
+   */
+  async function list(collection){
+    return _request('GET', collection, null);
+  }
+
+  /**
+   * Write a record (replaces the entire record). Auto-adds metadata fields:
+   *   _v: 1                 (schema version, for future migrations)
+   *   id: <id>              (echoed back so callers can rely on it)
+   *   createdAt: ISO-string (only if not already present in incoming data)
+   *   updatedAt: ISO-string (always set to now)
+   */
+  async function write(collection, id, data){
+    if (!id) return { ok: false, error: 'write requires an id' };
+    const now = new Date().toISOString();
+    const enriched = {
+      _v: 1,
+      ...data,
+      id,
+      createdAt: (data && data.createdAt) || now,
+      updatedAt: now
+    };
+    return _request('PUT', collection, id, enriched);
+  }
+
+  /**
+   * Patch a record (merge fields with existing). Auto-updates updatedAt.
+   * createdAt is NOT touched (preserves original create time).
+   */
+  async function patch(collection, id, fields){
+    if (!id) return { ok: false, error: 'patch requires an id' };
+    const now = new Date().toISOString();
+    const enriched = {
+      ...fields,
+      updatedAt: now
+    };
+    return _request('PATCH', collection, id, enriched);
+  }
+
+  /** Delete a record. */
+  async function del(collection, id){
+    if (!id) return { ok: false, error: 'delete requires an id' };
+    return _request('DELETE', collection, id);
+  }
+
+  /**
+   * List records changed since a given timestamp.
+   * Uses Firebase REST query parameters: orderBy="updatedAt"&startAt="ISO"
+   * Returns same shape as list().
+   *
+   * Note: requires an index on "updatedAt" in Firebase rules for full
+   * efficiency. Without the index Firebase will warn but still work
+   * (just slower). We'll add the index in v101.42 when reads switch.
+   */
+  async function lastChangedSince(collection, sinceISOString){
+    const q = 'orderBy=' + encodeURIComponent('"updatedAt"') +
+              '&startAt=' + encodeURIComponent('"' + sinceISOString + '"');
+    return _request('GET', collection, null, null, q);
+  }
+
+  /**
+   * Self-test: writes, reads, and deletes a temporary record to verify
+   * the whole pipeline works. Returns a detailed report.
+   */
+  async function selfTest(){
+    const testCol = '_s62cloud_selftest';
+    const testId = 'test_' + Date.now();
+    const testData = { message: 's62Cloud self-test', timestamp: Date.now() };
+    const report = { steps: [] };
+
+    // 1. Token
+    try {
+      await _getToken(true);
+      report.steps.push({ step: 'token', ok: true });
+    } catch(e){
+      report.steps.push({ step: 'token', ok: false, error: e.message });
+      return report;
+    }
+
+    // 2. Write
+    const w = await write(testCol, testId, testData);
+    report.steps.push({ step: 'write', ok: w.ok, error: w.error });
+    if (!w.ok) return report;
+
+    // 3. Read back
+    const r = await read(testCol, testId);
+    report.steps.push({
+      step: 'read',
+      ok: r.ok && r.data && r.data.message === testData.message,
+      error: r.error,
+      data: r.data
+    });
+
+    // 4. Patch
+    const p = await patch(testCol, testId, { extra: 'patched' });
+    report.steps.push({ step: 'patch', ok: p.ok, error: p.error });
+
+    // 5. Read after patch
+    const r2 = await read(testCol, testId);
+    report.steps.push({
+      step: 'read_after_patch',
+      ok: r2.ok && r2.data && r2.data.extra === 'patched' && r2.data.message === testData.message,
+      error: r2.error,
+      data: r2.data
+    });
+
+    // 6. Delete
+    const d = await del(testCol, testId);
+    report.steps.push({ step: 'delete', ok: d.ok, error: d.error });
+
+    // 7. Confirm deleted
+    const r3 = await read(testCol, testId);
+    report.steps.push({
+      step: 'confirm_deleted',
+      ok: r3.ok && r3.data === null,
+      error: r3.error
+    });
+
+    report.allPassed = report.steps.every(s => s.ok);
+    return report;
+  }
+
+  // Public API
+  return {
+    read, list, write, patch, delete: del,
+    lastChangedSince, selfTest,
+    // Diagnostics
+    _getToken,
+    _buildUrl,
+    _tokenInfo: () => ({
+      hasToken: !!_cachedToken,
+      expiresAt: _tokenExpiresAt ? new Date(_tokenExpiresAt).toLocaleString() : 'never',
+      expiresInMs: _tokenExpiresAt - Date.now()
+    })
+  };
+})();
+
+if (typeof window !== 'undefined') window.s62Cloud = s62Cloud;
+
 let _fbDb           = null;
 let _fbRef          = null;
 let _fbListener     = null;
@@ -6406,7 +6671,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.39 — HOTFIX: defensive guards for empty data state · TX_PURPOSES TDZ fix · v101.38 features retained');
+console.log('S62 v101.40 — Phase 2 Ship 1: s62Cloud REST data layer added (not yet used) · await s62Cloud.selfTest() to verify');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -15664,7 +15929,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.39',
+        appVersion: 'S62-v101.40',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -15824,7 +16089,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.39',
+    appVersion: 'S62-v101.40',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
