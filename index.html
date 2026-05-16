@@ -3608,6 +3608,32 @@ async function signInWithGoogle(){
 }
 
 async function signOutUser(){
+  // v101.57 — Flush any pending cloud save BEFORE signing out + reloading.
+  // Without this, a meeting/visual/etc. just created could exist only in
+  // localStorage (saved synchronously) but not in Firebase, because
+  // cloudSave() is fire-and-forget and the location.reload() below cuts
+  // it off mid-flight. localStorage data survives reload, so the user's
+  // local state is fine — but cloud is out of date, and the protective
+  // resave in waitForFirebasePull is the only thing closing the gap. By
+  // awaiting cloudSave here we guarantee cloud is synced before reload.
+  try {
+    // Force one final immediate save to capture anything still in flight
+    if(typeof scheduleSave === 'function'){
+      scheduleSave({immediate:true});
+      console.log('[v101.57] signOutUser: flushed local save');
+    }
+    // If a cloud save is in-flight or pending, wait for it
+    if(typeof cloudSave === 'function' && isCloudConfigured() &&
+       (_saveState === 'cloud-saving' || _saveState === 'pending' || _pendingResave)){
+      console.log('[v101.57] signOutUser: awaiting pending cloudSave before reload (state='+_saveState+')');
+      await Promise.race([
+        cloudSave(),
+        new Promise(res => setTimeout(res, 4000))   // max 4s, don't hang signout forever
+      ]);
+      console.log('[v101.57] signOutUser: cloud save flush complete');
+    }
+  } catch(flushErr){ console.warn('[v101.57] signOutUser flush error:', flushErr); }
+
   try{
     if(_fbAuth) await _fbAuth.signOut();
   }catch(e){ console.warn('Sign-out:', e); }
@@ -3733,25 +3759,56 @@ function waitForFirebasePull(){
             }
             console.log('[v101.54] waitForFirebasePull merged cloud snapshot (v'+(v.version||'?')+') with local state');
 
-            // v101.54 — Defensive resave. If localStorage was saved AFTER
-            // the cloud snapshot, the local state may contain records that
-            // cloud doesn't have yet (e.g. created just before logout while
-            // cloudSave was still in-flight). Merge-by-id preserves them,
-            // but we need to push them back to Firebase or they'll sit
-            // local-only forever and another browser would never see them.
+            // v101.57 — ALWAYS schedule a protective resave after login.
+            //
+            // Previously this only fired when local-savedAt > cloud-savedAt+1s.
+            // That misses important cases:
+            //   • cloudSave failed silently in the previous session
+            //   • A record was created without a savedAt timestamp update
+            //   • savedAt timestamps are within 1s but a record is local-only
+            //
+            // Now: after every merge, count records that exist locally but
+            // not in cloud. If any → fire cloudSave. This makes data
+            // recovery automatic on every login, not contingent on
+            // timestamp accuracy.
             try {
+              const cloudCounts = {
+                meetings:  Array.isArray(v.meetings) ? v.meetings.length : 0,
+                visuals:   Array.isArray(v.visuals)  ? v.visuals.length  : 0,
+                drawings:  Array.isArray(v.drawings) ? v.drawings.length : 0,
+                projs:     Array.isArray(v.projs)    ? v.projs.length    : 0,
+                invoices:  Array.isArray(v.invoices) ? v.invoices.length : 0,
+                tsEntries: Array.isArray(v.tsEntries)? v.tsEntries.length: 0,
+              };
+              const localCounts = {
+                meetings:  typeof MEETINGS !== 'undefined' ? MEETINGS.length : 0,
+                visuals:   typeof VISUALS  !== 'undefined' ? VISUALS.length  : 0,
+                drawings:  typeof DRAWINGS !== 'undefined' ? DRAWINGS.length : 0,
+                projs:     typeof PROJS    !== 'undefined' ? PROJS.length    : 0,
+                invoices:  typeof INVOICES !== 'undefined' ? INVOICES.length : 0,
+                tsEntries: typeof TS_ENTRIES!== 'undefined'? TS_ENTRIES.length: 0,
+              };
+              let mismatch = false;
+              Object.keys(cloudCounts).forEach(k => {
+                if(localCounts[k] > cloudCounts[k]){
+                  mismatch = true;
+                  console.log('[v101.57] post-merge: '+k+' local='+localCounts[k]+' > cloud='+cloudCounts[k]+' → resave needed');
+                }
+              });
               const cloudSavedAt = v.savedAt ? new Date(v.savedAt).getTime() : 0;
               const localSavedAt = window._s62LocalSavedAt || 0;
-              if(localSavedAt && cloudSavedAt && localSavedAt > cloudSavedAt + 1000){
-                console.log('[v101.54] local saved at '+new Date(localSavedAt).toISOString()+
-                            ' is newer than cloud '+new Date(cloudSavedAt).toISOString()+
-                            ' — scheduling protective resave so unsynced records reach cloud');
-                // Give auth a moment to fully settle, then push
+              const timestampMismatch = (localSavedAt && cloudSavedAt && localSavedAt > cloudSavedAt + 1000);
+              if(mismatch || timestampMismatch){
+                console.log('[v101.57] scheduling protective resave (mismatch='+mismatch+', timestamp='+timestampMismatch+')');
                 setTimeout(() => {
                   if(typeof cloudSave === 'function' && isCloudConfigured()){
-                    cloudSave().catch(e => console.warn('[v101.54] protective resave failed:', e));
+                    cloudSave().then(()=>{
+                      console.log('[v101.57] protective resave complete');
+                    }).catch(e => console.warn('[v101.57] protective resave failed:', e));
                   }
                 }, 1500);
+              } else {
+                console.log('[v101.57] no resave needed — local and cloud are in sync');
               }
             } catch(e){ /* non-fatal */ }
           }
@@ -7491,7 +7548,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.56 — tombstone audit for deletions (visuals/invoices/transmittals/vendors/timesheets/drawings) + invoice/vendor/transmittal updatedAt stamping + tombstone-clear on create');
+console.log('S62 v101.57 — meeting save-before-async fix (root cause of 'new meetings missing'): save fires before await gcalCreateEvent. Also: signOutUser flushes pending cloudSave, pagehide local-snapshot save, count-based protective resave on login');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -18542,7 +18599,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.56',
+        appVersion: 'S62-v101.57',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -18702,7 +18759,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.56',
+    appVersion: 'S62-v101.57',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -21323,6 +21380,26 @@ window.addEventListener('beforeunload', function(e){
     e.returnValue = 'Your changes haven\'t finished saving yet. Close anyway?';
     return e.returnValue;
   }
+});
+
+// v101.57 — pagehide handler: last-chance LOCAL flush on tab close/hide.
+// Purpose: if the user is mid-edit and triggers an immediate tab close
+// (window-close button, OS shutdown, mobile-tab swipe), this is our
+// last chance to write any pending in-memory changes to localStorage.
+// On next session, loadFromLocalStorage will restore them, and the
+// v101.54 defensive resave in waitForFirebasePull will push them up
+// to cloud.
+//
+// Important: we intentionally do NOT push to cloud here. A pagehide
+// cloud-PUT would risk overwriting concurrent edits from other tabs
+// because we can't coordinate with them during teardown. The local
+// save + post-login resave pattern is safer for multi-user setups.
+window.addEventListener('pagehide', function(){
+  try {
+    if(typeof s62SaveLocalSnapshot === 'function'){
+      s62SaveLocalSnapshot();
+    }
+  } catch(e){ /* page is unloading — nothing we can do */ }
 });
 
 // v96 Option B — when the tab regains focus, if the connection is back,
@@ -24436,6 +24513,13 @@ async function submitMtg(mtgId){
     Object.assign(m,{type:t2,status:st2,title,date,time,duration,proj,location,externalAttendees,agenda,attendees,vendorIds});
     m.updatedAt = toISO(new Date());                  // v101.55 — dirty-tracking
     closeModal('mtg-edit-ov');
+    // v101.57 — Save NOW, BEFORE any async network call. Previously the
+    // save fired at the end of the function, AFTER `await gcalCreateEvent`.
+    // If the user closed the tab or logged out during that await (which
+    // can take 1-30s on slow networks or gcal failures), the edited
+    // meeting fields were lost because they never reached localStorage.
+    scheduleSave({immediate:true});                   // v101.57 — save early to protect against tab close during async
+    console.log('[v101.57] meeting edit saved locally (id='+m.id+') before any async gcal call');
     // If meeting already in GCal, patch it; if not but pushGcal is requested, create it
     if(m.gcalId && isGcalConnected()){
       await gcalUpdateEvent(m);
@@ -24455,6 +24539,14 @@ async function submitMtg(mtgId){
     const _nowISO = toISO(new Date());
     const nm={id:newMtgId,gcalId:null,source:'local',type,status,title,date,time,duration,proj,location,externalAttendees,attendees,vendorIds,agenda,notes:'',actionItems:[],attendeeStatuses:attendees.map(function(id){return {id:id,status:'invited'};}),notionPageUrl:'',createdBy:CURRENT_USER_ID,meetLink:'',createdAt:_nowISO,updatedAt:_nowISO};
     MEETINGS.push(nm);closeModal('mtg-edit-ov');
+    // v101.57 — CRITICAL: save IMMEDIATELY after push, BEFORE awaiting gcal.
+    // gcalCreateEvent below can block for 1-30s on slow networks. If the
+    // user logged out or closed the tab during that await, the meeting
+    // existed only in JS memory — never in localStorage — and was lost
+    // forever on reload. This is the bug that produced "new meetings
+    // missing after relog" even though the immediate-save fix was in place.
+    scheduleSave({immediate:true});                   // v101.57 — save early
+    console.log('[v101.57] meeting create saved locally (id='+nm.id+') before any async gcal call');
     if(pushGcal){
       const ev=await gcalCreateEvent(nm);
       if(ev){
@@ -24481,6 +24573,7 @@ async function submitMtg(mtgId){
     addNotif({type:'meeting',icon:'📅',iconBg:'rgba(82,201,201,.2)',title:'Meeting scheduled: '+nm.title.split('—').pop().trim(),detail:(nm.proj?projName(nm.proj)+' · ':'')+nm.date+(nm.time?' at '+nm.time:''),projId:nm.proj,forAll:true});
   }
   renderMeetings();scheduleSave({immediate:true});updateGcalBadge();
+  console.log('[v101.57] meeting final save after all sync (id='+(mtgId||'new')+')');
   // Reverse sync: if this is a site-visit meeting, create/update CA SVR stub
   syncCAFromMeeting(mtgId);
   // Cleanup chip-dropdown state
