@@ -4134,6 +4134,207 @@ const s62Cloud = (function(){
 
 if (typeof window !== 'undefined') window.s62Cloud = s62Cloud;
 
+/* ──────────────────────────────────────────────────────────────────────
+   v101.41 — REST-based polling for live updates.
+
+   Replaces the SDK's _fbRef.on('value') listener. We can't use s62Cloud's
+   per-collection methods yet (writes still go through the SDK to the
+   monolithic /s62data path), so the poller fetches the entire /s62data.json
+   via a direct authenticated fetch. Same data shape the SDK was getting.
+
+   In v101.42, when writes also migrate to per-record paths, this poller
+   will become per-collection (and much more efficient).
+
+   STATE:
+     _s62PollerActive    — is the poll loop running?
+     _s62PollerTimer     — handle for the current scheduled poll
+     _s62PollerInflight  — is a poll request currently in-flight?
+     _s62LastPollAt      — ms timestamp of last successful poll
+     _s62LastPollError   — last error message (for debugging)
+
+   CADENCE:
+     5s focused, 15s visible-inactive, 30s backgrounded.
+     We use document.visibilityState + Date.now() of last user action.
+   ────────────────────────────────────────────────────────────────── */
+
+let _s62PollerActive    = false;
+let _s62PollerTimer     = null;
+let _s62PollerInflight  = false;
+let _s62LastPollAt      = 0;
+let _s62LastPollError   = null;
+let _s62LastInteraction = Date.now();
+
+// Track user interaction for "active vs idle" detection
+if (typeof window !== 'undefined'){
+  ['mousedown','keydown','touchstart','wheel'].forEach(evt => {
+    window.addEventListener(evt, () => { _s62LastInteraction = Date.now(); }, {passive: true});
+  });
+}
+
+function s62PollerInterval(){
+  // Returns ms to wait before next poll based on tab visibility + recent interaction
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return 30000;
+  const idleMs = Date.now() - _s62LastInteraction;
+  if (idleMs > 60000) return 15000;  // visible but user is idle for 1min+
+  return 5000;                        // visible + recently active
+}
+
+async function s62Poll(){
+  if (_s62PollerInflight) return;
+  if (typeof _fbApp === 'undefined' || !_fbApp || !_fbApp.options) return;
+  if (typeof _fbAuth === 'undefined' || !_fbAuth || !_fbAuth.currentUser) return;
+
+  // Don't poll if local has pending changes — would overwrite. v101.36 protection.
+  if (typeof _pendingResave !== 'undefined' && _pendingResave){
+    return;
+  }
+  // Don't double-apply if we're already in the middle of applying remote state.
+  if (typeof _fbApplying !== 'undefined' && _fbApplying) return;
+
+  _s62PollerInflight = true;
+  try {
+    // Use the same token mechanism s62Cloud uses for consistency
+    const token = await s62Cloud._getToken(false);
+    const dbUrl = _fbApp.options.databaseURL.replace(/\/+$/, '');
+    const url = dbUrl + '/s62data.json?auth=' + encodeURIComponent(token);
+
+    let response = await fetch(url);
+    if (response.status === 401){
+      // Token may have expired — force refresh + retry once
+      console.log('[v101.41 poller] 401 — refreshing token');
+      const fresh = await s62Cloud._getToken(true);
+      const url2 = dbUrl + '/s62data.json?auth=' + encodeURIComponent(fresh);
+      response = await fetch(url2);
+    }
+
+    if (!response.ok){
+      _s62LastPollError = 'HTTP ' + response.status;
+      _fbConnected = false;
+      if (typeof updateSyncStatusBar === 'function') updateSyncStatusBar();
+      return;
+    }
+
+    const data = await response.json();
+    _s62LastPollAt = Date.now();
+    _s62LastPollError = null;
+    _fbConnected = true;
+
+    // Apply same logic as old SDK listener used (with v101.36 protections)
+    if (!data || !data.projs){
+      // No data yet (fresh database). Don't try to apply.
+      if (typeof updateSyncStatusBar === 'function') updateSyncStatusBar();
+      return;
+    }
+    if (data.saveKey && _fbOwnSaveKeys && _fbOwnSaveKeys.has(data.saveKey)){
+      // Our own save being echoed back — skip
+      return;
+    }
+    const remoteVersion = data.version || 0;
+    if (remoteVersion <= _fbLocalVersion){
+      // Already current
+      if (typeof updateSyncStatusBar === 'function') updateSyncStatusBar();
+      return;
+    }
+
+    // v101.36 protection: don't overwrite local pending changes
+    if (typeof _pendingResave !== 'undefined' && _pendingResave){
+      console.warn('[v101.41 poller] remote update but local has unsynced changes — skipping apply');
+      return;
+    }
+
+    // Apply remote data (uses v101.37 merge-by-id under the hood)
+    _fbApplying = true;
+    const prevUserId = CURRENT_USER_ID;
+    try {
+      unpackData(migrateData(data));
+      _fbLocalVersion = remoteVersion;
+      CURRENT_USER_ID = prevUserId;
+      if (typeof s62SaveLocalSnapshot === 'function') s62SaveLocalSnapshot();
+      // Re-render visible panel
+      const active = document.querySelector('.panel.active');
+      const pid = active ? active.id.replace('panel-','') : 'dashboard';
+      try { renderDashboard(); } catch(_){}
+      try { renderProjList(); } catch(_){}
+      try {
+        if(pid==='drawings')     renderDrawings();
+        if(pid==='timesheets')   renderTimesheets();
+        if(pid==='staffsched')   renderStaffSched();
+        if(pid==='schedule')     renderSchedule();
+        if(pid==='workload')     renderWorkload();
+        if(pid==='meetings')     renderMeetings();
+        if(pid==='financials')   renderFinancials();
+        if(pid==='transmittals') renderTransmittals();
+      } catch(_){}
+      if (typeof updateNavBadges === 'function') updateNavBadges();
+      if (typeof updateSyncStatusBar === 'function') updateSyncStatusBar();
+      if (typeof updateVersionIndicator === 'function') updateVersionIndicator();
+
+      const who = data.lastSavedBy || 'Someone';
+      if (typeof showSyncToast === 'function') showSyncToast('↻ '+who+' updated · v'+remoteVersion);
+    } catch(e){
+      console.error('[v101.41 poller] apply error:', e);
+    } finally {
+      _fbApplying = false;
+    }
+  } catch(err){
+    _s62LastPollError = err.message || String(err);
+    console.warn('[v101.41 poller] poll failed:', _s62LastPollError);
+    _fbConnected = false;
+    if (typeof updateSyncStatusBar === 'function') updateSyncStatusBar();
+  } finally {
+    _s62PollerInflight = false;
+  }
+}
+
+function s62SchedulePoll(){
+  if (!_s62PollerActive) return;
+  if (_s62PollerTimer) clearTimeout(_s62PollerTimer);
+  _s62PollerTimer = setTimeout(async () => {
+    await s62Poll();
+    s62SchedulePoll();  // schedule next after current finishes
+  }, s62PollerInterval());
+}
+
+async function s62StartPoller(){
+  if (_s62PollerActive){
+    console.log('[v101.41] poller already running');
+    return;
+  }
+  _s62PollerActive = true;
+  console.log('[v101.41] starting REST poller for live updates');
+  // Initial poll happens immediately, then scheduled
+  await s62Poll();
+  s62SchedulePoll();
+}
+
+function s62StopPoller(){
+  _s62PollerActive = false;
+  if (_s62PollerTimer){ clearTimeout(_s62PollerTimer); _s62PollerTimer = null; }
+  console.log('[v101.41] poller stopped');
+}
+
+// Diagnostic info
+function s62PollerInfo(){
+  return {
+    active: _s62PollerActive,
+    inflight: _s62PollerInflight,
+    lastPollAt: _s62LastPollAt ? new Date(_s62LastPollAt).toLocaleString() : 'never',
+    lastError: _s62LastPollError,
+    nextInterval: s62PollerInterval()+'ms',
+    visibility: typeof document !== 'undefined' ? document.visibilityState : '?',
+    idleSinceMs: Date.now() - _s62LastInteraction
+  };
+}
+
+if (typeof window !== 'undefined'){
+  window.s62StartPoller = s62StartPoller;
+  window.s62StopPoller  = s62StopPoller;
+  window.s62PollerInfo  = s62PollerInfo;
+  window.s62Poll        = s62Poll;
+}
+
+
+
 let _fbDb           = null;
 let _fbRef          = null;
 let _fbListener     = null;
@@ -4326,7 +4527,17 @@ async function fbStartListener(){
   });
 
   // Listen for data changes — main data listener
+  // v101.41 — the SDK listener still attaches (to keep connection state
+  // tracked via .info/connected) but the APPLY path is short-circuited.
+  // REST poller (s62Poll) is now the source of truth for remote data.
+  // Writes still go through the SDK in this ship; they'll migrate in v101.42.
   _fbListener = _fbRef.on('value', snap=>{
+    // v101.41 — short-circuit: REST poller handles all data apply now
+    if (typeof _s62PollerActive !== 'undefined' && _s62PollerActive){
+      return;
+    }
+    // Fallback: if poller isn't running for some reason, fall through to old
+    // SDK apply path. This shouldn't happen in normal use.
     const data = snap.val();
     if(!data || !data.projs) return;
     if(data.saveKey && _fbOwnSaveKeys.has(data.saveKey)) return;
@@ -4581,8 +4792,25 @@ async function replayOfflineQueue(){
   showSyncToast('↻ Replaying '+_offlineQueue.length+' offline change'+(_offlineQueue.length!==1?'s':'')+'…');
   // Load latest state first
   try{
-    const snap = await _fbRef.once('value');
-    const data = snap.val();
+    // v101.41 — use REST direct fetch instead of SDK once() to avoid the
+    // chronic startup permission_denied issue. The SDK socket race that
+    // we've been fighting since v101.28 only affects SDK methods. REST
+    // calls work reliably (proven by v101.40 selfTest).
+    let data;
+    try {
+      const token = await s62Cloud._getToken(true);
+      const dbUrl = _fbApp.options.databaseURL.replace(/\/+$/, '');
+      const response = await fetch(dbUrl + '/s62data.json?auth=' + encodeURIComponent(token));
+      if (!response.ok){
+        throw new Error('HTTP ' + response.status);
+      }
+      data = await response.json();
+      console.log('[v101.41] initial load via REST: success');
+    } catch (restErr){
+      console.warn('[v101.41] REST initial load failed, falling back to SDK:', restErr.message);
+      const snap = await _fbRef.once('value');
+      data = snap.val();
+    }
     if(data && data.projs){
       _fbApplying = true;
       const prevUser = CURRENT_USER_ID;
@@ -6671,7 +6899,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.40 — Phase 2 Ship 1: s62Cloud REST data layer added (not yet used) · await s62Cloud.selfTest() to verify');
+console.log('S62 v101.41 — Phase 2 Ship 2: reads now via REST polling · s62PollerInfo() for status · writes still on SDK');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -15929,7 +16157,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.40',
+        appVersion: 'S62-v101.41',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -16089,7 +16317,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.40',
+    appVersion: 'S62-v101.41',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -17985,6 +18213,14 @@ if(isCloudConfigured()){
   // Firebase apps use to avoid this race.
   setTimeout(()=>fbAutoConnect(), 2000);
   setTimeout(()=>{ if (typeof s62StartSyncChipTick === 'function') s62StartSyncChipTick(); }, 2200);
+  // v101.41 — start the REST poller. Begins polling /s62data.json every
+  // 5-30s based on tab activity. This replaces the SDK's _fbRef.on('value')
+  // listener for receiving live updates.
+  setTimeout(() => {
+    if (typeof s62StartPoller === 'function'){
+      s62StartPoller().catch(e => console.warn('[v101.41] poller start failed:', e));
+    }
+  }, 3500);
   // v101.32 — second-chance reconnect at T+8s. If sync is still failing at
   // this point, the first reconnect didn\'t clear the stale socket. Force
   // another reconnect, bypassing the cooldown (this is a scheduled retry,
