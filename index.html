@@ -1843,6 +1843,11 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       <span id="save-indicator" style="font-family:var(--fm);font-size:9px;color:var(--txd);white-space:nowrap" title="Auto-save status">● Not saved</span>
       <button class="btn bg bsm" onclick="exportData()" title="Export all data to JSON file" style="font-size:9px">⬇ Export Data</button>
       <button class="btn bg bsm" onclick="importData()" title="Load data from JSON file" style="font-size:9px">📂 Load Data</button>
+      <!-- v101.50 — Repair drawing assignments. Scans drawings for orphan
+           sid / checkedBy / setby references (staff that no longer exists)
+           and clears them on confirmation. Useful after staff record
+           changes or partial Firebase loads that strand assignments. -->
+      <button class="btn bg bsm" onclick="s62RepairDrawingAssignments()" title="Clear drawing assignments that point to staff members who no longer exist" style="font-size:9px;color:var(--txd)">🔧 Repair</button>
       <button class="btn bg bsm" onclick="clearSavedData()" title="Reset to demo data" style="font-size:9px;color:var(--txd)">↺ Reset</button>
     </div>
   </header>
@@ -7303,7 +7308,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.48 — My Work redesigned: Today hero + interactive 2-week schedule with day-filter (A+B layout)');
+console.log('S62 v101.50 — assignment fixes: reassignDrw cascade + safe initials + orphan-sid normalizer + repair utility');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -8273,6 +8278,26 @@ function goMeetingsOpen(mtgId){
    HELPERS
 ═══════════════════════════════════════════════════════════ */
 function sn(id){const s=STAFF.find(x=>x.id===id);return s?`${s.first} ${s.last}`:'—'}
+
+// v101.50 — Safe initials extractor for staff/user avatars. Returns a 2-char
+// initial regardless of malformed first/last fields (null, undefined,
+// number, empty string, missing property). Without this, any of the 39
+// `s.first[0]+s.last[0]` sites in the codebase can throw a TypeError if
+// Firebase or partial-create paths produce a staff record with null fields.
+// Common bad inputs and their outputs:
+//   {first:'Mahendra', last:'Sambandan'} → 'MS'
+//   {first:'Mahendra'}                    → 'M?'  (last missing)
+//   {first:null, last:'Sambandan'}        → '?S'
+//   {first:'', last:''}                   → '??'
+//   undefined / null staff                → '??'
+function s62SafeInit(staff){
+  if(!staff || typeof staff !== 'object') return '??';
+  const first = (staff.first == null ? '' : String(staff.first)).trim();
+  const last  = (staff.last  == null ? '' : String(staff.last)).trim();
+  const a = first ? first.charAt(0).toUpperCase() : '?';
+  const b = last  ? last.charAt(0).toUpperCase()  : '?';
+  return a + b;
+}
 function av(s,sz=36){
   const init=`${s.first[0]}${s.last[0]}`.toUpperCase();
   return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:${Math.round(sz*.28)}px;color:#0a0a0f;flex-shrink:0">${init}</div>`;
@@ -13611,7 +13636,9 @@ function buildDrwTable(proj, rows, disc){
 
   rows.forEach(r=>{
     const s   = STAFF.find(x=>x.id===r.sid);
-    const init= s?s.first[0]+s.last[0]:'?';
+    // v101.50 — Use safe-init helper to survive malformed staff records
+    // (null/undefined first/last fields from partial Firebase loads).
+    const init= s?s62SafeInit(s):'?';
     const ac  = s?.color||'var(--txd)';
     const discForRow = DISC.find(x=>x.id===r.disc)||{color:'var(--txm)',icon:'📄',label:r.disc};
     const proj   = PROJS.find(x=>x.id===r.proj);
@@ -13644,7 +13671,8 @@ function buildDrwTable(proj, rows, disc){
 
     // Set-by avatar
     const setByStaff=r.setby?STAFF.find(x=>x.id===r.setby):null;
-    const setByInit=setByStaff?setByStaff.first[0]+setByStaff.last[0]:'PM';
+    // v101.50 — safe-init helper to handle malformed staff records
+    const setByInit=setByStaff?s62SafeInit(setByStaff):'PM';
 
     const isSelected=drwSelected.has(r.id);
     const isDone=r.status==='done';
@@ -13864,15 +13892,83 @@ function cycleDrw(id){
 }
 
 function reassignDrw(id,sid){
-  const d=DRAWINGS.find(x=>x.id===id);
-  if(d){
-    d.sid=sid;
-    // Sync assignee into SCHED_TASKS so Gantt + lookahead stay in sync
-    const raTask=SCHED_TASKS.find(t=>t.drawingId===id);
-    if(raTask) raTask.staffId=sid||'';
-    showNotif('Reassigned',`${id} → ${sid?sn(sid):'Unassigned'}`);
-    renderProjList();renderDashboard();updateNavBadges();
+  // v101.50 — Fully wired single-row reassignment from the drawing register
+  // dropdown. Previously this path skipped renderDrawings() (so the avatar
+  // next to the dropdown stayed stale until a manual refresh) and
+  // scheduleSave() (so the change wasn't pushed to Firebase until the next
+  // auto-save tick, risking data loss on reload). It also didn't record an
+  // assignment log entry, breaking parity with the drawing detail save path
+  // (line ~17239) which has tracked this since Gap 6.
+  const d = DRAWINGS.find(x=>x.id===id);
+  if(!d){
+    console.warn('[v101.50] reassignDrw — drawing not found:', id);
+    return;
   }
+
+  const oldSid = d.sid;
+  const newSid = sid || '';
+  if(oldSid === newSid){
+    // No-op (user picked the same person). Don't spam audit/log/save.
+    return;
+  }
+
+  // ── Mutate the drawing ────────────────────────────────────
+  d.sid = newSid;
+
+  // ── Sync SCHED_TASK if one exists for this drawing ────────
+  const raTask = SCHED_TASKS.find(t=>t.drawingId===id);
+  if(raTask){
+    raTask.staffId = newSid;
+    raTask.sid     = newSid; // legacy field, kept in sync
+  }
+
+  // ── Add to assignment log (parity with detail-save path) ──
+  try {
+    if(!Array.isArray(d.assignmentLog)) d.assignmentLog = [];
+    const me = currentUser();
+    const todayFmt = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    d.assignmentLog.push({
+      date: toISO(new Date()),
+      dateFmt: todayFmt,
+      from: oldSid || '',
+      to: newSid,
+      by: me?.id || '',
+      byName: me ? (me.first+' '+me.last) : 'Unknown',
+      action: oldSid ? (newSid ? 'reassigned' : 'unassigned') : 'assigned'
+    });
+  } catch(e){ console.warn('[v101.50] assignment log push failed:', e); }
+
+  // ── Auto-link the project to the staff member (parity with line 17236) ─
+  if(newSid){
+    const s = STAFF.find(x=>x.id===newSid);
+    if(s && !s.projects?.includes(d.proj)){
+      (s.projects = s.projects||[]).push(d.proj);
+    }
+  }
+
+  // ── Audit log entry ───────────────────────────────────────
+  try {
+    const fromName = oldSid ? sn(oldSid) : 'Unassigned';
+    const toName   = newSid ? sn(newSid) : 'Unassigned';
+    addAudit('assignment',
+      'Drawing reassigned (register)',
+      d.id+' — '+(d.title||'')+' · '+fromName+' → '+toName,
+      d.proj);
+  } catch(_){}
+
+  // ── User feedback ─────────────────────────────────────────
+  showNotif('Reassigned', id+' → '+(newSid ? sn(newSid) : 'Unassigned'));
+
+  // ── Re-render every panel that surfaces this assignment ───
+  try { renderDrawings();   } catch(e){ console.warn('[v101.50] renderDrawings:', e); }
+  try { renderProjList();   } catch(e){ console.warn('[v101.50] renderProjList:', e); }
+  try { renderDashboard();  } catch(e){ console.warn('[v101.50] renderDashboard:', e); }
+  try { if(typeof renderSchedule==='function')   renderSchedule();   } catch(_){}
+  try { if(typeof renderStaffSched==='function') renderStaffSched(); } catch(_){}
+  try { updateNavBadges();  } catch(_){}
+
+  // ── Push to Firebase ──────────────────────────────────────
+  scheduleSave();
 }
 function addSingleDrawing(projId){
   openAddDrawingModal(projId||activeProjId);
@@ -14196,27 +14292,324 @@ function submitProject(){
   scheduleSave();
 }
 
+/* ════════════════════════════════════════════════════════════
+   v101.49 — PROJECT REMOVAL: cascade-delete with safety
+   ════════════════════════════════════════════════════════════
+   _collectProjectImpact(projId)
+     Returns a map of every related-record count + the records
+     themselves. Shared between the confirmation summary, the
+     JSON export, and the cascade-delete.
+
+   confirmRemoveProject(projId)
+     Opens the modal with the impact summary populated. Wires the
+     Export and Confirm buttons.
+
+   exportProjectData(projId)
+     Builds a JSON snapshot of everything attached to the project
+     and triggers download. Non-destructive — runs against live data.
+
+   doRemoveProject(projId)
+     Cascades the delete across all 15+ collections, writes an
+     audit log entry, resets filter state, and re-renders every
+     panel that might surface the removed project.
+   ──────────────────────────────────────────────────────────── */
+
+function _collectProjectImpact(projId){
+  // Gather every record attached to this project across every collection.
+  // Each entry holds .count for the summary and .items for the export.
+  const safe = a => Array.isArray(a) ? a : [];
+  return {
+    drawings:    safe(DRAWINGS).filter(d => d.proj === projId),
+    schedTasks:  safe(SCHED_TASKS).filter(t => t.projId === projId),
+    meetings:    safe(MEETINGS).filter(m => m.proj === projId),
+    tsEntries:   safe(typeof TS_ENTRIES !== 'undefined' ? TS_ENTRIES : []).filter(e => e.projId === projId),
+    packages:    safe(typeof DRW_PACKAGES !== 'undefined' ? DRW_PACKAGES : []).filter(p => p.projId === projId),
+    rfis:        safe(typeof CA_RFIS !== 'undefined' ? CA_RFIS : []).filter(r => r.projId === projId),
+    snags:       safe(typeof CA_SNAGS !== 'undefined' ? CA_SNAGS : []).filter(r => r.projId === projId),
+    submittals:  safe(typeof CA_SUBMITTALS !== 'undefined' ? CA_SUBMITTALS : []).filter(r => r.projId === projId),
+    ais:         safe(typeof CA_AIS !== 'undefined' ? CA_AIS : []).filter(r => r.projId === projId),
+    svr:         safe(typeof CA_SVR !== 'undefined' ? CA_SVR : []).filter(r => r.projId === projId),
+    visuals:     safe(typeof VISUALS !== 'undefined' ? VISUALS : []).filter(v => v.projId === projId),
+    transmittals:safe(typeof TRANSMITTALS !== 'undefined' ? TRANSMITTALS : []).filter(t => t.projId === projId),
+    invoices:    safe(typeof INVOICES !== 'undefined' ? INVOICES : []).filter(i => i.projId === projId),
+    notifications: safe(typeof NOTIFICATIONS !== 'undefined' ? NOTIFICATIONS : []).filter(n => n.projId === projId),
+    staffWithLink: safe(STAFF).filter(s => Array.isArray(s.projects) && s.projects.includes(projId)),
+    vendorsWithLink: safe(typeof VENDORS !== 'undefined' ? VENDORS : []).filter(v => Array.isArray(v.linkedProjectIds) && v.linkedProjectIds.includes(projId))
+  };
+}
+
 function confirmRemoveProject(projId){
-  const p=PROJS.find(x=>x.id===projId);if(!p)return;
-  // activeProjId reset handled in doRemoveProject after confirmed
-  const dwgCount=DRAWINGS.filter(d=>d.proj===projId).length;
-  const issued=DRAWINGS.filter(d=>d.proj===projId&&d.status==='done').length;
-  document.getElementById('rm-proj-msg').textContent=`This will permanently remove "${p.name}" and all ${dwgCount} drawings. This cannot be undone.`;
-  document.getElementById('rm-proj-summary').innerHTML=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="width:12px;height:12px;border-radius:50%;background:${p.color};flex-shrink:0;display:inline-block"></span><strong>${p.name}</strong></div><div style="font-family:var(--fm);font-size:10px;color:var(--txm);display:flex;gap:14px"><span>${p.client}</span><span>${dwgCount} drawings</span><span style="color:var(--grn)">${issued} issued</span>${canSeeFin()?`<span>${p.fee||'—'}</span>`:''}</div>`;
-  document.getElementById('rm-proj-confirm').onclick=()=>doRemoveProject(projId);
+  const p = PROJS.find(x => x.id === projId); if(!p) return;
+  const impact = _collectProjectImpact(projId);
+
+  const dwgCount = impact.drawings.length;
+  const issued   = impact.drawings.filter(d => d.status === 'done').length;
+
+  // Compute total timesheet hours for context — billing-sensitive
+  const totalTSHours = impact.tsEntries.reduce((acc, e) => {
+    return acc + (e.days || []).reduce((a, h) => a + (parseFloat(h) || 0), 0);
+  }, 0);
+
+  // Top-of-modal message
+  document.getElementById('rm-proj-msg').textContent =
+    `Permanently remove "${p.name}" and every record attached to it. This cannot be undone.`;
+
+  // Project identity card
+  document.getElementById('rm-proj-summary').innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
+      +'<span style="width:12px;height:12px;border-radius:50%;background:'+(p.color||'var(--txd)')+';flex-shrink:0;display:inline-block"></span>'
+      +'<strong style="font-size:13px">'+(p.name||projId)+'</strong>'
+    +'</div>'
+    +'<div style="font-family:var(--fm);font-size:10px;color:var(--txm);display:flex;gap:14px;flex-wrap:wrap">'
+      +(p.client?'<span>'+p.client+'</span>':'')
+      +'<span>'+dwgCount+' drawing'+(dwgCount===1?'':'s')+'</span>'
+      +'<span style="color:var(--grn)">'+issued+' issued</span>'
+      +(canSeeFin() && p.fee ? '<span>'+p.fee+'</span>' : '')
+    +'</div>';
+
+  // Detailed impact list — only show rows with non-zero counts
+  function impactRow(icon, count, singular, plural, extra){
+    if(!count) return '';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
+      +'<span style="font-size:12px;width:18px;flex-shrink:0">'+icon+'</span>'
+      +'<span style="color:var(--red);font-weight:600;min-width:24px">'+count+'</span>'
+      +'<span>'+(count===1?singular:plural)+(extra?' · <span style="color:var(--txm)">'+extra+'</span>':'')+'</span>'
+    +'</div>';
+  }
+  let impactHtml = '';
+  impactHtml += impactRow('📐', impact.drawings.length,    'drawing', 'drawings', issued>0?issued+' already issued':'');
+  impactHtml += impactRow('🗓', impact.schedTasks.length,  'scheduled task', 'scheduled tasks');
+  impactHtml += impactRow('📅', impact.meetings.length,    'meeting', 'meetings');
+  impactHtml += impactRow('⏱', impact.tsEntries.length,    'timesheet entry', 'timesheet entries',
+                          totalTSHours>0 ? Math.round(totalTSHours*10)/10+' hours total' : '');
+  impactHtml += impactRow('📦', impact.packages.length,    'drawing package', 'drawing packages');
+  impactHtml += impactRow('❓', impact.rfis.length,        'RFI', 'RFIs');
+  impactHtml += impactRow('⚠',  impact.snags.length,       'snag', 'snags');
+  impactHtml += impactRow('⊕',  impact.submittals.length,  'submittal', 'submittals');
+  impactHtml += impactRow('✎',  impact.ais.length,         'Architect&rsquo;s Instruction', 'Architect&rsquo;s Instructions');
+  impactHtml += impactRow('🏗', impact.svr.length,         'site visit report', 'site visit reports');
+  impactHtml += impactRow('🎬', impact.visuals.length,     'visual', 'visuals');
+  impactHtml += impactRow('✉',  impact.transmittals.length,'transmittal', 'transmittals');
+  impactHtml += impactRow('₹',  impact.invoices.length,    'invoice', 'invoices');
+  impactHtml += impactRow('🔔', impact.notifications.length,'project notification', 'project notifications');
+  if(impact.staffWithLink.length){
+    impactHtml += impactRow('👥', impact.staffWithLink.length, 'staff member will have this unlinked from their projects',
+                                                              'staff members will have this unlinked from their projects');
+  }
+  if(impact.vendorsWithLink.length){
+    impactHtml += impactRow('🏢', impact.vendorsWithLink.length, 'vendor will have this unlinked from their project history',
+                                                                'vendors will have this unlinked from their project history');
+  }
+  if(!impactHtml){
+    impactHtml = '<div style="color:var(--txm);font-style:italic">No other records attached — only the project record itself will be removed.</div>';
+  }
+  document.getElementById('rm-proj-impact').innerHTML = impactHtml;
+
+  // Wire buttons
+  document.getElementById('rm-proj-export').onclick  = () => exportProjectData(projId);
+  document.getElementById('rm-proj-confirm').onclick = () => doRemoveProject(projId);
   document.getElementById('rm-proj-ov').classList.add('show');
 }
 
+function exportProjectData(projId){
+  const p = PROJS.find(x => x.id === projId);
+  if(!p){ showNotif('Project not found',''); return; }
+  const impact = _collectProjectImpact(projId);
+
+  // Compose a complete JSON snapshot. Include the project record itself,
+  // every related-record collection, and metadata about when/by-whom the
+  // export was taken. This is the user's recovery artifact.
+  const exportData = {
+    _meta: {
+      exportedAt: new Date().toISOString(),
+      exportedBy: { id: currentUser().id, name: currentUser().first+' '+currentUser().last },
+      app: (FIRM_CONFIG.appName || 'Studio 62 Drawing OS'),
+      firm: (FIRM_CONFIG.name || 'Studio 62'),
+      schemaNote: 'Pre-deletion snapshot. Restoring requires manually re-inserting these records into their respective collections.'
+    },
+    project: p,
+    drawings: impact.drawings,
+    schedTasks: impact.schedTasks,
+    meetings: impact.meetings,
+    tsEntries: impact.tsEntries,
+    drwPackages: impact.packages,
+    caRfis: impact.rfis,
+    caSnags: impact.snags,
+    caSubmittals: impact.submittals,
+    caAis: impact.ais,
+    caSvr: impact.svr,
+    visuals: impact.visuals,
+    transmittals: impact.transmittals,
+    invoices: impact.invoices,
+    notifications: impact.notifications,
+    staffLinks: impact.staffWithLink.map(s => ({ id: s.id, name: s.first+' '+s.last })),
+    vendorLinks: impact.vendorsWithLink.map(v => ({ id: v.id, companyName: v.companyName }))
+  };
+
+  try {
+    const json = JSON.stringify(exportData, null, 2);
+    const safeName = (p.name || projId).replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 60);
+    const ts = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const fname = 'S62_Project_' + safeName + '_' + ts + '.json';
+    const a = document.createElement('a');
+    a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Audit + notify (non-destructive — separate from the delete audit entry)
+    try {
+      addAudit('settings', 'Project data exported', (p.name||projId)+' · pre-deletion backup', projId);
+    } catch(_){}
+    showNotif('Backup downloaded', fname+' — keep this file if you may need to restore.');
+  } catch(e){
+    console.error('[v101.49] project export failed:', e);
+    showNotif('Export failed', 'Could not generate the JSON file. See console for details.');
+  }
+}
+
 function doRemoveProject(projId){
-  const p=PROJS.find(x=>x.id===projId);
-  const removed=DRAWINGS.filter(d=>d.proj===projId).length;
-  PROJS=PROJS.filter(x=>x.id!==projId);
-  for(let i=DRAWINGS.length-1;i>=0;i--){if(DRAWINGS[i].proj===projId)DRAWINGS.splice(i,1);}
+  const p = PROJS.find(x => x.id === projId);
+  if(!p){ closeModal('rm-proj-ov'); return; }
+  const impact = _collectProjectImpact(projId);
+
+  // ── Pre-compute the human summary for the audit entry + notification ──
+  // We capture counts BEFORE deletion so the log reflects what was removed.
+  const summary = {
+    drawings: impact.drawings.length,
+    schedTasks: impact.schedTasks.length,
+    meetings: impact.meetings.length,
+    tsEntries: impact.tsEntries.length,
+    tsHours: Math.round(impact.tsEntries.reduce((a,e)=>a+(e.days||[]).reduce((s,h)=>s+(parseFloat(h)||0),0),0)*10)/10,
+    packages: impact.packages.length,
+    rfis: impact.rfis.length,
+    snags: impact.snags.length,
+    submittals: impact.submittals.length,
+    ais: impact.ais.length,
+    svr: impact.svr.length,
+    visuals: impact.visuals.length,
+    transmittals: impact.transmittals.length,
+    invoices: impact.invoices.length,
+    notifications: impact.notifications.length,
+    staffLinks: impact.staffWithLink.length,
+    vendorLinks: impact.vendorsWithLink.length
+  };
+
+  // ── Cascade-delete from every collection ──────────────────────
+  PROJS = PROJS.filter(x => x.id !== projId);
+
+  // DRAWINGS (uses .proj)
+  for(let i = DRAWINGS.length - 1; i >= 0; i--){
+    if(DRAWINGS[i].proj === projId) DRAWINGS.splice(i, 1);
+  }
+  // MEETINGS (uses .proj)
+  for(let i = MEETINGS.length - 1; i >= 0; i--){
+    if(MEETINGS[i].proj === projId) MEETINGS.splice(i, 1);
+  }
+  // SCHED_TASKS (uses .projId)
+  for(let i = SCHED_TASKS.length - 1; i >= 0; i--){
+    if(SCHED_TASKS[i].projId === projId) SCHED_TASKS.splice(i, 1);
+  }
+  // Optional collections — present in most builds but guarded for safety
+  function purgeBy(arrName, field){
+    if(typeof window[arrName] === 'undefined' || !Array.isArray(window[arrName])) return;
+    const arr = window[arrName];
+    for(let i = arr.length - 1; i >= 0; i--){
+      if(arr[i] && arr[i][field] === projId) arr.splice(i, 1);
+    }
+  }
+  purgeBy('TS_ENTRIES',   'projId');
+  purgeBy('DRW_PACKAGES', 'projId');
+  purgeBy('CA_RFIS',      'projId');
+  purgeBy('CA_SNAGS',     'projId');
+  purgeBy('CA_SUBMITTALS','projId');
+  purgeBy('CA_AIS',       'projId');
+  purgeBy('CA_SVR',       'projId');
+  purgeBy('VISUALS',      'projId');
+  purgeBy('TRANSMITTALS', 'projId');
+  purgeBy('INVOICES',     'projId');
+  purgeBy('NOTIFICATIONS','projId');
+
+  // STAFF.projects[] — unlink projId from each staff member's array
+  STAFF.forEach(s => {
+    if(Array.isArray(s.projects)){
+      s.projects = s.projects.filter(pid => pid !== projId);
+    }
+  });
+  // VENDORS.linkedProjectIds[] — unlink
+  if(typeof VENDORS !== 'undefined' && Array.isArray(VENDORS)){
+    VENDORS.forEach(v => {
+      if(Array.isArray(v.linkedProjectIds)){
+        v.linkedProjectIds = v.linkedProjectIds.filter(pid => pid !== projId);
+      }
+    });
+  }
+
+  // ── Reset filter / selection state that may still hold the deleted projId
+  if(typeof schedProjFilter !== 'undefined' && schedProjFilter === projId) schedProjFilter = 'ALL';
+  if(typeof ssProjFil       !== 'undefined' && ssProjFil       === projId) ssProjFil       = 'ALL';
+  if(typeof _multiApplyProjId !== 'undefined' && _multiApplyProjId === projId) _multiApplyProjId = null;
+  // Clear CA / Transmittals collapsed-section state for the deleted project
+  if(typeof _caCollapsedProjs !== 'undefined') delete _caCollapsedProjs[projId];
+  if(typeof _txCollapsedProjs !== 'undefined') delete _txCollapsedProjs[projId];
+  // Reset the CA project filter dropdown if it points at the deleted project
+  const caFilterEl = document.getElementById('ca-proj-filter');
+  if(caFilterEl && caFilterEl.value === projId) caFilterEl.value = 'ALL';
+
+  // ── Audit log entry (kept — historical record of the deletion) ──
+  try {
+    const breakdown = [
+      summary.drawings ? summary.drawings+' drawings' : '',
+      summary.schedTasks ? summary.schedTasks+' sched tasks' : '',
+      summary.meetings ? summary.meetings+' meetings' : '',
+      summary.tsEntries ? summary.tsEntries+' TS entries ('+summary.tsHours+'h)' : '',
+      (summary.rfis+summary.snags+summary.submittals+summary.ais+summary.svr) ? (summary.rfis+summary.snags+summary.submittals+summary.ais+summary.svr)+' CA items' : '',
+      summary.visuals ? summary.visuals+' visuals' : '',
+      summary.transmittals ? summary.transmittals+' transmittals' : '',
+      summary.invoices ? summary.invoices+' invoices' : '',
+      summary.staffLinks ? summary.staffLinks+' staff unlinked' : '',
+      summary.vendorLinks ? summary.vendorLinks+' vendors unlinked' : ''
+    ].filter(Boolean).join(' · ');
+    addAudit('settings', 'Project deleted: '+(p.name||projId), breakdown || 'project record only', projId);
+  } catch(e){ console.warn('[v101.49] audit log failed:', e); }
+
+  // ── Reset active project / drawings UI ─────────────────────────
+  if(activeProjId === projId){
+    const newActive = PROJS.length ? PROJS[0].id : null;
+    if(typeof selectProj === 'function') selectProj(newActive);
+    else activeProjId = newActive;
+  }
+
   closeModal('rm-proj-ov');
-  showNotif('Project removed',`${p?.name||projId} and ${removed} drawings removed.`);
-  if(activeProjId===projId){activeProjId=PROJS.length?PROJS[0].id:null;}
-  renderProjList();renderDrawings();renderDashboard();
-  renderSchedule();renderStaffSched();renderTimesheets();renderWorkload();
+
+  // ── Notification with a richer summary so user sees what happened ──
+  const removedSummary = summary.drawings+' drawing'+(summary.drawings===1?'':'s')
+    + ((summary.schedTasks||summary.meetings||summary.tsEntries) ? ' + related work cleared' : '');
+  showNotif('Project removed', (p.name||projId)+' · '+removedSummary);
+
+  // ── Re-render every panel that might surface the removed project ──
+  try { renderProjList();       } catch(_){}
+  try { renderDrawings();       } catch(_){}
+  try { renderDashboard();      } catch(_){}  // v101.46 wrapper → My Work + Firm
+  try { renderSchedule();       } catch(_){}
+  try { renderStaffSched();     } catch(_){}
+  try { renderTimesheets();     } catch(_){}
+  try { renderWorkload();       } catch(_){}
+  try { if(typeof renderMeetings    === 'function') renderMeetings();    } catch(_){}
+  try { if(typeof renderTransmittals=== 'function') renderTransmittals();} catch(_){}
+  try { if(typeof renderVisuals     === 'function') renderVisuals();     } catch(_){}
+  try { if(typeof renderFinancials  === 'function') renderFinancials();  } catch(_){}
+  try { if(typeof renderPipeline    === 'function') renderPipeline();    } catch(_){}
+  try { if(typeof renderStaff       === 'function') renderStaff();       } catch(_){}
+  try { if(typeof populateCAProjectFilter === 'function') populateCAProjectFilter(); } catch(_){}
+  try { if(typeof renderCA          === 'function') renderCA();          } catch(_){}
+  try { if(typeof updateCABadges    === 'function') updateCABadges();    } catch(_){}
+  try { if(typeof renderNotifPanel  === 'function') renderNotifPanel();  } catch(_){}
+  try { if(typeof renderAuditLog    === 'function') renderAuditLog();    } catch(_){}
+  try { if(typeof updateNotifBadge  === 'function') updateNotifBadge();  } catch(_){}
+  try { if(typeof updateTxBadge     === 'function') updateTxBadge();     } catch(_){}
+  try { if(typeof updateVisBadge    === 'function') updateVisBadge();    } catch(_){}
+
   updateNavBadges();
   scheduleSave();
 }
@@ -17783,6 +18176,117 @@ function s62NormalizeArrayCollections(data){
   return healed;
 }
 
+/* ── v101.50 — Staff field-string normalizer ────────────────────
+   Coerces STAFF[i].first and STAFF[i].last to safe trimmed strings
+   so the 39 `s.first[0]+s.last[0]` avatar-init sites can't crash on
+   null/undefined/numeric values. Also normalizes .email and .role
+   while we're here — both flow into rendering paths that assume
+   strings. Idempotent and cheap; runs every load.
+   ─────────────────────────────────────────────────────────────── */
+function s62NormalizeStaffStrings(){
+  if(typeof STAFF === 'undefined' || !Array.isArray(STAFF)) return 0;
+  let fixed = 0;
+  STAFF.forEach(s => {
+    if(!s || typeof s !== 'object') return;
+    ['first','last','email','role','color'].forEach(f => {
+      if(s[f] == null){
+        s[f] = '';
+        fixed++;
+      } else if(typeof s[f] !== 'string'){
+        s[f] = String(s[f]);
+        fixed++;
+      }
+    });
+  });
+  if(fixed > 0){
+    console.log('[v101.50] staff field-string normalize — coerced '+fixed+' bad field(s) to strings');
+  }
+  return fixed;
+}
+
+/* ── v101.50 — Orphan-assignment scanner ────────────────────────
+   Returns the count of DRAWINGS where .sid points to a staff
+   member that doesn't exist in STAFF. Non-destructive — just
+   counts. Used at boot to surface a data-integrity warning, and
+   by the Repair utility to know whether there's anything to clean.
+   ─────────────────────────────────────────────────────────────── */
+function s62CountOrphanAssignments(){
+  if(typeof DRAWINGS === 'undefined' || !Array.isArray(DRAWINGS)) return 0;
+  if(typeof STAFF === 'undefined' || !Array.isArray(STAFF)) return 0;
+  const staffIds = new Set(STAFF.map(s => s && s.id).filter(Boolean));
+  let n = 0;
+  DRAWINGS.forEach(d => {
+    if(d && d.sid && !staffIds.has(d.sid)) n++;
+    if(d && d.checkedBy && !staffIds.has(d.checkedBy)) n++;
+    if(d && d.setby && !staffIds.has(d.setby)) n++;
+  });
+  return n;
+}
+
+/* ── v101.50 — Drawing assignment repair utility ────────────────
+   Scans all drawings for orphan sid / checkedBy / setby references
+   and clears them. Returns a {sid, checkedBy, setby, total}
+   breakdown of what was cleaned. Triggered from a settings button;
+   confirms with the user before mutating.
+   ─────────────────────────────────────────────────────────────── */
+function s62RepairDrawingAssignments(){
+  if(typeof DRAWINGS === 'undefined' || !Array.isArray(DRAWINGS)){
+    showNotif('Repair skipped','No drawings loaded.');
+    return;
+  }
+  const orphanCount = s62CountOrphanAssignments();
+  if(orphanCount === 0){
+    showNotif('Nothing to repair','All drawing assignments point to valid staff records.');
+    return;
+  }
+  if(!confirm('This will clear '+orphanCount+' orphan assignment reference(s) on drawings whose assignee, checker, or set-by user no longer exists in the Staff register.\n\nThe drawings themselves stay intact — only the broken staff link is removed. Continue?')){
+    return;
+  }
+
+  const staffIds = new Set(STAFF.map(s => s && s.id).filter(Boolean));
+  const counts = { sid:0, checkedBy:0, setby:0 };
+
+  DRAWINGS.forEach(d => {
+    if(!d) return;
+    if(d.sid && !staffIds.has(d.sid)){
+      // Log the orphan into assignmentLog before clearing — keeps the audit trail
+      try {
+        if(!Array.isArray(d.assignmentLog)) d.assignmentLog = [];
+        d.assignmentLog.push({
+          date: toISO(new Date()),
+          dateFmt: new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}),
+          from: d.sid,
+          to: '',
+          by: currentUser()?.id || 'system',
+          byName: 'Repair utility',
+          action: 'orphan-cleared'
+        });
+      } catch(_){}
+      d.sid = '';
+      counts.sid++;
+    }
+    if(d.checkedBy && !staffIds.has(d.checkedBy)){ d.checkedBy = ''; counts.checkedBy++; }
+    if(d.setby     && !staffIds.has(d.setby))    { d.setby     = ''; counts.setby++; }
+  });
+
+  const total = counts.sid + counts.checkedBy + counts.setby;
+  try {
+    addAudit('settings', 'Drawing assignments repaired',
+      'Cleared '+counts.sid+' orphan assignee(s), '+counts.checkedBy+' orphan checker(s), '+counts.setby+' orphan set-by reference(s)',
+      null);
+  } catch(_){}
+
+  showNotif('Repair complete',
+    'Cleared '+total+' orphan reference'+(total===1?'':'s')+' across '+
+    counts.sid+' assignee, '+counts.checkedBy+' checker, '+counts.setby+' set-by field'+
+    '. Affected drawings have an audit entry.');
+
+  try { renderDrawings();  } catch(_){}
+  try { renderProjList();  } catch(_){}
+  try { renderDashboard(); } catch(_){}
+  scheduleSave();
+}
+
 function unpackData(data) {
   // v101.44 — coerce any Firebase array-as-object fields back to arrays
   // BEFORE the unpacking logic touches them. Without this, sparse-array
@@ -17894,6 +18398,28 @@ function unpackData(data) {
   if(Array.isArray(data.caSnags))      CA_SNAGS      = _mergeOn ? s62MergeById(CA_SNAGS, data.caSnags, 'caSnags')           : data.caSnags;
   if(Array.isArray(data.caAis))        CA_AIS        = _mergeOn ? s62MergeById(CA_AIS, data.caAis, 'caAis')                : data.caAis;
   if(Array.isArray(data.vendors))      VENDORS       = _mergeOn ? s62MergeById(VENDORS, data.vendors, 'vendors')           : data.vendors;
+
+  // ── v101.50 — Post-load data integrity normalization ───────────
+  // Defensively repair common bad data shapes before render paths
+  // try to use them. The two things this fixes:
+  //   1. Staff records with null/undefined first/last fields →
+  //      coerced to safe strings. Without this, the 39 avatar-init
+  //      sites (`s.first[0]+s.last[0]`) can throw a TypeError on
+  //      any render that touches a malformed record.
+  //   2. Drawings whose .sid points to a staff member that no
+  //      longer exists in STAFF → counted and logged so we can
+  //      surface a repair prompt to the user.
+  // This block is intentionally tolerant — bad data shouldn't
+  // prevent the rest of the app from working. We coerce, count,
+  // and continue.
+  try { s62NormalizeStaffStrings(); } catch(e){ console.warn('[v101.50] staff normalize:', e); }
+  try {
+    const orphanCount = s62CountOrphanAssignments();
+    if(orphanCount > 0){
+      console.warn('[v101.50] data integrity — '+orphanCount+' drawing(s) have an assignee (sid) that no longer exists in STAFF. Use Settings → Repair drawing assignments to clean up.');
+      window._s62OrphanAssignmentCount = orphanCount;
+    }
+  } catch(e){ console.warn('[v101.50] orphan scan:', e); }
 }
 
 /* ── MIGRATE: upgrade old schema data to current version ─────
@@ -30728,15 +31254,41 @@ function updateVisBadge(){
 </div>
 
 <!-- CONFIRM REMOVE PROJECT MODAL -->
+<!-- v101.49 — Project removal modal. Expanded to show a detailed
+     impact summary (everything that will be cascade-deleted) and an
+     "Export project data" button that downloads a JSON backup before
+     committing the deletion. The destructive button is now physically
+     separate from the export so an accidental tap can't trigger removal. -->
 <div class="ov" id="rm-proj-ov" role="dialog" aria-modal="true" aria-labelledby="rm-proj-title" aria-hidden="true">
-  <div class="modal" style="max-width:420px">
+  <div class="modal" style="max-width:520px">
     <button class="mclose" onclick="closeModal('rm-proj-ov')" aria-label="Close">✕</button>
     <div class="mtitle" style="color:var(--red)" id="rm-proj-title">Remove Project?</div>
-    <div style="font-size:12px;color:var(--txm);margin-bottom:16px;line-height:1.6" id="rm-proj-msg">This will permanently remove the project and all its drawings from the register.</div>
-    <div style="background:var(--sf2);border-radius:8px;padding:12px 14px;margin-bottom:18px" id="rm-proj-summary"></div>
+    <div style="font-size:12px;color:var(--txm);margin-bottom:14px;line-height:1.6" id="rm-proj-msg">This will permanently remove the project and all its drawings from the register.</div>
+
+    <!-- Project identity card -->
+    <div style="background:var(--sf2);border-radius:8px;padding:12px 14px;margin-bottom:12px" id="rm-proj-summary"></div>
+
+    <!-- v101.49 — Detailed impact summary (everything that cascade-deletes) -->
+    <div style="margin-bottom:14px">
+      <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">⚠ This will permanently delete</div>
+      <div id="rm-proj-impact" style="background:rgba(224,82,82,.04);border:1px solid rgba(224,82,82,.18);border-radius:8px;padding:10px 12px;font-family:var(--fm);font-size:10.5px;color:var(--tx);line-height:1.7"></div>
+    </div>
+
+    <!-- v101.49 — Export-first safety. Download a JSON snapshot of the
+         entire project (record + drawings + meetings + CA + schedule +
+         timesheets + invoices + notifications) BEFORE deletion. -->
+    <div style="background:rgba(82,201,122,.06);border:1px solid rgba(82,201,122,.22);border-radius:8px;padding:10px 12px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+      <div style="font-size:20px;flex-shrink:0">💾</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:600;color:var(--grn);margin-bottom:2px">Back up before deleting (recommended)</div>
+        <div style="font-family:var(--fm);font-size:9.5px;color:var(--txm);line-height:1.5">Downloads every record attached to this project as a JSON file you can keep for audit / restore.</div>
+      </div>
+      <button class="btn bp bsm" id="rm-proj-export" style="flex-shrink:0;font-size:11px;padding:8px 12px;background:var(--grn);border-color:var(--grn);color:#0a0a0f;font-weight:600">⬇ Export JSON</button>
+    </div>
+
     <div style="display:flex;gap:10px">
-      <button class="btn bd2" style="flex:1;justify-content:center" id="rm-proj-confirm">Remove Project & Drawings</button>
       <button class="btn bg" style="flex:1;justify-content:center" onclick="closeModal('rm-proj-ov')">Cancel</button>
+      <button class="btn bd2" style="flex:1;justify-content:center" id="rm-proj-confirm">Remove Project &amp; All Data</button>
     </div>
   </div>
 </div>
