@@ -1646,7 +1646,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
 
 <!-- ══════ SIDEBAR ══════════════════════════════════════ -->
 <aside class="sidebar">
-  <div class="logo-wrap" onclick="go('dashboard',null)" style="cursor:pointer" title="Go to Dashboard">
+  <div class="logo-wrap" onclick="go('mywork',null)" style="cursor:pointer" title="Go to My Work">
     <div class="logo-row">
       <div class="logo-box" id="sidebar-logo-box">S6</div>
       <div>
@@ -1659,9 +1659,16 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   <nav class="nav" aria-label="Main">
     <div class="nsec">
       <div class="nlbl">Overview</div>
-      <div class="ni on" onclick="go('dashboard',this)">
+      <!-- v101.45 — "My Work" is the default landing for everyone. -->
+      <div class="ni on" data-route="mywork" onclick="go('mywork',this)">
+        <svg class="nico" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        My Work
+      </div>
+      <!-- v101.45 — "Firm Overview": leadership-only (Principal + Associate Principal).
+           Visibility set by s62UpdateLeadershipNav() at boot and on changeUser. -->
+      <div class="ni" data-route="dashboard" id="ni-firm-overview" style="display:none" onclick="go('dashboard',this)">
         <svg class="nico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        Dashboard
+        Firm Overview
       </div>
     </div>
 
@@ -1843,7 +1850,94 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   <div class="content">
 
 <!-- ══ DASHBOARD ══════════════════════════════════════════ -->
-<div class="panel active" id="panel-dashboard">
+<!-- ══ MY WORK (v101.45) ══════════════════════════════════════════
+     Per-user work dashboard. Default landing for everyone.
+     Firm-wide content moves to Firm Overview (panel-dashboard below),
+     gated to Principal Architect + Associate Principal via isLeadership().
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="panel active" id="panel-mywork">
+
+  <!-- Firebase Live Sync Banner -->
+  <div id="mw-drive-banner" style="display:flex;align-items:center;gap:14px;padding:12px 18px;background:linear-gradient(135deg,rgba(82,201,122,.08),rgba(82,133,224,.06));border:1px solid rgba(82,201,122,.25);border-radius:10px;margin-bottom:12px">
+    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#52c97a,#5285e0);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">⚡</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:600;margin-bottom:2px;color:var(--grn)">● Live sync active — Studio 62 Firebase</div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--txd)">studio62-ca1b7.asia-southeast1</div>
+    </div>
+    <button onclick="document.getElementById('mw-drive-banner').style.display='none'" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:16px;flex-shrink:0;padding:4px" title="Dismiss">✕</button>
+  </div>
+
+  <!-- Greeting + Quick Actions Bar -->
+  <div id="mw-quick-actions" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap"></div>
+
+  <!-- MY KPI Strip (6 cards) -->
+  <div class="sg" id="mw-kpi-strip" style="grid-template-columns:repeat(6,1fr);margin-bottom:12px"></div>
+
+  <!-- Row 1: My Drawings (2/3) + My Calendar (1/3) -->
+  <div class="dash-row-halves" style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
+    <div>
+      <div class="sechd">
+        <div class="sectitle">📐 My Drawings</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn bg bsm mw-dtab on" data-mw-dtab="all" onclick="setMyDrawingTab('all',this)" style="font-size:10px">All</button>
+          <button class="btn bg bsm mw-dtab" data-mw-dtab="ip" onclick="setMyDrawingTab('ip',this)" style="font-size:10px" title="Drawings assigned to me">Mine</button>
+          <button class="btn bg bsm mw-dtab" data-mw-dtab="chk" onclick="setMyDrawingTab('chk',this)" style="font-size:10px" title="Drawings awaiting my QA review">Checking</button>
+          <button class="btn bg bsm" onclick="go('drawings',null)" style="font-size:10px">All →</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="mw-drawings" style="max-height:340px;overflow-y:auto"></div></div>
+    </div>
+    <div>
+      <div class="sechd">
+        <div class="sectitle">📅 My Calendar</div>
+        <button class="btn bg bsm" onclick="goMeetings()" style="font-size:10px">All →</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="mw-calendar" style="max-height:340px;overflow-y:auto"></div></div>
+    </div>
+  </div>
+
+  <!-- Row 2: My 2-Week Schedule (2/3) + My Open CA Items (1/3) -->
+  <div class="dash-row-halves" style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
+    <div>
+      <div class="sechd">
+        <div class="sectitle">🗓 My Next 2 Weeks</div>
+        <button class="btn bg bsm" onclick="go('staffsched',null)" style="font-size:10px">Full Schedule →</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="mw-2week" style="overflow-x:auto;max-height:240px;overflow-y:auto"></div></div>
+    </div>
+    <div>
+      <div class="sechd">
+        <div class="sectitle">🏗 My Open CA Items</div>
+        <button class="btn bg bsm" onclick="go('ca',null)" style="font-size:10px">All →</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="mw-ca" style="max-height:240px;overflow-y:auto"></div></div>
+    </div>
+  </div>
+
+  <!-- Row 3: My Hours This Week (1/2) + Items I Created Recently (1/2) -->
+  <div class="dash-row-halves" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+    <div>
+      <div class="sechd">
+        <div class="sectitle">⏱ My Hours This Week</div>
+        <button class="btn bg bsm" onclick="go('timesheets',null)" style="font-size:10px">Timesheet →</button>
+      </div>
+      <div class="card" style="padding:14px 16px"><div id="mw-hours"></div></div>
+    </div>
+    <div>
+      <div class="sechd"><div class="sectitle">📋 Recently Created by Me</div></div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="mw-mine" style="max-height:200px;overflow-y:auto"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ FIRM OVERVIEW (was: Dashboard until v101.45) ════════════════
+     Firm-wide KPIs, project health, all-staff heatmap, financials.
+     Gated to Principal + Associate Principal via the nav. Internal
+     panel ID stays "panel-dashboard" so existing render hooks keep
+     working — renderDashboard() is unchanged.
+     ═════════════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-dashboard">
 
   <!-- Firebase Live Sync Banner -->
   <div id="dash-drive-banner" style="display:flex;align-items:center;gap:14px;padding:12px 18px;background:linear-gradient(135deg,rgba(82,201,122,.08),rgba(82,133,224,.06));border:1px solid rgba(82,201,122,.25);border-radius:10px;margin-bottom:12px">
@@ -4276,6 +4370,26 @@ async function s62Poll(){
     } finally {
       _fbApplying = false;
     }
+
+    // v101.44.1 — Firebase array-shape auto-heal.
+    // If s62NormalizeArrayCollections had to coerce object → array on
+    // this pull, the cloud copy still has the bad shape and every
+    // client is doing this work on every poll. Schedule a save so we
+    // push the dense-array shape back to Firebase. After that save,
+    // future polls return arrays and this branch never fires again.
+    //
+    // Safe: scheduleSave honors the secondary-tab guard (only the
+    //   primary tab writes), and cloudSave honors _fbApplying. The
+    //   2s+800ms debounce inside scheduleSave runs after our finally
+    //   block above, so _fbApplying will be false when cloudSave fires.
+    //
+    // Idempotent: window._s62LastNormalizeHealed is cleared here, and
+    //   only gets re-set if a future normalize actually has to coerce.
+    if (window._s62LastNormalizeHealed){
+      window._s62LastNormalizeHealed = false;
+      console.log('[v101.44.1] healing Firebase array shape — scheduling save');
+      if (typeof scheduleSave === 'function') scheduleSave();
+    }
   } catch(err){
     _s62LastPollError = err.message || String(err);
     console.warn('[v101.41 poller] poll failed:', _s62LastPollError);
@@ -5960,6 +6074,18 @@ function isPrincipal(){
   return currentUser().role === 'Principal Architect';
 }
 
+/* v101.45 — Firm Overview access gate.
+   Both Principal Architect and Associate Principal see the firm-wide
+   dashboard ("Firm Overview"). Everyone else gets the per-user
+   "My Work" view only. Used to:
+     - show/hide the Firm Overview nav item in the sidebar
+     - redirect non-leadership users away from go('dashboard') accidents
+*/
+function isLeadership(){
+  const role = currentUser().role;
+  return role === 'Principal Architect' || role === 'Associate Principal';
+}
+
 
 /* ═══════════════════════════════════════════════════════════
    ROLE DEFINITIONS
@@ -7152,7 +7278,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.44 — Phase 2 Ship 5: SDK boot path neutralized · data shape hardened · login crash fixed');
+console.log('S62 v101.46 — bug-sweep: renderDashboard wrapper auto-refreshes My Work · openDrwDetail · estHrs · TBC null-check · CA submittal filter · pkg createdBy · UX polish');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -7209,6 +7335,18 @@ setTimeout(() => {
     }
   } catch(e){ console.warn('[v101.42a] snapshot error:', e.message); }
 }, 100);
+
+// v101.45 — initial My Work render + Firm Overview nav gating.
+// Default landing is My Work (panel-mywork has the .active class).
+setTimeout(() => {
+  try {
+    if (typeof s62UpdateLeadershipNav === 'function') s62UpdateLeadershipNav();
+    if (typeof renderMyWork === 'function' &&
+        document.getElementById('panel-mywork')?.classList.contains('active')){
+      renderMyWork();
+    }
+  } catch(e){ console.warn('[v101.45] initial My Work render failed:', e.message); }
+}, 150);
 
 /* v101.38 — Clear in-code demo data when an auto-reset was scheduled.
    PROJS, DRAWINGS, MEETINGS, etc. are seeded with hardcoded demo
@@ -8032,6 +8170,11 @@ function changeUser(id){
   }
   // Show/hide Financials nav based on role
   updateFinNavVisibility();
+  // v101.46 — refresh Firm Overview nav visibility BEFORE the panel re-render
+  // below. Previously this ran after go(pid), causing a brief flash of the
+  // Firm Overview nav item when switching from a leadership user to a
+  // non-leadership user.
+  if(typeof s62UpdateLeadershipNav==='function') s62UpdateLeadershipNav();
   // Re-render the active panel after user switch
   const active=document.querySelector('.panel.active');
   if(active){
@@ -8050,9 +8193,17 @@ function changeUser(id){
 /* ═══════════════════════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════════════════════ */
-const PTITLES={dashboard:'Dashboard',pipeline:'Pipeline & CRM',staff:'Staff Management',emails:'Email Notifications',workload:'Workload Planner',drawings:'Drawing Register',visuals:'Visuals Register',timesheets:'Timesheets',ai:'AI Assistant',schedule:'Gantt Schedule & Work Assignment',staffsched:'Staff Daily & Weekly Schedules',meetings:'Meetings',financials:'Financial Dashboard',notifications:'Activity Feed',transmittals:'Transmittals & Issue Register'};
+const PTITLES={mywork:'My Work',dashboard:'Firm Overview',pipeline:'Pipeline & CRM',staff:'Staff Management',emails:'Email Notifications',workload:'Workload Planner',drawings:'Drawing Register',visuals:'Visuals Register',timesheets:'Timesheets',ai:'AI Assistant',schedule:'Gantt Schedule & Work Assignment',staffsched:'Staff Daily & Weekly Schedules',meetings:'Meetings',financials:'Financial Dashboard',notifications:'Activity Feed',transmittals:'Transmittals & Issue Register'};
 
 function go(id,el){
+  // v101.45 — gate Firm Overview to leadership. Non-leadership users
+  // hitting go('dashboard') (e.g. via stale onclick or console) are
+  // silently redirected to their My Work view.
+  if(id==='dashboard' && typeof isLeadership==='function' && !isLeadership()){
+    id = 'mywork';
+    const myworkNi = document.querySelector('.ni[data-route="mywork"]');
+    if(myworkNi) el = myworkNi;
+  }
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
   const p=document.getElementById('panel-'+id);
@@ -8067,6 +8218,7 @@ function go(id,el){
   }
   if(id==='timesheets')  renderTimesheets();
   if(id==='dashboard')   renderDashboard();
+  if(id==='mywork')      renderMyWork();          // v101.45 — per-user work dashboard
   if(id==='schedule')    renderSchedule();
   if(id==='staffsched')  renderStaffSched();
   // ai panel is static HTML
@@ -10378,7 +10530,590 @@ function sendStudioEmail(type){
   showNotif((type==='morning'?'🌅':'🌆')+' Email opening','Opening in your mail client — '+emailData.to.split(',').length+' recipients');
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   v101.45 — MY WORK DASHBOARD
+   Per-user, work-oriented view. Default landing for all staff.
+
+   Data sources (all per-user, no schema changes):
+     • DRAWINGS where d.sid===me.id or d.checkedBy===me.id
+     • MEETINGS where m.attendees includes me.id
+     • SCHED_TASKS where t.staffId===me.id
+     • TS_ENTRIES where e.sid===me.id
+     • CA_RFIS / CA_SNAGS / CA_SUBMITTALS / CA_AIS where r.assignedTo===me.id
+     • DRW_PACKAGES where createdBy===me.id
+   ═══════════════════════════════════════════════════════════════════ */
+let _mwDrawingTab = 'all';
+
+function renderMyWork(){
+  syncSchedTasks();
+  if(typeof updateCloudSyncBtn==='function') updateCloudSyncBtn();
+  renderMyQuickActions();
+  renderMyKPIs();
+  renderMyDrawings();
+  renderMyCalendar();
+  renderMy2Week();
+  renderMyCA();
+  renderMyHours();
+  renderMine();
+}
+
+/* ── Greeting + contextual chips + primary buttons ── */
+function renderMyQuickActions(){
+  const el = document.getElementById('mw-quick-actions');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const now = new Date();
+  const greet = now.getHours()<12?'Good morning':now.getHours()<17?'Good afternoon':'Good evening';
+
+  const myChecking = DRAWINGS.filter(d=>d.checkedBy===me.id && d.status==='chk').length;
+  // v101.46 — parseDue('TBC') returns null, and `null < today` evaluates to
+  // true because null coerces to 0. Without the explicit `dd &&` null-check,
+  // every drawing with a 'TBC' or '—' target date was inflating the overdue
+  // count. Same fix in renderMyKPIs below.
+  const myOverdue  = DRAWINGS.filter(d=>{ if(d.sid!==me.id||d.status==='done'||!d.tgt) return false; const dd=parseDue(d.tgt); return dd && dd<today; }).length;
+  const myReturned = DRAWINGS.filter(d=>d.sid===me.id && d.rejectedAt && d.status==='ip' && d.pct<100).length;
+  const myMtgsToday = MEETINGS.filter(m=>m.status!=='cancelled' && m.date===todayStr && (m.attendees||[]).includes(me.id)).length;
+
+  let html = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%">';
+  html += '<div style="font-family:var(--fd);font-size:16px;color:var(--tx);margin-right:4px">'+greet+', '+me.first+'</div>';
+  html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-right:8px">'+me.role+'</div>';
+
+  if(myMtgsToday>0){
+    html += '<button class="btn bg bsm" onclick="goMeetings()" style="background:rgba(82,133,224,.1);border-color:rgba(82,133,224,.3);color:var(--blu)">📅 '+myMtgsToday+' meeting'+(myMtgsToday>1?'s':'')+' today</button>';
+  }
+  if(myOverdue>0){
+    html += '<button class="btn bg bsm" onclick="go(\'drawings\',null);setTimeout(()=>setDrwView(\'overdue\',document.getElementById(\'sv-overdue\')),200)" style="background:rgba(224,82,82,.08);border-color:rgba(224,82,82,.3);color:var(--red)">⚠ '+myOverdue+' overdue</button>';
+  }
+  if(myReturned>0){
+    html += '<button class="btn bg bsm" onclick="go(\'drawings\',null);setTimeout(()=>setDrwView(\'returned\',document.getElementById(\'sv-returned\')),200)" style="background:rgba(224,82,82,.1);border-color:rgba(224,82,82,.4);color:var(--red);font-weight:500">↺ '+myReturned+' returned for revision</button>';
+  }
+  if(myChecking>0){
+    html += '<button class="btn bg bsm" onclick="go(\'drawings\',null);setTimeout(()=>setDrwView(\'qa\',document.getElementById(\'sv-qa\')),200)" style="background:rgba(138,82,224,.1);border-color:rgba(138,82,224,.3);color:var(--pur)">◈ '+myChecking+' to review</button>';
+  }
+
+  html += '<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">';
+  html += '<button class="btn bp bsm" onclick="quickLogTime()" title="Log time on a drawing">⏱ Quick Log</button>';
+  // v101.46 — openMtgModal gates on canCreate() (allows Junior Architects),
+  // not canSchedule() (excludes them). The previous canSchedule() check here
+  // hid the button from Juniors who CAN actually create meetings from the
+  // Meetings panel — UI inconsistency. Match the underlying permission.
+  if(typeof canCreate==='function' && canCreate()){
+    html += '<button class="btn bg bsm" onclick="openMtgModal(null,null)">+ Meeting</button>';
+  }
+  html += '<button class="btn bg bsm" onclick="go(\'drawings\',null);setTimeout(()=>openAddDrawingModal(activeProjId||PROJS[0]?.id),200)">+ Drawing</button>';
+  html += '</div></div>';
+
+  el.innerHTML = html;
+}
+
+/* ── 6 KPI cards (per-user) ── */
+function renderMyKPIs(){
+  const el = document.getElementById('mw-kpi-strip');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekEnd = new Date(today.getTime()+7*24*60*60*1000);
+  const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+
+  const myActive = DRAWINGS.filter(d=>d.sid===me.id && d.status!=='done');
+  // v101.46 — null-check parseDue (TBC returns null, and `null < today`
+  // is truthy because null coerces to 0).
+  const overdue = myActive.filter(d=>{ const dd=parseDue(d.tgt); return dd && dd<today; }).length;
+  const dueWeek = myActive.filter(d=>{const dd=parseDue(d.tgt);return dd && dd>=today && dd<=weekEnd;}).length;
+  const checking = DRAWINGS.filter(d=>d.checkedBy===me.id && d.status==='chk').length;
+  const myCA = (typeof CA_RFIS!=='undefined'?CA_RFIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved' && r.status!=='closed').length
+             + (typeof CA_SNAGS!=='undefined'?CA_SNAGS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved').length
+             // v101.46 — match the codebase convention at line ~26444 which
+             // treats anything not 'approved' and not 'rejected' as open
+             // (pending / under-review / resubmit / etc). The previous filter
+             // only counted 'pending' and missed in-flight states.
+             + (typeof CA_SUBMITTALS!=='undefined'?CA_SUBMITTALS:[]).filter(r=>r.assignedTo===me.id && r.status!=='approved' && r.status!=='rejected').length
+             + (typeof CA_AIS!=='undefined'?CA_AIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='closed' && r.status!=='resolved').length;
+  const mtgsToday = MEETINGS.filter(m=>m.status!=='cancelled' && m.date===todayStr && (m.attendees||[]).includes(me.id)).length;
+  const hoursThisWeek = _mwHoursLoggedThisWeek(me.id);
+
+  el.innerHTML =
+      '<div class="sc" style="border-color:rgba(224,82,82,.3)"><div class="slbl" style="color:var(--red)">Overdue</div><div class="sval" style="color:var(--red)">'+overdue+'</div><div class="schg">my drawings past due</div></div>'
+    + '<div class="sc" style="border-color:rgba(240,201,122,.3)"><div class="slbl" style="color:var(--gold)">Due This Week</div><div class="sval" style="color:var(--gold)">'+dueWeek+'</div><div class="schg">next 7 days</div></div>'
+    + '<div class="sc" style="border-color:rgba(138,82,224,.3)"><div class="slbl" style="color:var(--pur)">To Review</div><div class="sval" style="color:var(--pur)">'+checking+'</div><div class="schg">awaiting my check</div></div>'
+    + '<div class="sc" style="border-color:rgba(82,133,224,.3)"><div class="slbl" style="color:var(--blu)">My CA Items</div><div class="sval" style="color:var(--blu)">'+myCA+'</div><div class="schg">RFIs · snags · subs · AIs</div></div>'
+    + '<div class="sc"><div class="slbl">Today\'s Meetings</div><div class="sval">'+mtgsToday+'</div><div class="schg">'+(mtgsToday?'starting today':'free today')+'</div></div>'
+    + '<div class="sc" style="border-color:rgba(82,201,122,.3)"><div class="slbl" style="color:var(--grn)">Hours Logged</div><div class="sval" style="color:var(--grn)">'+hoursThisWeek.toFixed(1)+'</div><div class="schg">this week (Mon–Sun)</div></div>';
+}
+
+/* ── Drawing list + tab switcher ── */
+function setMyDrawingTab(tab, btn){
+  _mwDrawingTab = tab;
+  document.querySelectorAll('.mw-dtab').forEach(b=>b.classList.toggle('on', b.dataset.mwDtab===tab));
+  renderMyDrawings();
+}
+
+function renderMyDrawings(){
+  const el = document.getElementById('mw-drawings');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let list;
+  if(_mwDrawingTab==='ip'){
+    list = DRAWINGS.filter(d=>d.sid===me.id && d.status!=='done');
+  } else if(_mwDrawingTab==='chk'){
+    list = DRAWINGS.filter(d=>d.checkedBy===me.id && d.status==='chk');
+  } else {
+    list = DRAWINGS.filter(d=>(d.sid===me.id || d.checkedBy===me.id) && d.status!=='done');
+  }
+
+  list.sort((a,b)=>{
+    const da = parseDue(a.tgt), db = parseDue(b.tgt);
+    const ovA = (da && da<today)?0:1, ovB = (db && db<today)?0:1;
+    if(ovA!==ovB) return ovA-ovB;
+    return (da||today.getTime()+1e15) - (db||today.getTime()+1e15);
+  });
+
+  if(list.length===0){
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">No drawings in this view.</div>';
+    return;
+  }
+
+  let html = '';
+  list.slice(0,15).forEach(d=>{
+    const proj = PROJS.find(p=>p.id===d.proj);
+    const dueDate = parseDue(d.tgt);
+    const overdue = dueDate && dueDate<today && d.status!=='done';
+    const returned = d.rejectedAt && d.status==='ip' && d.pct<100;
+    const isReviewer = d.checkedBy===me.id;
+    const statusBg = d.status==='chk'?'rgba(138,82,224,.2)':d.status==='done'?'rgba(82,201,122,.2)':'rgba(82,133,224,.15)';
+    const statusCol = d.status==='chk'?'var(--pur)':d.status==='done'?'var(--grn)':'var(--blu)';
+    const statusLbl = d.status==='chk'?'For Review':d.status==='done'?'Done':d.status==='ip'?'In Progress':'Pending';
+    const pct = d.pct||0;
+    const bgRow = overdue?'background:rgba(224,82,82,.04)':'';
+    html += '<div onclick="go(\'drawings\',null);setTimeout(()=>{ if(typeof openDrwDetail===\'function\') openDrwDetail(\''+d.id+'\'); },200)" style="padding:10px 14px;border-bottom:1px solid var(--ln);cursor:pointer;display:flex;align-items:center;gap:10px;'+bgRow+'">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">';
+    html += '<span style="font-weight:500;font-size:12px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(d.id||'')+' · '+(d.title||'Untitled')+'</span>';
+    if(returned) html += '<span style="background:rgba(224,82,82,.15);color:var(--red);font-size:9px;padding:2px 5px;border-radius:3px;font-weight:600">↺ RETURNED</span>';
+    if(isReviewer) html += '<span style="background:rgba(138,82,224,.15);color:var(--pur);font-size:9px;padding:2px 5px;border-radius:3px">REVIEWER</span>';
+    html += '</div>';
+    html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd)">'+(proj?proj.name:d.proj||'')+' · '+(d.stage||'')+'</div>';
+    html += '</div>';
+    html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:90px">';
+    html += '<span style="background:'+statusBg+';color:'+statusCol+';font-size:9px;padding:2px 6px;border-radius:3px;font-weight:600;letter-spacing:.5px">'+statusLbl+'</span>';
+    html += '<span style="font-family:var(--fm);font-size:10px;'+(overdue?'color:var(--red);font-weight:600':'color:var(--txd)')+'">'+(d.tgt||'—')+(overdue?' · OVERDUE':'')+'</span>';
+    if(pct>0 && d.status!=='done'){
+      html += '<div style="width:80px;height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--blu)"></div></div>';
+    }
+    html += '</div></div>';
+  });
+  if(list.length>15){
+    html += '<div style="padding:8px 14px;text-align:center;font-size:10px;color:var(--txd);font-family:var(--fm)">+'+(list.length-15)+' more — <a href="javascript:void(0)" onclick="go(\'drawings\',null)" style="color:var(--blu)">view all →</a></div>';
+  }
+  el.innerHTML = html;
+}
+
+/* ── My calendar (today + week) with clash detection ── */
+function renderMyCalendar(){
+  const el = document.getElementById('mw-calendar');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekEnd = new Date(today.getTime()+7*24*60*60*1000);
+  const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+
+  const mine = MEETINGS.filter(m=>{
+    if(m.status==='cancelled') return false;
+    if(!(m.attendees||[]).includes(me.id)) return false;
+    const md = m.date?new Date(m.date):null;
+    return md && md>=today && md<=weekEnd;
+  }).sort((a,b)=>{
+    if(a.date!==b.date) return a.date<b.date?-1:1;
+    return (a.time||'')<(b.time||'')?-1:1;
+  });
+
+  // Clash detection
+  const clashIds = new Set();
+  const byDate = {};
+  mine.forEach(m=>{(byDate[m.date]=byDate[m.date]||[]).push(m);});
+  Object.values(byDate).forEach(arr=>{
+    for(let i=0;i<arr.length;i++){
+      for(let j=i+1;j<arr.length;j++){
+        const a=arr[i], b=arr[j];
+        if(!a.time || !b.time) continue;
+        const aEnd = a.endTime || a.time;
+        const bEnd = b.endTime || b.time;
+        if(a.time===b.time || (a.time<b.time && aEnd>b.time) || (b.time<a.time && bEnd>a.time)){
+          clashIds.add(a.id); clashIds.add(b.id);
+        }
+      }
+    }
+  });
+
+  if(mine.length===0){
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">No meetings scheduled in the next 7 days.</div>';
+    return;
+  }
+
+  const todayList = mine.filter(m=>m.date===todayStr);
+  const restList = mine.filter(m=>m.date!==todayStr);
+
+  let html = '';
+  if(todayList.length>0){
+    html += '<div style="padding:8px 14px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--ln)">TODAY</div>';
+    todayList.forEach(m=>html += _mwMtgRow(m, clashIds.has(m.id)));
+  }
+  if(restList.length>0){
+    html += '<div style="padding:8px 14px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--ln);'+(todayList.length?'margin-top:4px':'')+'">THIS WEEK</div>';
+    restList.forEach(m=>html += _mwMtgRow(m, clashIds.has(m.id)));
+  }
+  el.innerHTML = html;
+}
+
+function _mwMtgRow(m, isClash){
+  const attCount = (m.attendees||[]).length;
+  const time = m.time || '—';
+  const date = m.date ? new Date(m.date) : null;
+  const dateLbl = date ? date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : (m.date||'');
+  const bg = isClash?'background:rgba(224,82,82,.05)':'';
+  return '<div onclick="goMeetingsOpen(\''+m.id+'\')" style="padding:10px 14px;border-bottom:1px solid var(--ln);cursor:pointer;'+bg+'">'
+    + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+    + (isClash?'<span title="Time clash" style="color:var(--red);font-size:11px">⚠</span>':'')
+    + '<span style="font-weight:500;font-size:12px;color:var(--tx)">'+(m.title||'Meeting')+'</span>'
+    + '</div>'
+    + '<div style="font-family:var(--fm);font-size:10px;color:var(--txd)">'+dateLbl+' · '+time+' · '+attCount+' attendee'+(attCount===1?'':'s')+'</div>'
+    + '</div>';
+}
+
+/* ── My 2-week schedule strip ── */
+function renderMy2Week(){
+  const el = document.getElementById('mw-2week');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = [];
+  for(let i=0;i<14;i++){
+    days.push(new Date(today.getTime()+i*24*60*60*1000));
+  }
+
+  function hrsOnDay(date){
+    let hrs = 0;
+    SCHED_TASKS.forEach(t=>{
+      if(t.staffId!==me.id || t.status==='done') return;
+      const s = t.start?new Date(t.start):null;
+      const e = t.due?new Date(t.due):null;
+      if(!s || !e) return;
+      if(date>=s && date<=e){
+        const spanDays = Math.max(1, Math.round((e-s)/(24*60*60*1000))+1);
+        // v101.46 — SCHED_TASKS uses estHrs (the canonical field name across
+        // the codebase, 27 references), not hrs. The earlier `t.hrs||8` always
+        // hit the 8h fallback, making every assigned day appear "full" load.
+        hrs += ((t.estHrs||t.hrs)||8)/spanDays;
+      }
+    });
+    return hrs;
+  }
+
+  let html = '<div style="display:flex;min-width:'+(14*68)+'px;padding:6px">';
+  days.forEach((d,i)=>{
+    const hrs = hrsOnDay(d);
+    const isWeekend = d.getDay()===0 || d.getDay()===6;
+    const isToday = d.getTime()===today.getTime();
+    let bg = 'rgba(255,255,255,.02)';
+    let txtColor = 'var(--txd)';
+    if(hrs>0 && !isWeekend){
+      if(hrs<=4){ bg='rgba(82,201,122,.15)'; txtColor='var(--grn)'; }
+      else if(hrs<=7){ bg='rgba(240,201,122,.18)'; txtColor='var(--gold)'; }
+      else if(hrs<=8){ bg='rgba(82,133,224,.18)'; txtColor='var(--blu)'; }
+      else { bg='rgba(224,82,82,.18)'; txtColor='var(--red)'; }
+    }
+    const todayBox = isToday?'box-shadow:inset 0 0 0 1.5px var(--blu)':'';
+    html += '<div style="flex:1;min-width:60px;padding:8px 4px;text-align:center;border-radius:6px;margin-right:4px;background:'+bg+';'+todayBox+'">';
+    html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;margin-bottom:2px">'+d.toLocaleDateString('en-US',{weekday:'short'})+'</div>';
+    html += '<div style="font-family:var(--fd);font-size:14px;color:var(--tx);font-weight:500">'+d.getDate()+'</div>';
+    html += '<div style="font-family:var(--fm);font-size:10px;color:'+txtColor+';margin-top:3px;font-weight:600">'+(hrs>0?hrs.toFixed(1)+'h':isWeekend?'·':'free')+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;border-top:1px solid var(--ln);font-family:var(--fm);font-size:9px;color:var(--txd)">';
+  html += '<span>Load:</span>';
+  html += '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(82,201,122,.4);border-radius:2px"></span>Light (≤4h)</span>';
+  html += '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(240,201,122,.5);border-radius:2px"></span>Med</span>';
+  html += '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(82,133,224,.5);border-radius:2px"></span>Full</span>';
+  html += '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(224,82,82,.5);border-radius:2px"></span>Over</span>';
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+/* ── My CA items grouped by type ── */
+function renderMyCA(){
+  const el = document.getElementById('mw-ca');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+
+  const rfis  = (typeof CA_RFIS!=='undefined'?CA_RFIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved' && r.status!=='closed');
+  const snags = (typeof CA_SNAGS!=='undefined'?CA_SNAGS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved');
+  // v101.46 — see renderMyKPIs comment. Use !approved !rejected (codebase
+  // convention) instead of ==='pending' to include in-flight states.
+  const subs  = (typeof CA_SUBMITTALS!=='undefined'?CA_SUBMITTALS:[]).filter(r=>r.assignedTo===me.id && r.status!=='approved' && r.status!=='rejected');
+  const ais   = (typeof CA_AIS!=='undefined'?CA_AIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='closed' && r.status!=='resolved');
+
+  const total = rfis.length + snags.length + subs.length + ais.length;
+  if(total===0){
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">No open CA items assigned to you.</div>';
+    return;
+  }
+
+  function priorSort(a,b){
+    const ap = a.priority==='critical'?0:1, bp = b.priority==='critical'?0:1;
+    if(ap!==bp) return ap-bp;
+    const ad = a.responseDue||a.dueDate||a.targetDate||'';
+    const bd = b.responseDue||b.dueDate||b.targetDate||'';
+    return ad<bd?-1:ad>bd?1:0;
+  }
+  [rfis,snags,subs,ais].forEach(arr=>arr.sort(priorSort));
+
+  function group(label, items, color){
+    if(items.length===0) return '';
+    let h = '<div style="padding:6px 12px;font-family:var(--fm);font-size:9px;color:'+color+';text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:1px solid var(--ln);background:rgba(255,255,255,.02)">'+label+' · '+items.length+'</div>';
+    items.slice(0,5).forEach(r=>{
+      const crit = r.priority==='critical';
+      const due = r.responseDue || r.dueDate || r.targetDate || '';
+      const bg = crit?'background:rgba(224,82,82,.05)':'';
+      h += '<div onclick="go(\'ca\',null)" style="padding:9px 12px;border-bottom:1px solid var(--ln);cursor:pointer;'+bg+'">';
+      h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">';
+      if(crit) h += '<span style="color:var(--red);font-weight:600;font-size:10px">⚠ CRITICAL</span>';
+      h += '<span style="font-weight:500;font-size:11px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.num||'')+(r.subject||r.description||r.title?' · '+(r.subject||r.description||r.title):'')+'</span>';
+      h += '</div>';
+      if(due) h += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">Due: '+due+'</div>';
+      h += '</div>';
+    });
+    if(items.length>5) h += '<div style="padding:4px 12px;font-size:9px;color:var(--txd);font-family:var(--fm)">+'+(items.length-5)+' more</div>';
+    return h;
+  }
+
+  let html = '';
+  html += group('RFIs', rfis, 'var(--blu)');
+  html += group('Snags', snags, 'var(--gold)');
+  html += group('Submittals', subs, 'var(--pur)');
+  html += group("Architect's Instructions", ais, 'var(--grn)');
+  el.innerHTML = html;
+}
+
+/* ── Hours logged this week (Mon–Sun) with bars ── */
+function _mwWeekKey(date){
+  // v101.45.1 — delegate to tsWeekKey so My Work hours match the Timesheets
+  // panel exactly. The original local implementation used a slightly different
+  // ISO week calculation and could drift by ±1 in weeks where Jan 1 wasn't
+  // a Sunday, causing renderMyHours to show 0 against entries actually logged.
+  // `date` is accepted for backward compatibility but ignored (tsWeekKey works
+  // off "now" + a week offset). When `date` is the current date, both behave
+  // identically; older callers passed only new Date().
+  if (typeof tsWeekKey === 'function') return tsWeekKey(0);
+  // Fallback to legacy algorithm if tsWeekKey isn't defined yet (paranoia).
+  const d = new Date(date);
+  const day = (d.getDay()+6)%7;
+  d.setDate(d.getDate()-day);
+  d.setHours(0,0,0,0);
+  const yr = d.getFullYear();
+  const jan1 = new Date(yr,0,1);
+  const dayOfYear = Math.round((d - jan1)/(24*60*60*1000))+1;
+  const wk = Math.ceil(dayOfYear/7);
+  return yr+'-W'+String(wk).padStart(2,'0');
+}
+
+function _mwHoursLoggedThisWeek(staffId){
+  const wk = _mwWeekKey(new Date());
+  let total = 0;
+  TS_ENTRIES.filter(e=>e.sid===staffId && e.weekKey===wk).forEach(e=>{
+    (e.days||[]).forEach(h=>{ total += (typeof h==='number'?h:0); });
+  });
+  return total;
+}
+
+function renderMyHours(){
+  const el = document.getElementById('mw-hours');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+  const wk = _mwWeekKey(new Date());
+  const entries = TS_ENTRIES.filter(e=>e.sid===me.id && e.weekKey===wk);
+
+  const dayTotals = [0,0,0,0,0];
+  entries.forEach(e=>{
+    (e.days||[]).forEach((h,i)=>{ if(i<5 && typeof h==='number') dayTotals[i]+=h; });
+  });
+  const weekTotal = dayTotals.reduce((a,b)=>a+b,0);
+  const maxHr = Math.max(8, ...dayTotals);
+
+  const labels = ['Mon','Tue','Wed','Thu','Fri'];
+  let html = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">';
+  html += '<div style="font-family:var(--fd);font-size:20px;font-weight:600;color:var(--tx)">'+weekTotal.toFixed(1)+'<span style="font-size:11px;font-weight:400;color:var(--txd)"> hrs</span></div>';
+  html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd)">target: 40h</div>';
+  html += '</div>';
+
+  html += '<div style="display:flex;gap:8px;align-items:flex-end;height:80px">';
+  dayTotals.forEach((h,i)=>{
+    const pct = Math.round(h/maxHr*100);
+    const isToday = new Date().getDay()===((i+1)%7);
+    const barColor = h>=8?'var(--grn)':h>=4?'var(--blu)':h>0?'var(--gold)':'rgba(255,255,255,.08)';
+    const todayBox = isToday?'box-shadow:0 0 0 1.5px var(--blu)':'';
+    html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">';
+    html += '<div style="font-family:var(--fm);font-size:10px;color:'+(h>0?'var(--tx)':'var(--txd)')+';font-weight:500">'+(h>0?h.toFixed(1):'—')+'</div>';
+    html += '<div style="width:100%;height:'+(pct||4)+'%;background:'+barColor+';border-radius:3px 3px 0 0;min-height:3px;'+todayBox+'"></div>';
+    html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase">'+labels[i]+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // v101.46 — Restrict the "catch up before week ends" warning to Thursday
+  // and Friday only. getDay() returns 4=Thu, 5=Fri, 6=Sat — the original
+  // `>=4` included Saturday, when the working week is already over and the
+  // warning is no longer actionable.
+  const dow = new Date().getDay();
+  if(weekTotal<20 && (dow===4 || dow===5)){
+    html += '<div style="margin-top:8px;font-family:var(--fm);font-size:10px;color:var(--gold);padding:6px 8px;background:rgba(240,201,122,.08);border-radius:4px">⏱ Under-logged for the week — consider catching up.</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+/* ── Things I created recently ── */
+function renderMine(){
+  const el = document.getElementById('mw-mine');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+  const items = [];
+
+  // v101.46 — Time-bound filter for "Recently Created by Me".
+  // The previous implementation used slice(-N) on each array, which
+  // relied on items being chronologically appended. We now apply a
+  // genuine 30-day cutoff using whatever creation signal each record
+  // type carries, with graceful fallback when no timestamp exists.
+  const cutoffMs = Date.now() - 30*24*60*60*1000;
+
+  // DRAWINGS — first assignmentLog entry timestamp is the closest
+  // signal we have to "creation date". Drawings without an
+  // assignmentLog (legacy / seed data / unassigned) fall through to
+  // position-based recency.
+  const myDrawings = DRAWINGS.filter(d=>d.setby===me.id);
+  const drawingsRecent = myDrawings.filter(d=>{
+    const ts = d.assignmentLog?.[0]?.date;
+    if(!ts) return false;
+    const parsed = new Date(ts).getTime();
+    return !isNaN(parsed) && parsed >= cutoffMs;
+  });
+  // If we found any with real timestamps, use those; else fall back to
+  // last-8-in-array order so the panel isn't empty for legacy data.
+  const drawingsToShow = drawingsRecent.length > 0
+    ? drawingsRecent.sort((a,b)=> new Date(b.assignmentLog[0].date) - new Date(a.assignmentLog[0].date)).slice(0,8)
+    : myDrawings.slice(-8).reverse();
+  drawingsToShow.forEach(d=>{
+    items.push({type:'Drawing', icon:'📐', title:(d.id||'')+' · '+(d.title||''), sub:(d.proj||'')+' · '+(d.stage||''), onclick:"go('drawings',null);setTimeout(()=>{ if(typeof openDrwDetail==='function') openDrwDetail('"+d.id+"'); },200)"});
+  });
+
+  // MEETINGS — `date` is scheduled date (YYYY-MM-DD), not creation
+  // date, but for forward-scheduled meetings these correlate. Use
+  // ±14 days from today as a proxy for "recently created".
+  const cutoffDateLo = new Date(Date.now() - 14*24*60*60*1000);
+  const cutoffDateHi = new Date(Date.now() + 14*24*60*60*1000);
+  const myMeetings = MEETINGS.filter(m=>m.createdBy===me.id);
+  const meetingsRecent = myMeetings.filter(m=>{
+    if(!m.date) return false;
+    const md = new Date(m.date);
+    return md >= cutoffDateLo && md <= cutoffDateHi;
+  });
+  const meetingsToShow = meetingsRecent.length > 0
+    ? meetingsRecent.sort((a,b)=> new Date(b.date) - new Date(a.date)).slice(0,5)
+    : myMeetings.slice(-5).reverse();
+  meetingsToShow.forEach(m=>{
+    items.push({type:'Meeting', icon:'📅', title:m.title||'Meeting', sub:m.date+(m.time?' · '+m.time:''), onclick:"goMeetingsOpen('"+m.id+"')"});
+  });
+
+  // DRW_PACKAGES — no creation timestamp on package records. Best we
+  // can do is last-3-in-array.
+  if(typeof DRW_PACKAGES !== 'undefined'){
+    DRW_PACKAGES.filter(p=>p.createdBy===me.id || p.createdBy===me.first).slice(-3).reverse().forEach(p=>{
+      items.push({type:'Package', icon:'📦', title:p.label||p.id, sub:(p.projId||'')+' · '+(p.status||''), onclick:"go('drawings',null)"});
+    });
+  }
+
+  if(items.length===0){
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">Nothing created by you recently.</div>';
+    return;
+  }
+
+  let html = '';
+  items.slice(0,8).forEach(it=>{
+    html += '<div onclick="'+it.onclick+'" style="padding:9px 12px;border-bottom:1px solid var(--ln);cursor:pointer;display:flex;align-items:center;gap:8px">';
+    html += '<span style="font-size:14px">'+it.icon+'</span>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-weight:500;font-size:11px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.title+'</div>';
+    html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+it.type+' · '+it.sub+'</div>';
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+}
+
+/* ── Quick Log Time — accelerator into Timesheets ── */
+function quickLogTime(){
+  const me = currentUser(); if(!me) return;
+  const myActive = DRAWINGS.filter(d=>d.sid===me.id && d.status!=='done');
+  if(myActive.length===0){
+    if(typeof showNotif==='function') showNotif('No active drawings','You have no in-progress drawings to log time against.');
+    setTimeout(()=>go('timesheets',null), 400);
+    return;
+  }
+  go('timesheets', null);
+  if(typeof showNotif==='function') showNotif('⏱ Quick Log','Pick a drawing row to enter hours.');
+}
+
+/* ── Helper: re-render whichever home panel is currently active ── */
+function s62MaybeReRenderHome(){
+  if(document.getElementById('panel-mywork')?.classList.contains('active') && typeof renderMyWork==='function') renderMyWork();
+  if(document.getElementById('panel-dashboard')?.classList.contains('active') && typeof renderDashboard==='function') renderDashboard();
+}
+
+/* ── Show/hide Firm Overview nav item based on role ── */
+function s62UpdateLeadershipNav(){
+  const ni = document.getElementById('ni-firm-overview');
+  if(!ni) return;
+  ni.style.display = (typeof isLeadership==='function' && isLeadership()) ? '' : 'none';
+}
+
 function renderDashboard(){
+  // v101.46 — wrapper.
+  // Renamed the original firm-only renderDashboard body to renderFirmOverview()
+  // and made renderDashboard a smart re-render that targets whichever home
+  // panel is currently visible. There are 44 legacy call sites firing this
+  // after data mutations (drawing edits, project changes, package issuance,
+  // staff updates, etc.). Before this wrapper, those refreshed only the firm
+  // panel — non-leadership users saw stale My Work data until they navigated
+  // away and back. Now both panels self-refresh through the same entry point.
+  //
+  // Each branch self-guards on panel visibility, so the cost when only one
+  // panel is on screen is one DOM query + a typeof check. The REST poller's
+  // call site (line ~4350) and the cloud-sync handlers also flow through here,
+  // so live sync updates land on My Work too without separate hooks.
+  try {
+    if(typeof renderMyWork==='function' &&
+       document.getElementById('panel-mywork')?.classList.contains('active')){
+      renderMyWork();
+    }
+  } catch(e){ console.warn('[v101.46] My Work render error:', e.message); }
+  try {
+    if(document.getElementById('panel-dashboard')?.classList.contains('active')){
+      renderFirmOverview();
+    } else {
+      // Even when the panel isn't visible, run the cheap shared updates so
+      // top-bar state (cloud sync button, scheduled-task sync) stays current.
+      // These were unconditional in the pre-wrapper renderDashboard, so any
+      // caller relying on the side effect keeps working.
+      try { syncSchedTasks(); } catch(_){}
+      try { if(typeof updateCloudSyncBtn==='function') updateCloudSyncBtn(); } catch(_){}
+    }
+  } catch(e){ console.warn('[v101.46] Firm Overview render error:', e.message); }
+}
+
+function renderFirmOverview(){
   syncSchedTasks();
   updateCloudSyncBtn();
 
@@ -12766,7 +13501,12 @@ function submitCreatePackage(projId){
   if(!name){showNotif('Name required','Enter a package name');return;}
   const phase=document.getElementById('pkg-phase-inp')?.value||'CD';
   const date=document.getElementById('pkg-date-inp')?.value||'TBC';
-  DRW_PACKAGES.push({id:'PKG-'+Date.now(),projId,label:name,phase,targetDate:date,status:'pending',createdBy:currentUser().first,drawings:[]});
+  // v101.46 — store the staff ID in createdBy (matches seed-data convention
+  // used in lines 12419-12421 and the filter convention in renderMine /
+  // renderFirmOverview). The previous `currentUser().first` stored only the
+  // first name, making `p.createdBy===me.id` filters miss user-created
+  // packages while still matching seed entries.
+  DRW_PACKAGES.push({id:'PKG-'+Date.now(),projId,label:name,phase,targetDate:date,status:'pending',createdBy:currentUser().id,drawings:[]});
   closeModal('pkg-create-ov');
   showNotif('Package created',name+' added to '+PROJS.find(p=>p.id===projId)?.name);
   renderDrawings();
@@ -16702,7 +17442,8 @@ function s62MergeById(localArr, cloudArr, debugName){
    fields.
    ─────────────────────────────────────────────────────────────── */
 function s62NormalizeArrayCollections(data){
-  if(!data || typeof data !== 'object') return data;
+  if(!data || typeof data !== 'object') return false;
+  let healed = false; // v101.44.1 — signal whether we had to coerce anything
   const ARRAY_KEYS = [
     'projs','drawings','staff','tsEntries','schedTasks','drwPackages',
     'sentEmails','consultantLogs','invoices','notifications','transmittals',
@@ -16714,6 +17455,7 @@ function s62NormalizeArrayCollections(data){
     if (v != null && !Array.isArray(v) && typeof v === 'object'){
       data[k] = Object.values(v).filter(x => x && typeof x === 'object');
       console.log('[v101.44] normalized data.'+k+': object → array, len='+data[k].length);
+      healed = true;
     }
   });
   // reviews has nested daily/weekly arrays
@@ -16723,10 +17465,11 @@ function s62NormalizeArrayCollections(data){
       if (v != null && !Array.isArray(v) && typeof v === 'object'){
         data.reviews[k] = Object.values(v).filter(x => x && typeof x === 'object');
         console.log('[v101.44] normalized data.reviews.'+k+': object → array, len='+data.reviews[k].length);
+        healed = true;
       }
     });
   }
-  return data;
+  return healed;
 }
 
 function unpackData(data) {
@@ -16734,7 +17477,16 @@ function unpackData(data) {
   // BEFORE the unpacking logic touches them. Without this, sparse-array
   // serialization (especially of NOTIFICATIONS) leaves global vars as
   // objects and crashes .filter/.find/.forEach across the app.
-  data = s62NormalizeArrayCollections(data);
+  //
+  // v101.44.1 — capture whether coercion actually happened. If it did,
+  // the cloud copy still has the bad shape and every browser is doing
+  // this work on every poll. The REST poller checks this flag after
+  // apply and schedules a save to push the dense-array shape back to
+  // Firebase, which heals the issue for all future pulls (one save,
+  // global effect, idempotent thereafter).
+  if (s62NormalizeArrayCollections(data)){
+    window._s62LastNormalizeHealed = true;
+  }
 
   // v101.37 — All array collections now use merge-by-id when cloud sync
   // is applying remote data. During localStorage load (not from cloud) the
@@ -25424,7 +26176,7 @@ function saveCARFI(editId){
 
   scheduleSave({immediate:true});closeModal('ca-rfi-ov');renderCA();updateCABadges();
   if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
-  if(document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
+  s62MaybeReRenderHome(); // v101.45
   showNotif('RFI saved',entry.num+(assignedTo?' · Assigned to '+caStaffName(assignedTo):''));
 }
 
@@ -25538,7 +26290,7 @@ function saveCASUB(editId){
 
   scheduleSave({immediate:true});closeModal('ca-sub-ov');renderCA();updateCABadges();
   if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
-  if(document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
+  s62MaybeReRenderHome(); // v101.45
   showNotif('Submittal saved',entry.num+(assignedTo?' · Assigned to '+caStaffName(assignedTo):''));
 }
 
@@ -25934,7 +26686,7 @@ function caMarkComplete(kind,id){
   }
   scheduleSave();renderCA();updateCABadges();
   if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
-  if(document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
+  s62MaybeReRenderHome(); // v101.45
   showNotif('Marked complete',r.num);
 }
 
@@ -26030,7 +26782,7 @@ function syncCAFromMeeting(mtgId){
 
   // Refresh schedule panels if open
   if (document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
-  if (document.getElementById('panel-dashboard')?.classList.contains('active')) renderDashboard();
+  s62MaybeReRenderHome(); // v101.45
 }
 
 /* ── ALSO CLEAN UP SCHED_TASKS when a site-visit meeting is cancelled ── */
