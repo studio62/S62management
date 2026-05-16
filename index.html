@@ -7548,7 +7548,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.57 — meeting save-before-async fix (root cause of 'new meetings missing'): save fires before await gcalCreateEvent. Also: signOutUser flushes pending cloudSave, pagehide local-snapshot save, count-based protective resave on login');
+console.log("S62 v101.58 — meeting save-before-async fix (root cause of new-meetings-missing): save fires before await gcalCreateEvent. Also: signOutUser flushes pending cloudSave, pagehide local-snapshot save, count-based protective resave on login. Fixes parse error from v101.57 (unescaped apostrophes broke the entire JS).");
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -18599,7 +18599,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.57',
+        appVersion: 'S62-v101.58',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -18759,7 +18759,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.57',
+    appVersion: 'S62-v101.58',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
