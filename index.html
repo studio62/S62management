@@ -7308,7 +7308,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.50 — assignment fixes: reassignDrw cascade + safe initials + orphan-sid normalizer + repair utility');
+console.log('S62 v101.51 — duplicate-drawing dedup: detect and clean drawings sharing the same ID, harden merge against re-duplication');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -18098,11 +18098,17 @@ function packData() {
 function s62MergeById(localArr, cloudArr, debugName){
   // Bail on bad inputs — fall back to cloud (current behavior)
   if (!Array.isArray(cloudArr)) return Array.isArray(localArr) ? localArr : [];
-  if (!Array.isArray(localArr) || localArr.length === 0) return cloudArr.slice();
+  if (!Array.isArray(localArr) || localArr.length === 0) return s62DedupArrayById(cloudArr, debugName);
+
+  // v101.51 — Dedupe the cloud array FIRST, in case it arrived with duplicates
+  // (which is how this project ended up with two of every drawing). The merge
+  // result must also be deduped because local-only and cloud records could
+  // theoretically overlap if local had duplicates of its own.
+  const cloudDeduped = s62DedupArrayById(cloudArr, debugName);
 
   // Build set of cloud IDs for O(1) lookup
   const cloudIds = new Set();
-  cloudArr.forEach(r => { if (r && r.id !== undefined && r.id !== null) cloudIds.add(r.id); });
+  cloudDeduped.forEach(r => { if (r && r.id !== undefined && r.id !== null) cloudIds.add(r.id); });
 
   // Find local-only records (preserve these)
   const localOnly = localArr.filter(r => {
@@ -18111,11 +18117,45 @@ function s62MergeById(localArr, cloudArr, debugName){
   });
 
   if (localOnly.length > 0 && debugName){
-    console.log('[v101.37 merge] '+debugName+': '+localOnly.length+' local-only record(s) preserved · '+cloudArr.length+' from cloud');
+    console.log('[v101.37 merge] '+debugName+': '+localOnly.length+' local-only record(s) preserved · '+cloudDeduped.length+' from cloud');
   }
 
-  // Result: cloud records + local-only records
-  return cloudArr.concat(localOnly);
+  // Result: cloud records + local-only records, then dedup once more for safety
+  return s62DedupArrayById(cloudDeduped.concat(localOnly), debugName);
+}
+
+// v101.51 — id-keyed array dedupe. For "drawings" debugName, uses merit-based
+// selection so the record with assignment / history / progress wins over an
+// empty-shell duplicate. For other collections, last-write-wins is fine
+// since their duplicates are typically identical seed/template clones.
+function s62DedupArrayById(arr, debugName){
+  if(!Array.isArray(arr) || arr.length === 0) return arr;
+  const useMerit = (debugName === 'drawings');
+  const best = new Map();
+  arr.forEach(r => {
+    if(!r || r.id == null) return;
+    if(!best.has(r.id)){
+      best.set(r.id, r);
+      return;
+    }
+    if(useMerit && typeof s62DrawingMerit === 'function'){
+      // Keep the higher-merit record
+      const existing = best.get(r.id);
+      if(s62DrawingMerit(r) > s62DrawingMerit(existing)){
+        best.set(r.id, r);
+      }
+    } else {
+      // Default: last-write-wins
+      best.set(r.id, r);
+    }
+  });
+  // Preserve records without ids (defensive — should be rare)
+  const noId = arr.filter(r => !r || r.id == null);
+  const deduped = Array.from(best.values()).concat(noId);
+  if(deduped.length < arr.length && debugName){
+    console.log('[v101.51 dedup] '+debugName+': dropped '+(arr.length - deduped.length)+' duplicate(s) by id'+(useMerit?' (merit-based)':''));
+  }
+  return deduped;
 }
 
 /* ── v101.44 — array-shape normalization ────────────────────
@@ -18183,6 +18223,158 @@ function s62NormalizeArrayCollections(data){
    while we're here — both flow into rendering paths that assume
    strings. Idempotent and cheap; runs every load.
    ─────────────────────────────────────────────────────────────── */
+/* ── v101.51 — Duplicate-drawing detection & dedup ──────────────
+   Bug surface: DRAWINGS array sometimes contains two (or more)
+   records with the same .id field. Source is historical — likely
+   a Firebase merge race in an earlier version. Once duplicates
+   exist, every render shows both rows, and reassignDrw / save
+   paths only mutate the first match found, leaving the duplicate
+   stale. The user sees "alternating" assignment because their
+   eye groups visually-identical rows.
+
+   Strategy:
+     1. Group DRAWINGS by id.
+     2. For each group with >1 record, score each by "merit"
+        (assignment, history depth, hours logged, progress).
+     3. Keep the highest-merit record, drop the rest.
+     4. Same approach for SCHED_TASKS (they get duplicated for
+        the same reason via the template-application chain that
+        creates one task per drawing).
+   ─────────────────────────────────────────────────────────────── */
+
+function s62DrawingMerit(d){
+  if(!d || typeof d !== 'object') return -1;
+  let score = 0;
+  // Strong signals — the user did real work on this record
+  if(d.sid)              score += 50;
+  if(d.checkedBy)        score += 30;
+  if(Array.isArray(d.assignmentLog)) score += d.assignmentLog.length * 8;
+  if(Array.isArray(d.revHistory))    score += d.revHistory.length    * 6;
+  if(Array.isArray(d.qaHistory))     score += d.qaHistory.length     * 6;
+  // Status — progress = real work
+  if(d.status === 'done')      score += 200;
+  else if(d.status === 'chk')  score += 80;
+  else if(d.status === 'ip')   score += 30;
+  // Numeric data
+  score += (d.pct || 0);       // 0–100
+  score += (d.hrs || 0) * 2;   // each hour = 2 pts
+  // Tie-breakers — prefer records with metadata over bare records
+  if(d.tgt && d.tgt !== '')     score += 5;
+  if(d.pkg && d.pkg !== '')     score += 5;
+  if(d.rev && d.rev !== '-')    score += 5;
+  if(d.rejectedAt)              score += 10;
+  return score;
+}
+
+function s62CountDuplicateDrawings(){
+  if(typeof DRAWINGS === 'undefined' || !Array.isArray(DRAWINGS)){
+    return { totalDuplicates: 0, affectedIds: [], totalRecords: 0 };
+  }
+  const seen = new Map(); // id → count
+  DRAWINGS.forEach(d => {
+    if(!d || !d.id) return;
+    seen.set(d.id, (seen.get(d.id) || 0) + 1);
+  });
+  let totalDuplicates = 0;
+  const affectedIds = [];
+  seen.forEach((count, id) => {
+    if(count > 1){
+      totalDuplicates += (count - 1);
+      affectedIds.push(id);
+    }
+  });
+  return { totalDuplicates, affectedIds, totalRecords: DRAWINGS.length };
+}
+
+function s62CountDuplicateSchedTasks(){
+  if(typeof SCHED_TASKS === 'undefined' || !Array.isArray(SCHED_TASKS)){
+    return { totalDuplicates: 0 };
+  }
+  // SCHED_TASKS unique key is drawingId (one task per drawing)
+  const seen = new Map();
+  SCHED_TASKS.forEach(t => {
+    if(!t || !t.drawingId) return;
+    seen.set(t.drawingId, (seen.get(t.drawingId) || 0) + 1);
+  });
+  let totalDuplicates = 0;
+  seen.forEach(c => { if(c > 1) totalDuplicates += (c - 1); });
+  return { totalDuplicates };
+}
+
+function s62DeduplicateDrawings(){
+  if(typeof DRAWINGS === 'undefined' || !Array.isArray(DRAWINGS)){
+    return { removed: 0, kept: 0, byId: [] };
+  }
+  // Group by id, then for each group keep the highest-merit record
+  const groups = new Map();
+  DRAWINGS.forEach((d, idx) => {
+    if(!d || !d.id) return;
+    if(!groups.has(d.id)) groups.set(d.id, []);
+    groups.get(d.id).push({ d, idx });
+  });
+
+  const keepIndices = new Set();
+  const removedByGroup = [];
+
+  groups.forEach((group, id) => {
+    if(group.length === 1){
+      keepIndices.add(group[0].idx);
+      return;
+    }
+    // Multiple records share this id — pick the highest-merit
+    let bestIdx = group[0].idx;
+    let bestMerit = s62DrawingMerit(group[0].d);
+    for(let i = 1; i < group.length; i++){
+      const m = s62DrawingMerit(group[i].d);
+      if(m > bestMerit){ bestMerit = m; bestIdx = group[i].idx; }
+    }
+    keepIndices.add(bestIdx);
+    removedByGroup.push({ id, kept: bestIdx, removed: group.length - 1, mergedMerit: bestMerit });
+  });
+
+  // Build new array preserving order, keeping only the chosen records
+  const before = DRAWINGS.length;
+  DRAWINGS = DRAWINGS.filter((d, idx) => {
+    if(!d || !d.id) return true; // keep malformed records (probably nothing, but defensive)
+    return keepIndices.has(idx);
+  });
+  const removed = before - DRAWINGS.length;
+  return { removed, kept: DRAWINGS.length, byId: removedByGroup };
+}
+
+function s62DeduplicateSchedTasks(){
+  // Same pattern as drawings but keyed on drawingId
+  if(typeof SCHED_TASKS === 'undefined' || !Array.isArray(SCHED_TASKS)){
+    return { removed: 0 };
+  }
+  const groups = new Map();
+  SCHED_TASKS.forEach((t, idx) => {
+    if(!t || !t.drawingId) return;
+    if(!groups.has(t.drawingId)) groups.set(t.drawingId, []);
+    groups.get(t.drawingId).push({ t, idx });
+  });
+  const keepIndices = new Set();
+  groups.forEach(group => {
+    if(group.length === 1){ keepIndices.add(group[0].idx); return; }
+    // Pick the task with the most progress / changeLog history
+    let bestIdx = group[0].idx;
+    let best = group[0].t;
+    for(let i = 1; i < group.length; i++){
+      const cur = group[i].t;
+      const curScore = (cur.pct||0) + (cur.actHrs||0) + (Array.isArray(cur.changeLog)?cur.changeLog.length*10:0) + (cur.staffId?20:0);
+      const bestScore = (best.pct||0) + (best.actHrs||0) + (Array.isArray(best.changeLog)?best.changeLog.length*10:0) + (best.staffId?20:0);
+      if(curScore > bestScore){ best = cur; bestIdx = group[i].idx; }
+    }
+    keepIndices.add(bestIdx);
+  });
+  const before = SCHED_TASKS.length;
+  SCHED_TASKS = SCHED_TASKS.filter((t, idx) => {
+    if(!t || !t.drawingId) return true;
+    return keepIndices.has(idx);
+  });
+  return { removed: before - SCHED_TASKS.length };
+}
+
 function s62NormalizeStaffStrings(){
   if(typeof STAFF === 'undefined' || !Array.isArray(STAFF)) return 0;
   let fixed = 0;
@@ -18234,22 +18426,53 @@ function s62RepairDrawingAssignments(){
     showNotif('Repair skipped','No drawings loaded.');
     return;
   }
-  const orphanCount = s62CountOrphanAssignments();
-  if(orphanCount === 0){
-    showNotif('Nothing to repair','All drawing assignments point to valid staff records.');
-    return;
-  }
-  if(!confirm('This will clear '+orphanCount+' orphan assignment reference(s) on drawings whose assignee, checker, or set-by user no longer exists in the Staff register.\n\nThe drawings themselves stay intact — only the broken staff link is removed. Continue?')){
+
+  // v101.51 — Check for both issues: orphan staff refs AND duplicates.
+  // Build a unified summary so the user sees the full picture in one prompt.
+  const orphanCount   = s62CountOrphanAssignments();
+  const dupDrawings   = s62CountDuplicateDrawings();
+  const dupSchedTasks = s62CountDuplicateSchedTasks();
+
+  const hasIssues = orphanCount > 0
+                 || dupDrawings.totalDuplicates > 0
+                 || dupSchedTasks.totalDuplicates > 0;
+
+  if(!hasIssues){
+    showNotif('Nothing to repair', 'All drawing assignments are valid and no duplicate records were found.');
     return;
   }
 
+  // Build summary message
+  const summary = [];
+  if(dupDrawings.totalDuplicates > 0){
+    summary.push('• '+dupDrawings.totalDuplicates+' duplicate drawing record'+(dupDrawings.totalDuplicates===1?'':'s')+' (across '+dupDrawings.affectedIds.length+' drawing ID'+(dupDrawings.affectedIds.length===1?'':'s')+')');
+  }
+  if(dupSchedTasks.totalDuplicates > 0){
+    summary.push('• '+dupSchedTasks.totalDuplicates+' duplicate scheduled task'+(dupSchedTasks.totalDuplicates===1?'':'s'));
+  }
+  if(orphanCount > 0){
+    summary.push('• '+orphanCount+' orphan staff reference'+(orphanCount===1?'':'s')+' (assignee / checker / set-by pointing to a deleted staff member)');
+  }
+
+  const msg = 'Data integrity check found:\n\n'
+    + summary.join('\n') + '\n\n'
+    + 'For duplicates: the record with the most data (assignment, history, hours, progress) is kept; the others are removed.\n\n'
+    + 'For orphans: the broken staff link is cleared (drawing itself stays intact).\n\n'
+    + 'Continue?';
+
+  if(!confirm(msg)) return;
+
+  // ── 1. Dedupe DRAWINGS first ─────────────────────────────
+  const dResult = s62DeduplicateDrawings();
+  // ── 2. Dedupe SCHED_TASKS ────────────────────────────────
+  const tResult = s62DeduplicateSchedTasks();
+  // ── 3. Clear orphan refs (re-scan since the dedup may have shifted things) ──
   const staffIds = new Set(STAFF.map(s => s && s.id).filter(Boolean));
   const counts = { sid:0, checkedBy:0, setby:0 };
 
   DRAWINGS.forEach(d => {
     if(!d) return;
     if(d.sid && !staffIds.has(d.sid)){
-      // Log the orphan into assignmentLog before clearing — keeps the audit trail
       try {
         if(!Array.isArray(d.assignmentLog)) d.assignmentLog = [];
         d.assignmentLog.push({
@@ -18269,22 +18492,37 @@ function s62RepairDrawingAssignments(){
     if(d.setby     && !staffIds.has(d.setby))    { d.setby     = ''; counts.setby++; }
   });
 
-  const total = counts.sid + counts.checkedBy + counts.setby;
+  const orphanTotal = counts.sid + counts.checkedBy + counts.setby;
+
+  // ── 4. Audit log entry summarizing the repair ────────────
   try {
-    addAudit('settings', 'Drawing assignments repaired',
-      'Cleared '+counts.sid+' orphan assignee(s), '+counts.checkedBy+' orphan checker(s), '+counts.setby+' orphan set-by reference(s)',
-      null);
+    const breakdown = [
+      dResult.removed ? dResult.removed+' duplicate drawings removed' : '',
+      tResult.removed ? tResult.removed+' duplicate sched tasks removed' : '',
+      counts.sid ? counts.sid+' orphan assignee(s) cleared' : '',
+      counts.checkedBy ? counts.checkedBy+' orphan checker(s) cleared' : '',
+      counts.setby ? counts.setby+' orphan set-by ref(s) cleared' : ''
+    ].filter(Boolean).join(' · ');
+    addAudit('settings', 'Data integrity repair', breakdown, null);
   } catch(_){}
 
-  showNotif('Repair complete',
-    'Cleared '+total+' orphan reference'+(total===1?'':'s')+' across '+
-    counts.sid+' assignee, '+counts.checkedBy+' checker, '+counts.setby+' set-by field'+
-    '. Affected drawings have an audit entry.');
+  // ── 5. Notification summary ──────────────────────────────
+  const parts = [];
+  if(dResult.removed)  parts.push(dResult.removed+' duplicate drawings');
+  if(tResult.removed)  parts.push(tResult.removed+' duplicate tasks');
+  if(orphanTotal)      parts.push(orphanTotal+' orphan refs');
+  showNotif('Repair complete', 'Cleaned: ' + (parts.length ? parts.join(' · ') : 'nothing required') + '. Pushing to cloud...');
 
+  // ── 6. Re-render every panel that surfaces drawings or tasks ──
   try { renderDrawings();  } catch(_){}
   try { renderProjList();  } catch(_){}
   try { renderDashboard(); } catch(_){}
-  scheduleSave();
+  try { if(typeof renderSchedule==='function')   renderSchedule();   } catch(_){}
+  try { if(typeof renderStaffSched==='function') renderStaffSched(); } catch(_){}
+  try { if(typeof updateNavBadges==='function')  updateNavBadges();  } catch(_){}
+
+  // ── 7. Force-save to push the cleaned data to Firebase ──
+  scheduleSave({immediate:true});
 }
 
 function unpackData(data) {
@@ -18400,26 +18638,29 @@ function unpackData(data) {
   if(Array.isArray(data.vendors))      VENDORS       = _mergeOn ? s62MergeById(VENDORS, data.vendors, 'vendors')           : data.vendors;
 
   // ── v101.50 — Post-load data integrity normalization ───────────
-  // Defensively repair common bad data shapes before render paths
-  // try to use them. The two things this fixes:
-  //   1. Staff records with null/undefined first/last fields →
-  //      coerced to safe strings. Without this, the 39 avatar-init
-  //      sites (`s.first[0]+s.last[0]`) can throw a TypeError on
-  //      any render that touches a malformed record.
-  //   2. Drawings whose .sid points to a staff member that no
-  //      longer exists in STAFF → counted and logged so we can
-  //      surface a repair prompt to the user.
-  // This block is intentionally tolerant — bad data shouldn't
-  // prevent the rest of the app from working. We coerce, count,
-  // and continue.
+  // v101.51 — Extended to also detect duplicate drawing/sched records
+  //         (same .id appearing multiple times). User-facing repair
+  //         button can clean these in one pass.
   try { s62NormalizeStaffStrings(); } catch(e){ console.warn('[v101.50] staff normalize:', e); }
   try {
     const orphanCount = s62CountOrphanAssignments();
     if(orphanCount > 0){
-      console.warn('[v101.50] data integrity — '+orphanCount+' drawing(s) have an assignee (sid) that no longer exists in STAFF. Use Settings → Repair drawing assignments to clean up.');
+      console.warn('[v101.50] data integrity — '+orphanCount+' drawing(s) have an assignee (sid) that no longer exists in STAFF. Use the 🔧 Repair button to clean up.');
       window._s62OrphanAssignmentCount = orphanCount;
     }
   } catch(e){ console.warn('[v101.50] orphan scan:', e); }
+  try {
+    const dupD = s62CountDuplicateDrawings();
+    if(dupD.totalDuplicates > 0){
+      console.warn('[v101.51] data integrity — '+dupD.totalDuplicates+' duplicate drawing record(s) found across '+dupD.affectedIds.length+' drawing IDs. Sample affected IDs: '+dupD.affectedIds.slice(0,5).join(', ')+'. Use the 🔧 Repair button to dedupe.');
+      window._s62DuplicateDrawingCount = dupD.totalDuplicates;
+    }
+    const dupS = s62CountDuplicateSchedTasks();
+    if(dupS.totalDuplicates > 0){
+      console.warn('[v101.51] data integrity — '+dupS.totalDuplicates+' duplicate scheduled task(s) found. The Repair button will clean these alongside drawings.');
+      window._s62DuplicateSchedTaskCount = dupS.totalDuplicates;
+    }
+  } catch(e){ console.warn('[v101.51] duplicate scan:', e); }
 }
 
 /* ── MIGRATE: upgrade old schema data to current version ─────
