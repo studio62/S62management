@@ -5921,72 +5921,34 @@ function clearFbConfig(){
 /* ── STARTUP SYNC ──────────────────────────────────────── */
 async function fbAutoConnect(){
   if(!isCloudConfigured()) return;
+  // v101.44 — SDK boot data path NEUTRALIZED.
+  // ────────────────────────────────────────────────────────────────
+  // Since v101.41 the REST poller (s62StartPoller, fires at T+3500ms)
+  // is THE data path. The previous body of this function did three
+  // things that are now redundant — and were producing console noise
+  // on every boot because Firebase rules don't allow SDK reads:
+  //
+  //   (a) await _fbRef.once('value')
+  //       → logged "S62 Firebase initial load: Error: permission_denied"
+  //   (b) on permission_denied, call s62MaybeAutoReconnect('initial-load')
+  //       → logged the [v101.28]/[v101.30] reconnect cycle chain
+  //   (c) await fbStartListener()
+  //       → bound an SDK listener that fires permission_denied immediately
+  //
+  // All three are skipped now. The REST poller provides live data
+  // regardless of SDK socket state, so the SDK data path is dead weight.
+  //
+  // What's KEPT: fbInit(). It sets up _fbApp, _fbAuth, _fbRef, _fbDb.
+  // The REST poller depends on _fbAuth.currentUser (for ID tokens) and
+  // _fbApp.options.databaseURL (for the fetch URL), so the init still
+  // has to run. Just nothing past it.
+  //
+  // The user-initiated cloud-config flow (saveFbCfg, ~line 5901) still
+  // calls fbStartListener directly — that path is unchanged. Only the
+  // boot-time auto-connect is neutralized.
+  // ────────────────────────────────────────────────────────────────
   const ok = await fbInit();
   if(!ok) return;
-  try{
-    // Block all renders/saves until we have the latest data
-    _fbApplying = true;
-    const snap = await _fbRef.once('value');
-    const data = snap.val();
-    if(data && data.projs){
-      // v101.31 — startup conflict check. Compare local savedAt against
-      // cloud savedAt. If local is more than 1 hour ahead of cloud, the
-      // user has unsynced offline edits — surface the choice.
-      try {
-        const localTime = window._s62LocalSavedAt || 0;
-        const cloudTime = data.savedAt ? new Date(data.savedAt).getTime() : 0;
-        if (localTime && cloudTime && (localTime - cloudTime) > (60 * 60 * 1000)){
-          // Don\'t block — set a deferred prompt that surfaces after the listener attaches
-          setTimeout(() => s62ShowStartupConflictPrompt(localTime, cloudTime, data), 800);
-        }
-      } catch(_){}
-
-      const remoteVersion = data.version||0;
-      const localVersion  = _fbLocalVersion||0;
-      if(remoteVersion > localVersion){
-        // Firebase is ahead — apply it
-        const prevUser = CURRENT_USER_ID;
-        unpackData(migrateData(data));
-        CURRENT_USER_ID = prevUser;
-        _fbLocalVersion = remoteVersion;
-        s62SaveLocalSnapshot();  // v101.11 — uses compression
-        renderDashboard(); renderProjList(); renderDrawings();
-        renderStaffSched(); renderWorkload(); renderTimesheets();
-        updateNavBadges();
-        showSyncToast('↻ Loaded v'+remoteVersion+' from Firebase');
-      } else {
-        // We are current or ahead — push our local state up
-        _fbApplying = false;
-        await cloudSave();
-        _fbApplying = true;
-      }
-    } else {
-      // Nothing in Firebase yet — push our local data up as v1
-      _fbApplying = false;
-      await cloudSave();
-      _fbApplying = true;
-      showSyncToast('☁ Studio data pushed to Firebase');
-    }
-  }catch(e){
-    console.error('S62 Firebase initial load:', e);
-    // v101.30 — if the initial load hit permission_denied, the persistent
-    // WebSocket is most likely holding a stale auth/permission state from
-    // a previous session. Trigger the standard reconnect recovery path
-    // so the user doesn\'t need to type s62Reconnect() in the console.
-    const msg = String(e && e.message || e || '').toLowerCase();
-    if (msg.indexOf('permission_denied') >= 0 || msg.indexOf('permission denied') >= 0){
-      // v101.43 — initial-load permission_denied is now handled by REST poller
-      // which provides data regardless of SDK socket state. Log silenced.
-      // (was: console.log('[v101.30] initial-load permission_denied detected — triggering recovery');)
-      if (typeof s62MaybeAutoReconnect === 'function'){
-        s62MaybeAutoReconnect('initial-load');
-      }
-    }
-  }finally{
-    _fbApplying = false;
-  }
-  // Always start the live listener after initial load
-  await fbStartListener();
   updateSyncStatusBar();
 }
 
@@ -7190,7 +7152,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.43 — Phase 2 Ship 4: dead SDK code removed · cleaner console · REST is the only data path');
+console.log('S62 v101.44 — Phase 2 Ship 5: SDK boot path neutralized · data shape hardened · login crash fixed');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -16712,7 +16674,68 @@ function s62MergeById(localArr, cloudArr, debugName){
   return cloudArr.concat(localOnly);
 }
 
+/* ── v101.44 — array-shape normalization ────────────────────
+   Firebase Realtime DB serializes sparse arrays as objects, e.g.
+     [a, , , , , f, , h]  →  {0:a, 5:f, 7:h}
+   This happens whenever an array has non-contiguous numeric keys
+   on the server — which is what NOTIFICATIONS hits because of
+   unshift() + the 200-cap `NOTIFICATIONS.length = 200` truncate
+   at line 22068. Each truncate creates a sparse pattern that
+   Firebase re-serializes as an object on the next round-trip.
+
+   The merge path (REST poller → unpackData with _fbApplying=true
+   → s62MergeById) is array-safe. The DIRECT-ASSIGNMENT paths are
+   not:
+     • initial localStorage load (data → unpackData, _fbApplying=false)
+     • waitForFirebasePull's _fbRef.once('value') in _onAuthStateChanged
+       (calls unpackData(v) without setting _fbApplying)
+
+   Without this normalization those paths assign object-shaped data
+   to global vars that the rest of the codebase calls .filter / .find /
+   .forEach on — which throws TypeError synchronously. In v101.43 this
+   killed the auth flow: _onAuthStateChanged → changeUser → updateNavBadges
+   → updateNotifBadge → countUnread → getMyNotifs → throw → hideSignIn
+   never called → sign-in overlay stuck visible → login appeared broken.
+
+   This helper runs at the top of unpackData and coerces every known-array
+   field. Cheap (single scan of known keys), idempotent, safe on missing
+   fields.
+   ─────────────────────────────────────────────────────────────── */
+function s62NormalizeArrayCollections(data){
+  if(!data || typeof data !== 'object') return data;
+  const ARRAY_KEYS = [
+    'projs','drawings','staff','tsEntries','schedTasks','drwPackages',
+    'sentEmails','consultantLogs','invoices','notifications','transmittals',
+    'meetings','vendors','dqAssessments','auditLog','visuals','drwTemplates',
+    'caSvr','caRfis','caSubmittals','caSnags','caAis'
+  ];
+  ARRAY_KEYS.forEach(k => {
+    const v = data[k];
+    if (v != null && !Array.isArray(v) && typeof v === 'object'){
+      data[k] = Object.values(v).filter(x => x && typeof x === 'object');
+      console.log('[v101.44] normalized data.'+k+': object → array, len='+data[k].length);
+    }
+  });
+  // reviews has nested daily/weekly arrays
+  if (data.reviews && typeof data.reviews === 'object'){
+    ['daily','weekly'].forEach(k => {
+      const v = data.reviews[k];
+      if (v != null && !Array.isArray(v) && typeof v === 'object'){
+        data.reviews[k] = Object.values(v).filter(x => x && typeof x === 'object');
+        console.log('[v101.44] normalized data.reviews.'+k+': object → array, len='+data.reviews[k].length);
+      }
+    });
+  }
+  return data;
+}
+
 function unpackData(data) {
+  // v101.44 — coerce any Firebase array-as-object fields back to arrays
+  // BEFORE the unpacking logic touches them. Without this, sparse-array
+  // serialization (especially of NOTIFICATIONS) leaves global vars as
+  // objects and crashes .filter/.find/.forEach across the app.
+  data = s62NormalizeArrayCollections(data);
+
   // v101.37 — All array collections now use merge-by-id when cloud sync
   // is applying remote data. During localStorage load (not from cloud) the
   // local arrays are empty so merge degenerates to plain assignment.
@@ -22074,6 +22097,19 @@ function addNotif(opts){
 }
 
 function getMyNotifs(){
+  // v101.44 — defensive coercion. unpackData normalizes incoming data via
+  // s62NormalizeArrayCollections, but this is belt-and-suspenders so a
+  // corrupted NOTIFICATIONS can never crash the auth flow again. In v101.43,
+  // a single uncaught TypeError here (because Firebase had serialized
+  // NOTIFICATIONS as an object) killed _onAuthStateChanged → changeUser
+  // before it could call hideSignIn() — leaving the sign-in overlay
+  // permanently visible. Login appeared totally broken despite Firebase
+  // auth having succeeded.
+  if(!Array.isArray(NOTIFICATIONS)){
+    NOTIFICATIONS = (NOTIFICATIONS && typeof NOTIFICATIONS === 'object')
+      ? Object.values(NOTIFICATIONS).filter(n => n && typeof n === 'object')
+      : [];
+  }
   return NOTIFICATIONS.filter(isRelevantNotif);
 }
 
