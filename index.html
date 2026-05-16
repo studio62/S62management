@@ -4657,15 +4657,43 @@ const _S62_TRACKED_COLLECTIONS = [
   {name: 'staff',           arr: () => typeof STAFF           !== 'undefined' ? STAFF           : []}
 ];
 
-// _s62Snapshot[collectionName] = Map<id, updatedAt>
-//   Captured after each successful save. Used to diff next time.
+// _s62Snapshot[collectionName] = Map<id, contentHash>
+//   v101.60 — snapshot now stores a content hash of each record (a stable
+//   JSON serialization), not just `updatedAt`. The previous design assumed
+//   every mutation site stamped `updatedAt`, but many didn't (reassignDrw,
+//   approveDrawing, rejectDrawing, setDrwPriority, submitForCheck, etc.) —
+//   so the dirty-tracker missed those mutations and they never reached
+//   Firebase. The user-visible symptom: "I changed the assignee, but on
+//   relog the old assignee is back" — because cloud kept the stale record
+//   and merge-by-id has cloud-wins-for-shared-IDs.
+//   Content hash catches any change, regardless of whether updatedAt was
+//   touched, eliminating the entire class of "deferred-save + missing-
+//   updatedAt" bugs.
 let _s62Snapshot = {};
+
+// Stable serializer: sorts object keys so {a:1,b:2} and {b:2,a:1} hash equal
+function _s62StableHash(obj){
+  if (obj === null || obj === undefined) return String(obj);
+  if (typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '['+obj.map(_s62StableHash).join(',')+']';
+  const keys = Object.keys(obj).sort();
+  const parts = [];
+  for (const k of keys){
+    parts.push(JSON.stringify(k)+':'+_s62StableHash(obj[k]));
+  }
+  return '{'+parts.join(',')+'}';
+}
 
 function _s62SnapshotCollection(name, arr){
   const m = new Map();
   for (const r of arr){
     if (!r || r.id === undefined || r.id === null) continue;
-    m.set(r.id, r.updatedAt || '');
+    try {
+      m.set(r.id, _s62StableHash(r));
+    } catch(e){
+      // Fallback: if a record has unstringifiable contents, hash its id+updatedAt
+      m.set(r.id, String(r.id)+'|'+(r.updatedAt||''));
+    }
   }
   return m;
 }
@@ -4708,13 +4736,24 @@ function s62GetDirtyList(){
     for (const r of arr){
       if (!r || r.id === undefined || r.id === null) continue;
       currentIds.add(r.id);
-      const prevUpdatedAt = prev.get(r.id);
-      if (prevUpdatedAt === undefined){
+      const prevHash = prev.get(r.id);
+      if (prevHash === undefined){
         // New record
         dirty.push({collection: c.name, id: r.id, op: 'add', record: r});
-      } else if ((r.updatedAt || '') !== prevUpdatedAt){
-        // Existing record changed (updatedAt differs)
-        dirty.push({collection: c.name, id: r.id, op: 'update', record: r});
+      } else {
+        // v101.60 — Hash-based change detection. Compare current content
+        // against snapshot hash. Catches mutations that didn't bump
+        // updatedAt, which was the cause of the assignment-not-saving and
+        // many similar bugs. Any property change (sid, status, tgt, pct,
+        // notes, etc.) produces a different hash → record flagged as
+        // dirty → REST PUT fires → Firebase gets the new state → on
+        // relog, merge sees identical local+cloud, no rollback.
+        let currentHash;
+        try { currentHash = _s62StableHash(r); }
+        catch(_){ currentHash = String(r.id)+'|'+(r.updatedAt||''); }
+        if (currentHash !== prevHash){
+          dirty.push({collection: c.name, id: r.id, op: 'update', record: r});
+        }
       }
     }
     // Detect deletes: ids in snapshot but not in current
@@ -7548,7 +7587,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log("S62 v101.59 — drawing-mutation save audit: setDrawingTarget + quickSaveDrawing + setPctFromSlider + logHrsFromDetail + cancelPct100 all now immediate-save with updatedAt stamping. Previously deferred saves on drawings caused target date/status/pct/hours updates to silently vanish if user logged out or refreshed within the 2.8s debounce. Includes all v101.54-v101.58 fixes.");
+console.log("S62 v101.60 — dirty-tracker now uses content-hash comparison (not just updatedAt), so every mutation is detected regardless of whether the calling code stamped updatedAt. Fixes assignment-not-saving and similar bugs across drawings/meetings/CA/tasks. Also stamps updatedAt in reassignDrw as belt-and-suspenders. Includes all v101.54-v101.59 fixes.");
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -14599,12 +14638,14 @@ function reassignDrw(id,sid){
 
   // ── Mutate the drawing ────────────────────────────────────
   d.sid = newSid;
+  d.updatedAt = new Date().toISOString();   // v101.60 — dirty-tracking belt-and-suspenders
 
   // ── Sync SCHED_TASK if one exists for this drawing ────────
   const raTask = SCHED_TASKS.find(t=>t.drawingId===id);
   if(raTask){
     raTask.staffId = newSid;
     raTask.sid     = newSid; // legacy field, kept in sync
+    raTask.updatedAt = new Date().toISOString();   // v101.60
   }
 
   // ── Add to assignment log (parity with detail-save path) ──
@@ -14656,6 +14697,7 @@ function reassignDrw(id,sid){
   // v101.52 — immediate save. Without {immediate:true}, the 2.8s debounce
   // means a quick reload or another tab's poll can wipe the assignment
   // before it reaches Firebase.
+  console.log('[v101.60] reassignDrw: '+id+' sid='+(newSid||'unassigned')+' (was '+(oldSid||'unassigned')+')');
   scheduleSave({immediate:true});
 }
 function addSingleDrawing(projId){
@@ -18606,7 +18648,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.59',
+        appVersion: 'S62-v101.60',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -18766,7 +18808,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.59',
+    appVersion: 'S62-v101.60',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
