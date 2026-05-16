@@ -7491,7 +7491,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.54 — auth-flow data loss fix (waitForFirebasePull now uses merge-by-id) + render-after-cloud-apply for visuals/CA/pipeline/staff/mywork + visual revisions immediate-save + updatedAt stamping');
+console.log('S62 v101.56 — tombstone audit for deletions (visuals/invoices/transmittals/vendors/timesheets/drawings) + invoice/vendor/transmittal updatedAt stamping + tombstone-clear on create');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -8988,7 +8988,8 @@ function submitConsultantLog(){
   if(hrs<=0){showNotif('Enter hours','Please enter hours worked.');return;}
   const con=STAFF.find(s=>s.id===consultantId);
   const proj=PROJS.find(p=>p.id===projId);
-  if(!CONSULTANT_LOGS) [];
+  if(!CONSULTANT_LOGS) CONSULTANT_LOGS = [];        // v101.55 — fixed: previously `if(!CONSULTANT_LOGS) [];` did nothing
+  const _nowISO = toISO(new Date());
   CONSULTANT_LOGS.push({
     id:'CL-'+Date.now(),
     consultantId,projId,
@@ -8996,11 +8997,14 @@ function submitConsultantLog(){
     task:task||'Consulting',
     note,
     loggedBy:CURRENT_USER_ID,
-    loggedAt:toISO(new Date()),
+    loggedAt:_nowISO,
+    createdAt:_nowISO,                              // v101.55
+    updatedAt:_nowISO,                              // v101.55 — dirty-tracking
   });
   showNotif('Time logged',hrs+'h logged for '+(con?con.first+' '+con.last:'consultant')+' on '+(proj?proj.name:'project')+(rate?' · ₹'+fmtINR(hrs*rate):''));
   closeModal('consultant-log-ov');
-  renderDashboard();scheduleSave();
+  renderDashboard();
+  scheduleSave({immediate:true});                   // v101.55 — was deferred
 }
 
 
@@ -9844,8 +9848,13 @@ function generateInvoicePDF(projId,numLines){
   const dateFormatted=new Date(invDate).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
 
   // Save invoice record
-  INVOICES.push({id:'INV-'+Date.now(),projId,number:invNum,date:invDate,
-    status:'draft',lineItems:lines,subtotal,gst,total,client,notes});
+  const _invNowISO = new Date().toISOString();
+  const _invId = 'INV-'+Date.now();
+  try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('invoices', _invId); } catch(_){}  // v101.56
+  INVOICES.push({id:_invId,projId,number:invNum,date:invDate,
+    status:'draft',lineItems:lines,subtotal,gst,total,client,notes,
+    createdAt:_invNowISO,updatedAt:_invNowISO        // v101.56 — dirty-tracking
+  });
   scheduleSave({immediate:true});  // v101.53 — invoice create
 
   const html=`<!DOCTYPE html>
@@ -12810,7 +12819,7 @@ function executeRemoveStaff(id){
   renderStaff();renderDrawings();renderDashboard();updateNavBadges();
   // Re-render CA if it's the active panel so cleared assignments show up
   if(document.getElementById('panel-ca')?.classList.contains('active')) renderCA();
-  scheduleSave();
+  scheduleSave({immediate:true});                   // v101.55 — staff deletion must persist immediately
 }
 
 
@@ -14830,17 +14839,25 @@ function submitProject(){
       const _z = (typeof s62ReadZonesFromModal === 'function') ? s62ReadZonesFromModal() : null;
       if (_z) _bldgCfg.zones = _z;
     }
-    if(idx>=0)PROJS[idx]={...PROJS[idx],name,client,clientPhone,clientEmail,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg};
+    if(idx>=0){
+      PROJS[idx]={...PROJS[idx],name,client,clientPhone,clientEmail,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg};
+      PROJS[idx].updatedAt = new Date().toISOString();   // v101.55 — dirty-tracking
+    }
     showNotif('Project updated',`${name} updated.`);
   } else {
     const pid='P'+Date.now().toString().slice(-5);
+    // v101.55 — defensive: clear tombstone in case this ID was used and tombstoned earlier
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('projs', pid); } catch(_){}
     // v101.16 / v101.20 — persist building configuration + zones on create
     const _bldgCfg = (typeof s62ReadBldgConfigFromModal === 'function') ? s62ReadBldgConfigFromModal() : null;
     if (_bldgCfg){
       const _z = (typeof s62ReadZonesFromModal === 'function') ? s62ReadZonesFromModal() : null;
       if (_z) _bldgCfg.zones = _z;
     }
-    PROJS.push({id:pid,name,client,clientPhone,clientEmail,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages,bldgConfig:_bldgCfg});
+    const _nowISO = new Date().toISOString();
+    PROJS.push({id:pid,name,client,clientPhone,clientEmail,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages,bldgConfig:_bldgCfg,
+      createdAt:_nowISO,updatedAt:_nowISO            // v101.55
+    });
     addAudit('project','Project created',name+' ('+pid+') · '+client);
 
     // Pipeline → Project back-link: if this project was created from a Won pipeline lead,
@@ -18158,9 +18175,14 @@ function doRemoveDrawing(drawingId){
   if(idx<0)return;
   const id=DRAWINGS[idx].id;
   DRAWINGS.splice(idx,1);
+  try { if(typeof s62AddTombstone === 'function') s62AddTombstone('drawings', drawingId); } catch(_){}  // v101.56
   // Also remove from SCHED_TASKS
   const ti=SCHED_TASKS.findIndex(t=>t.drawingId===drawingId);
-  if(ti>=0)SCHED_TASKS.splice(ti,1);
+  if(ti>=0){
+    const _stId = SCHED_TASKS[ti].id;
+    SCHED_TASKS.splice(ti,1);
+    try { if(typeof s62AddTombstone === 'function') s62AddTombstone('schedTasks', _stId); } catch(_){}  // v101.56
+  }
   closeModal('confirm-rm-drw-ov');
   showNotif('Drawing removed',id+' removed from register');
   renderDrawings();renderProjList();renderSchedule();updateNavBadges();
@@ -18520,7 +18542,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.54',
+        appVersion: 'S62-v101.56',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -18680,7 +18702,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.54',
+    appVersion: 'S62-v101.56',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -21359,35 +21381,41 @@ function tsAddEntry(){
   const proj=PROJS.find(p=>p.id===pId);
   const task=drw?.title||(proj?.name+' — Task')||'New Task';
   const weekKey=tsWeekKey(tsCurrentWeekOffset);
+  const _nowISO = toISO(new Date());                // v101.55
   TS_ENTRIES.push({
     id:'TSE-A'+Date.now(),sid:me.id,projId:pId,drawingId:dId,
-    phase:proj?.phase||'',task,billable,weekKey,days:[0,0,0,0,0],note:''
+    phase:proj?.phase||'',task,billable,weekKey,days:[0,0,0,0,0],note:'',
+    createdAt:_nowISO,updatedAt:_nowISO             // v101.55 — dirty-tracking
   });
   showNotif('Entry added',task);
-  scheduleSave();
+  scheduleSave({immediate:true});                   // v101.55 — was deferred
   renderTimesheets();
 }
 function tsAddAdmin(){
   const me=currentUser();
   const weekKey=tsWeekKey(tsCurrentWeekOffset);
+  const _nowISO = toISO(new Date());                // v101.55
   TS_ENTRIES.push({
     id:'TSE-ADM'+Date.now(),sid:me.id,projId:'',drawingId:'',phase:'',
-    task:'Admin / Internal',billable:false,entryType:'admin',weekKey,days:[0.5,0.5,0.5,0.5,0.5],note:''
+    task:'Admin / Internal',billable:false,entryType:'admin',weekKey,days:[0.5,0.5,0.5,0.5,0.5],note:'',
+    createdAt:_nowISO,updatedAt:_nowISO             // v101.55
   });
   showNotif('Admin row added','Log non-billable time');
-  scheduleSave();
+  scheduleSave({immediate:true});                   // v101.55 — was deferred
   renderTimesheets();
 }
 function tsSubmitLeave(leaveType){
   const me=currentUser();
   const weekKey=tsWeekKey(tsCurrentWeekOffset);
+  const _nowISO = toISO(new Date());                // v101.55
   TS_ENTRIES.push({
     id:'TSE-LV'+Date.now(),sid:me.id,projId:'',drawingId:'',phase:'',
-    task:leaveType,billable:false,entryType:'leave',weekKey,days:[8,8,8,8,8],note:''
+    task:leaveType,billable:false,entryType:'leave',weekKey,days:[8,8,8,8,8],note:'',
+    createdAt:_nowISO,updatedAt:_nowISO             // v101.55
   });
   closeModal('leave-type-ov');
   showNotif('Leave added',leaveType+' logged for this week');
-  scheduleSave();
+  scheduleSave({immediate:true});                   // v101.55 — was deferred
   renderTimesheets();
 }
 function tsPopDrawings(){
@@ -21840,7 +21868,11 @@ function tsRemoveEntry(entryId){
     showNotif('Timesheet approved','Approved entries cannot be removed.');return;
   }
   const idx=TS_ENTRIES.findIndex(x=>x.id===entryId);
-  if(idx>=0){TS_ENTRIES.splice(idx,1);renderTimesheets();}
+  if(idx>=0){
+    TS_ENTRIES.splice(idx,1);
+    try { if(typeof s62AddTombstone === 'function') s62AddTombstone('tsEntries', entryId); } catch(_){}  // v101.56
+    renderTimesheets();
+  }
   scheduleSave({immediate:true});  // v101.53 — TS entry delete
 }
 
@@ -22832,12 +22864,19 @@ function importGcalEv(gcalId){
   const ev=_gcalEvents.find(e=>e.id===gcalId);if(!ev)return;
   if(MEETINGS.find(m=>m.gcalId===gcalId)){showNotif('Already imported','');return;}
   const dt=ev.start?.dateTime||ev.start?.date||'';
-  const mtg={id:nextMtgId(),gcalId:ev.id,source:'gcal',type:'other',title:ev.summary||'Imported Meeting',
+  const _nowISO = toISO(new Date());                   // v101.55 — dirty-tracking
+  const newId = nextMtgId();
+  // v101.55 — clear any stale tombstone before reusing this ID (nextMtgId
+  // computes max+1 of CURRENT meetings, so deleted IDs get reused).
+  try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('meetings', newId); } catch(_){}
+  const mtg={id:newId,gcalId:ev.id,source:'gcal',type:'other',title:ev.summary||'Imported Meeting',
     date:dt.slice(0,10),time:dt.slice(11,16),
     duration:ev.end?Math.round((new Date(ev.end.dateTime||ev.end.date)-new Date(dt))/60000):60,
     proj:null,location:ev.location||'',attendees:[],externalAttendees:(ev.attendees||[]).map(a=>a.email),
-    agenda:ev.description||'',notes:'',actionItems:[],createdBy:CURRENT_USER_ID,status:'scheduled',meetLink:ev.hangoutLink||''};
-  MEETINGS.push(mtg);closeModal('gcal-ev-ov');renderMeetings();scheduleSave();
+    agenda:ev.description||'',notes:'',actionItems:[],createdBy:CURRENT_USER_ID,status:'scheduled',meetLink:ev.hangoutLink||'',
+    createdAt:_nowISO,updatedAt:_nowISO};            // v101.55 — stamp timestamps
+  MEETINGS.push(mtg);closeModal('gcal-ev-ov');renderMeetings();
+  scheduleSave({immediate:true});                      // v101.55 — was deferred → caused gcal-imported meetings to vanish on relog
   showNotif('Meeting imported','Saved to S62 \u2014 open to add notes.');
 }
 
@@ -24395,6 +24434,7 @@ async function submitMtg(mtgId){
     const t2=document.getElementById('me-type')?.value||m.type||'other';
     const st2=document.getElementById('me-status')?.value||m.status||'scheduled';
     Object.assign(m,{type:t2,status:st2,title,date,time,duration,proj,location,externalAttendees,agenda,attendees,vendorIds});
+    m.updatedAt = toISO(new Date());                  // v101.55 — dirty-tracking
     closeModal('mtg-edit-ov');
     // If meeting already in GCal, patch it; if not but pushGcal is requested, create it
     if(m.gcalId && isGcalConnected()){
@@ -24408,7 +24448,12 @@ async function submitMtg(mtgId){
   }else{
     const type=document.getElementById('me-type')?.value||'other';
     const status=document.getElementById('me-status')?.value||'scheduled';
-    const nm={id:nextMtgId(),gcalId:null,source:'local',type,status,title,date,time,duration,proj,location,externalAttendees,attendees,vendorIds,agenda,notes:'',actionItems:[],attendeeStatuses:attendees.map(function(id){return {id:id,status:'invited'};}),notionPageUrl:'',createdBy:CURRENT_USER_ID,meetLink:''};
+    // v101.55 — Defensive: clear any stale tombstone for this MTG id since
+    // nextMtgId reuses freed numbers (max+1 of current MEETINGS).
+    const newMtgId = nextMtgId();
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('meetings', newMtgId); } catch(_){}
+    const _nowISO = toISO(new Date());
+    const nm={id:newMtgId,gcalId:null,source:'local',type,status,title,date,time,duration,proj,location,externalAttendees,attendees,vendorIds,agenda,notes:'',actionItems:[],attendeeStatuses:attendees.map(function(id){return {id:id,status:'invited'};}),notionPageUrl:'',createdBy:CURRENT_USER_ID,meetLink:'',createdAt:_nowISO,updatedAt:_nowISO};
     MEETINGS.push(nm);closeModal('mtg-edit-ov');
     if(pushGcal){
       const ev=await gcalCreateEvent(nm);
@@ -25309,10 +25354,11 @@ function markInvoicePaid(id){
   const inv=(INVOICES||[]).find(i=>i.id===id);
   if(!inv)return;
   inv.status='paid'; inv.paidDate=toISO(new Date());
+  inv.updatedAt = new Date().toISOString();          // v101.56 — dirty-tracking
   scheduleSave({immediate:true});  // v101.53 — invoice paid
   addNotif({type:'timesheet',icon:'₹',iconBg:'rgba(82,201,122,.2)',title:'Invoice '+id+' marked paid',detail:inv.description+' · '+fmtINR(inv.amountNum||0),projId:inv.projId,forRoles:['Principal Architect','Associate Principal','Lead Architect']});
   showNotif('Invoice paid',inv.id+' — '+fmtINR(inv.amountNum||0));
-  renderFinancials(); scheduleSave();
+  renderFinancials();   // v101.56 — removed redundant trailing scheduleSave() after immediate save above
 }
 
 function deleteInvoice(id){
@@ -25327,8 +25373,9 @@ function deleteInvoice(id){
   if(idx<0)return;
   if(!confirm('Delete invoice '+id+'? This cannot be undone.')) return;
   INVOICES.splice(idx,1);
+  try { if(typeof s62AddTombstone === 'function') s62AddTombstone('invoices', id); } catch(_){}  // v101.56
   scheduleSave({immediate:true});  // v101.53 — delete must persist immediately
-  renderFinancials(); scheduleSave();
+  renderFinancials();   // v101.56 — removed redundant trailing scheduleSave() after immediate save above
 }
 
 function openAddInvoiceModal(){
@@ -25384,7 +25431,13 @@ function submitAddInvoice(){
   const notes=(document.getElementById('inv-notes')?.value||'').trim();
   const paidDate=status==='paid'?issueDate:'';
   if(!id||!projId||!desc){showNotif('Missing fields','Fill in Invoice #, Project, and Description.');return;}
-  INVOICES.push({id,projId,description:desc,amount:fmtINR(amountNum),amountNum,issueDate,dueDate,status,paidDate,notes});
+  // v101.56 — User-entered invoice IDs are high-risk for tombstone collision
+  // since users naturally reuse simple sequential numbers after a delete.
+  try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('invoices', id); } catch(_){}
+  const _nowISO = new Date().toISOString();
+  INVOICES.push({id,projId,description:desc,amount:fmtINR(amountNum),amountNum,issueDate,dueDate,status,paidDate,notes,
+    createdAt:_nowISO,updatedAt:_nowISO            // v101.56 — dirty-tracking
+  });
   if(status==='overdue'||amountNum>0){
     addNotif({type:'timesheet',icon:'₹',iconBg:'rgba(201,169,110,.2)',title:'Invoice '+id+' created',detail:desc+' · '+fmtINR(amountNum),projId,forRoles:['Principal Architect','Associate Principal','Lead Architect']});
   }
@@ -25799,6 +25852,7 @@ function deleteTxById(txId){
   if(idx<0) return;
   if(!confirm('Delete this transmittal record? This is a legal record of drawings issued — deleting it removes the audit trail.')) return;
   TRANSMITTALS.splice(idx, 1);
+  try { if(typeof s62AddTombstone === 'function') s62AddTombstone('transmittals', txId); } catch(_){}  // v101.56
   updateTxBadge(); renderTransmittals(); scheduleSave({immediate:true});
   showNotif('Transmittal deleted','');
 }
@@ -25994,12 +26048,15 @@ function issueTransmittal(){
     if(!tx){ showNotif('Error','Could not find transmittal to edit.'); return; }
   } else {
     const ref = document.getElementById('tc-ref')?.value || nextTxRef(projId);
+    const _txId = 'TX-'+Date.now();
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('transmittals', _txId); } catch(_){}  // v101.56
     tx = {
-      id: 'TX-'+Date.now(),
+      id: _txId,
       ref,
       projId,
       createdBy: CURRENT_USER_ID,
       createdAt: toISO(new Date()),
+      updatedAt: toISO(new Date()),                    // v101.56 — dirty-tracking
       printedAt: null,
     };
     TRANSMITTALS.unshift(tx);
@@ -26013,6 +26070,7 @@ function issueTransmittal(){
   tx.remarks = remarks;
   tx.status = 'issued';
   tx.issuedAt = toISO(new Date());
+  tx.updatedAt = toISO(new Date());                    // v101.56 — stamp on every issue/edit
   tx.drawings = Array.from(_tcSelectedDrawings).map(drawingId=>{
     const d = DRAWINGS.find(x=>x.id===drawingId);
     return {drawingId, rev:d?.rev||'—', purpose, copies:1, remarks:''};
@@ -27082,7 +27140,8 @@ function saveVendor(editId){
     reviews:       existing?.reviews  || [],
     linkedProjectIds: existing?.linkedProjectIds || [],
     createdBy:     existing?.createdBy || CURRENT_USER_ID,
-    createdAt:     existing?.createdAt || new Date().toISOString()
+    createdAt:     existing?.createdAt || new Date().toISOString(),
+    updatedAt:     new Date().toISOString()              // v101.56 — always stamp on save
   };
 
   if(editId){
@@ -27090,6 +27149,7 @@ function saveVendor(editId){
     if(idx>=0) VENDORS[idx] = entry; else VENDORS.push(entry);
     addAudit('vendor','Vendor updated', companyName);
   } else {
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('vendors', entry.id); } catch(_){}  // v101.56
     VENDORS.push(entry);
     addAudit('vendor','Vendor created', companyName);
   }
@@ -27117,6 +27177,7 @@ function deleteVendor(id){
   const v = VENDORS.find(x=>x.id===id); if(!v) return;
   if(!confirm('Delete vendor '+v.companyName+'? This will also remove all reviews and rates. This cannot be undone.')) return;
   VENDORS = VENDORS.filter(x=>x.id!==id);
+  try { if(typeof s62AddTombstone === 'function') s62AddTombstone('vendors', id); } catch(_){}  // v101.56
   addAudit('vendor','Vendor deleted', v.companyName);
   scheduleSave({immediate:true});  // v101.53 — vendor delete
   closeModal('vendor-edit-ov');
@@ -27949,10 +28010,18 @@ function saveCASVR(editId){
     nextVisitDate:'',
     nextVisitTime:'',
     nextVisitAttendees:[],
-    createdAt:new Date().toISOString()
+    createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString()              // v101.55 — dirty-tracking
   };
-  if(editId){const idx=CA_SVR.findIndex(x=>x.id===editId);if(idx>=0)CA_SVR[idx]=entry;else CA_SVR.push(entry);}
-  else CA_SVR.push(entry);
+  if(editId){
+    const idx=CA_SVR.findIndex(x=>x.id===editId);
+    if(idx>=0){ entry.updatedAt = new Date().toISOString(); CA_SVR[idx]=entry; }
+    else CA_SVR.push(entry);
+  } else {
+    // v101.55 — clear stale tombstone for reused IDs
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('caSvr', entry.id); } catch(_){}
+    CA_SVR.push(entry);
+  }
 
   // ── SYNC CURRENT VISIT → MEETINGS + STAFF SCHEDULE ───────────
   if(currentAttendees.length>0){
@@ -27976,8 +28045,11 @@ function saveCASVR(editId){
       m.svrSourceId=entry.id;
       m.status='completed';
     } else {
+      const _svrMtgId = nextMtgId();
+      try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('meetings', _svrMtgId); } catch(_){}
+      const _nowISO = toISO(new Date());
       const nm={
-        id:nextMtgId(),gcalId:null,source:'local',type:'site-visit',
+        id:_svrMtgId,gcalId:null,source:'local',type:'site-visit',
         status:'completed',title:mtgTitle,date,time:visitTime,duration:90,
         proj:projId,location:(proj?proj.name+' Site':'Site'),
         attendees:currentAttendees,externalAttendees:[],
@@ -27985,7 +28057,8 @@ function saveCASVR(editId){
         notes:entry.observations||'',actionItems:[],
         attendeeStatuses:currentAttendees.map(id=>({id,status:'attended'})),
         notionPageUrl:'',createdBy:CURRENT_USER_ID,meetLink:'',
-        svrSourceId:entry.id
+        svrSourceId:entry.id,
+        createdAt:_nowISO,updatedAt:_nowISO          // v101.55
       };
       MEETINGS.push(nm);
     }
@@ -28415,10 +28488,16 @@ function saveCARFI(editId){
     answer:document.getElementById('rfi-ans')?.value||'',
     answeredDate:status==='closed'?(CA_RFIS.find(x=>x.id===editId)?.answeredDate||caToday()):'',
     answeredBy:status==='closed'?(CA_RFIS.find(x=>x.id===editId)?.answeredBy||CURRENT_USER_ID):'',
-    drawingRefs,createdAt:new Date().toISOString()
+    drawingRefs,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()  // v101.55
   };
-  if(editId){const idx=CA_RFIS.findIndex(x=>x.id===editId);if(idx>=0)CA_RFIS[idx]=entry;else CA_RFIS.push(entry);}
-  else CA_RFIS.push(entry);
+  if(editId){
+    const idx=CA_RFIS.findIndex(x=>x.id===editId);
+    if(idx>=0){ entry.updatedAt = new Date().toISOString(); CA_RFIS[idx]=entry; }
+    else CA_RFIS.push(entry);
+  } else {
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('caRfis', entry.id); } catch(_){}  // v101.55
+    CA_RFIS.push(entry);
+  }
 
   // ── SYNC ASSIGNMENT TO STAFF SCHEDULE ────────────────────
   caAssignToSchedule({
@@ -28529,10 +28608,16 @@ function saveCASUB(editId){
     status,
     notes:document.getElementById('sub-notes')?.value||'',
     reviewedDate:['approved','rejected'].includes(status)?(CA_SUBMITTALS.find(x=>x.id===editId)?.reviewedDate||caToday()):'',
-    drawingRefs:drwsRaw,createdAt:new Date().toISOString()
+    drawingRefs:drwsRaw,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()  // v101.55
   };
-  if(editId){const idx=CA_SUBMITTALS.findIndex(x=>x.id===editId);if(idx>=0)CA_SUBMITTALS[idx]=entry;else CA_SUBMITTALS.push(entry);}
-  else CA_SUBMITTALS.push(entry);
+  if(editId){
+    const idx=CA_SUBMITTALS.findIndex(x=>x.id===editId);
+    if(idx>=0){ entry.updatedAt = new Date().toISOString(); CA_SUBMITTALS[idx]=entry; }
+    else CA_SUBMITTALS.push(entry);
+  } else {
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('caSubmittals', entry.id); } catch(_){}  // v101.55
+    CA_SUBMITTALS.push(entry);
+  }
 
   // ── SYNC ASSIGNMENT TO STAFF SCHEDULE ────────────────────
   caAssignToSchedule({
@@ -28594,10 +28679,17 @@ function saveCASnag(editId){
     reportedDate:document.getElementById('snag-date')?.value||caToday(),
     reportedBy:CURRENT_USER_ID,
     drawingRef:document.getElementById('snag-drw')?.value||'',
-    createdAt:new Date().toISOString()
+    createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString()              // v101.55
   };
-  if(editId){const idx=CA_SNAGS.findIndex(x=>x.id===editId);if(idx>=0)CA_SNAGS[idx]=entry;else CA_SNAGS.push(entry);}
-  else CA_SNAGS.push(entry);
+  if(editId){
+    const idx=CA_SNAGS.findIndex(x=>x.id===editId);
+    if(idx>=0){ entry.updatedAt = new Date().toISOString(); CA_SNAGS[idx]=entry; }
+    else CA_SNAGS.push(entry);
+  } else {
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('caSnags', entry.id); } catch(_){}  // v101.55
+    CA_SNAGS.push(entry);
+  }
   scheduleSave({immediate:true});closeModal('ca-snag-ov');renderCA();updateCABadges();
   showNotif('Snag item saved',entry.num);
 }
@@ -28648,10 +28740,16 @@ function saveCAAI(editId){
     costImpact:document.getElementById('ai-cost')?.value||'none',
     acknowledged:document.getElementById('ai-ack')?.value==='yes',
     acknowledgedDate:document.getElementById('ai-ack')?.value==='yes'?caToday():'',
-    drawingRefs:drwsRaw,createdAt:new Date().toISOString()
+    drawingRefs:drwsRaw,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()  // v101.55
   };
-  if(editId){const idx=CA_AIS.findIndex(x=>x.id===editId);if(idx>=0)CA_AIS[idx]=entry;else CA_AIS.push(entry);}
-  else CA_AIS.push(entry);
+  if(editId){
+    const idx=CA_AIS.findIndex(x=>x.id===editId);
+    if(idx>=0){ entry.updatedAt = new Date().toISOString(); CA_AIS[idx]=entry; }
+    else CA_AIS.push(entry);
+  } else {
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('caAis', entry.id); } catch(_){}  // v101.55
+    CA_AIS.push(entry);
+  }
   scheduleSave({immediate:true});closeModal('ca-ai-ov');renderCA();updateCABadges();
   showNotif('Instruction issued',entry.num+' — '+title.slice(0,40));
 }
@@ -32200,6 +32298,9 @@ function deleteVisual(visId){
   const v = VISUALS.find(x=>x.id===visId); if(!v) return;
   if(!confirm('Delete "'+v.title+'"? This cannot be undone.')) return;
   VISUALS.splice(VISUALS.findIndex(x=>x.id===visId), 1);
+  // v101.56 — Record the deletion in the tombstone log so cloud merge
+  // doesn't resurrect this record on next sync from another browser/tab.
+  try { if(typeof s62AddTombstone === 'function') s62AddTombstone('visuals', visId); } catch(_){}
   closeVisDetail();
   renderVisuals();
   updateVisBadge();
