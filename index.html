@@ -3689,6 +3689,24 @@ async function _onAuthStateChanged(user){
 
 function waitForFirebasePull(){
   // Returns once the next data pull happens (or after 3s timeout)
+  //
+  // v101.54 BUGFIX — Set _fbApplying=true around unpackData(), and run the
+  // incoming snapshot through migrateData() first.
+  //
+  // Why this matters: unpackData() decides between MERGE (preserve local-only
+  // records) and WHOLESALE REPLACE based on the _fbApplying flag. Without
+  // setting it here, any record created in the previous session that hadn't
+  // finished uploading to Firebase before logout would be obliterated by
+  // this pull — including the visual register the user reported losing.
+  //
+  // The bug was acknowledged in the v101.44 array-normalization comments
+  // (line ~18768) but never patched; v101.53 fixed the LOCAL save path
+  // (immediate writes) but couldn't help once this auth-flow pull stomped
+  // on the freshly-loaded localStorage data afterward.
+  //
+  // Now: same protection pattern as the REST poller (4374-4406) and SDK
+  // listener (5119-5147) — wrap unpackData() in try/finally with the flag,
+  // so the merge-by-id path runs and local-only records survive.
   return new Promise(resolve=>{
     let done = false;
     const finish = ()=>{ if(!done){ done=true; resolve(); } };
@@ -3697,10 +3715,54 @@ function waitForFirebasePull(){
       _fbRef.once('value').then(snap=>{
         try{
           const v = snap.val();
-          if(v) unpackData(v);
-        }catch(e){}
+          if(v){
+            // v101.54 — guard the unpack so merge-by-id is applied
+            const prevApplying = _fbApplying;
+            _fbApplying = true;
+            try {
+              unpackData(migrateData(v));
+              // v101.54 — also update _fbLocalVersion so the REST poller
+              // doesn't immediately re-pull the same snapshot
+              if(typeof v.version === 'number' && v.version > _fbLocalVersion){
+                _fbLocalVersion = v.version;
+              }
+              // Persist the merged result so localStorage matches in-memory
+              if(typeof s62SaveLocalSnapshot === 'function') s62SaveLocalSnapshot();
+            } finally {
+              _fbApplying = prevApplying;
+            }
+            console.log('[v101.54] waitForFirebasePull merged cloud snapshot (v'+(v.version||'?')+') with local state');
+
+            // v101.54 — Defensive resave. If localStorage was saved AFTER
+            // the cloud snapshot, the local state may contain records that
+            // cloud doesn't have yet (e.g. created just before logout while
+            // cloudSave was still in-flight). Merge-by-id preserves them,
+            // but we need to push them back to Firebase or they'll sit
+            // local-only forever and another browser would never see them.
+            try {
+              const cloudSavedAt = v.savedAt ? new Date(v.savedAt).getTime() : 0;
+              const localSavedAt = window._s62LocalSavedAt || 0;
+              if(localSavedAt && cloudSavedAt && localSavedAt > cloudSavedAt + 1000){
+                console.log('[v101.54] local saved at '+new Date(localSavedAt).toISOString()+
+                            ' is newer than cloud '+new Date(cloudSavedAt).toISOString()+
+                            ' — scheduling protective resave so unsynced records reach cloud');
+                // Give auth a moment to fully settle, then push
+                setTimeout(() => {
+                  if(typeof cloudSave === 'function' && isCloudConfigured()){
+                    cloudSave().catch(e => console.warn('[v101.54] protective resave failed:', e));
+                  }
+                }, 1500);
+              }
+            } catch(e){ /* non-fatal */ }
+          }
+        }catch(e){
+          console.warn('[v101.54] waitForFirebasePull unpack failed:', e && e.message || e);
+        }
         finish();
-      }).catch(finish);
+      }).catch(err=>{
+        // permission_denied is expected for many rule configurations — quiet failure
+        finish();
+      });
     } else {
       finish();
     }
@@ -4392,6 +4454,11 @@ async function s62Poll(){
         if(pid==='meetings')     renderMeetings();
         if(pid==='financials')   renderFinancials();
         if(pid==='transmittals') renderTransmittals();
+        if(pid==='visuals')      renderVisuals();      // v101.54
+        if(pid==='ca')           renderCA();           // v101.54
+        if(pid==='pipeline')     renderPipeline();     // v101.54
+        if(pid==='staff')        renderStaff();        // v101.54
+        if(pid==='mywork' && typeof renderMyWork==='function') renderMyWork(); // v101.54
       } catch(_){}
       if (typeof updateNavBadges === 'function') updateNavBadges();
       if (typeof updateSyncStatusBar === 'function') updateSyncStatusBar();
@@ -5135,6 +5202,11 @@ async function fbStartListener(){
       if(pid==='meetings')     renderMeetings();
       if(pid==='financials')   renderFinancials();
       if(pid==='transmittals') renderTransmittals();
+      if(pid==='visuals')      renderVisuals();      // v101.54
+      if(pid==='ca')           renderCA();           // v101.54
+      if(pid==='pipeline')     renderPipeline();     // v101.54
+      if(pid==='staff')        renderStaff();        // v101.54
+      if(pid==='mywork' && typeof renderMyWork==='function') renderMyWork(); // v101.54
       updateNavBadges();
       updateSyncStatusBar();
       updateVersionIndicator();
@@ -5820,6 +5892,16 @@ async function cloudLoad(silent){
     _fbApplying = false;
     renderDashboard(); renderProjList(); renderDrawings();
     renderStaffSched(); renderWorkload(); renderTimesheets();
+    // v101.54 — include the rest so manual cloudLoad refreshes whatever panel is active
+    try { if(typeof renderMeetings==='function')     renderMeetings(); } catch(_){}
+    try { if(typeof renderVisuals==='function')      renderVisuals(); } catch(_){}
+    try { if(typeof renderFinancials==='function')   renderFinancials(); } catch(_){}
+    try { if(typeof renderTransmittals==='function') renderTransmittals(); } catch(_){}
+    try { if(typeof renderCA==='function')           renderCA(); } catch(_){}
+    try { if(typeof renderPipeline==='function')     renderPipeline(); } catch(_){}
+    try { if(typeof renderStaff==='function')        renderStaff(); } catch(_){}
+    try { if(typeof renderMyWork==='function')       renderMyWork(); } catch(_){}
+    try { if(typeof renderSchedule==='function')     renderSchedule(); } catch(_){}
     updateNavBadges(); updateSyncStatusBar();
     if(!silent) showNotif('↻ Synced',
       'v'+_fbLocalVersion+' · by '+(data.lastSavedBy||'unknown')+
@@ -7409,7 +7491,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.53 — persistence fix (immediate-save on 27 create/delete sites) + drawing priority + client contact on projects + My Work A+B tabbed queue');
+console.log('S62 v101.54 — auth-flow data loss fix (waitForFirebasePull now uses merge-by-id) + render-after-cloud-apply for visuals/CA/pipeline/staff/mywork + visual revisions immediate-save + updatedAt stamping');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -18438,7 +18520,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.43',
+        appVersion: 'S62-v101.54',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -18598,7 +18680,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.43',
+    appVersion: 'S62-v101.54',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -32060,6 +32142,7 @@ function submitVisModal(editId){
     const v = VISUALS.find(x=>x.id===editId); if(!v) return;
     const prevAssignee = v.assignedTo;
     Object.assign(v,{projId,typeId,title,space,assignedTo:sid||null,software:sw,status,format,tgt,deliveryLink:link,notes});
+    v.updatedAt = toISO(new Date());  // v101.54 — dirty-tracking needs this to detect edits
     // Notify reassigned staff member
     if(sid && sid!==prevAssignee){
       addNotif({type:'assignment',icon:visType(typeId).icon,iconBg:visType(typeId).bg,
@@ -32070,11 +32153,17 @@ function submitVisModal(editId){
   } else {
     _visCounter++;
     const id = nextVisId(typeId);
+    // v101.54 — Defensive: if this ID was ever tombstoned (e.g. previously
+    // deleted then recreated because nextVisId reuses freed numbers), clear
+    // the tombstone so cloud merge doesn't drop the new record on next sync.
+    try { if(typeof s62ClearTombstone === 'function') s62ClearTombstone('visuals', id); } catch(_){}
     const me = currentUser();
+    const _nowISO = toISO(new Date());
     VISUALS.push({
       id, projId, typeId, title, space, assignedTo:sid||null,
       software:sw, status, format, tgt, deliveryLink:link, notes,
-      revHistory:[], createdBy:me.id, createdAt:toISO(new Date())
+      revHistory:[], createdBy:me.id, createdAt:_nowISO,
+      updatedAt:_nowISO  // v101.54 — every record stamps updatedAt on write
     });
     addNotif({type:'assignment',icon:visType(typeId).icon,iconBg:visType(typeId).bg,
       title:id+' added to Visuals Register',detail:title,projId,forAll:true});
@@ -32100,7 +32189,8 @@ function addVisRevision(visId){
   if(!v.revHistory) v.revHistory=[];
   const me = currentUser();
   v.revHistory.push({n:v.revHistory.length+1, label:'Rev '+(v.revHistory.length+1), note, date:fmtDate(new Date()), by:me.id});
-  scheduleSave();
+  v.updatedAt = toISO(new Date());            // v101.54 — dirty-tracking
+  scheduleSave({immediate:true});             // v101.54 — revisions are user-visible writes, save immediately
   openVisDetail(visId);
   showNotif('Revision logged', 'Rev '+v.revHistory.length+' — '+note);
 }
