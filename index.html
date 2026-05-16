@@ -1848,6 +1848,16 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
            and clears them on confirmation. Useful after staff record
            changes or partial Firebase loads that strand assignments. -->
       <button class="btn bg bsm" onclick="s62RepairDrawingAssignments()" title="Clear drawing assignments that point to staff members who no longer exist" style="font-size:9px;color:var(--txd)">🔧 Repair</button>
+      <!-- v101.52 — Force-rebase: push current local state to Firebase, wipe
+           local cache, reload page so the next boot pulls cleanly from
+           Firebase. Useful when local state and cloud have drifted and
+           you want a deterministic "Firebase is source of truth" reload. -->
+      <button class="btn bg bsm" onclick="s62ForceRebase()" title="Push current local state to Firebase, then reload from server (clears local cache)" style="font-size:9px;color:var(--blu)">↻ Rebase</button>
+      <!-- v101.52 — Nuclear option: wipe all project-related data, keep
+           staff + firm config + templates + tombstones. Requires double
+           confirmation. Useful when accumulated bad data is unrecoverable
+           and a clean restart is preferable. -->
+      <button class="btn bg bsm" onclick="s62WipeExceptStaff()" title="Permanently delete ALL project data — projects, drawings, schedule, timesheets, CA, meetings, invoices. Keeps staff, firm config, and templates only." style="font-size:9px;color:var(--red)">⚠ Wipe</button>
       <button class="btn bg bsm" onclick="clearSavedData()" title="Reset to demo data" style="font-size:9px;color:var(--txd)">↺ Reset</button>
     </div>
   </header>
@@ -4791,6 +4801,103 @@ let _fbLocalVersion = 0;
 let _fbOwnSaveKeys  = new Set();
 let _fbApplying     = false;
 
+// ════════════════════════════════════════════════════════════
+// v101.52 — TOMBSTONE TRACKING for deletion permanence
+// ════════════════════════════════════════════════════════════
+// Problem this solves:
+//   When a record was deleted locally, the s62MergeById merge had
+//   no way to distinguish "I never had this ID" from "I deleted
+//   this ID". So any cloud copy of the deleted record would be
+//   re-merged back into local on the next Firebase poll —
+//   resurrecting deletions silently. Combined with the 2.8s
+//   debounce on writes, a quick poll could resurrect a project
+//   before the delete even reached Firebase.
+//
+// How tombstones work:
+//   • Every delete records {id, collection, deletedAt, deletedBy}
+//     into S62_TOMBSTONES[collection].
+//   • s62MergeById takes the tombstone set for its collection and
+//     filters cloud records by it BEFORE merging.
+//   • packData/unpackData serialize tombstones to/from Firebase so
+//     all clients honor each other's deletions.
+//   • Tombstones older than the retention window are pruned on
+//     load (default 60 days — long enough for any offline client
+//     to have come online and synced).
+//
+// Collections tracked:
+//   projs, drawings, schedTasks, meetings, tsEntries, drwPackages,
+//   caRfis, caSnags, caSubmittals, caAis, caSvr, visuals,
+//   transmittals, invoices, notifications, vendors, sentEmails
+// ════════════════════════════════════════════════════════════
+
+const S62_TOMBSTONE_RETENTION_DAYS = 60;
+
+const S62_TOMBSTONE_COLLECTIONS = [
+  'projs','drawings','schedTasks','meetings','tsEntries','drwPackages',
+  'caRfis','caSnags','caSubmittals','caAis','caSvr','visuals',
+  'transmittals','invoices','notifications','vendors','sentEmails'
+];
+
+// Live tombstone store. Key = collection name, value = array of
+// {id, deletedAt: ISO, deletedBy: staffId, deletedByName}.
+let S62_TOMBSTONES = {};
+S62_TOMBSTONE_COLLECTIONS.forEach(c => { S62_TOMBSTONES[c] = []; });
+
+// Record one deletion. Idempotent — duplicate calls (same id+collection)
+// don't accumulate. Called by every cascade-delete path.
+function s62AddTombstone(collection, id){
+  if(!collection || !id) return;
+  if(!Array.isArray(S62_TOMBSTONES[collection])) S62_TOMBSTONES[collection] = [];
+  // Skip if already tombstoned
+  if(S62_TOMBSTONES[collection].some(t => t && t.id === id)) return;
+  const me = (typeof currentUser === 'function') ? currentUser() : null;
+  S62_TOMBSTONES[collection].push({
+    id: id,
+    deletedAt: new Date().toISOString(),
+    deletedBy: me ? me.id : '',
+    deletedByName: me ? (me.first+' '+me.last) : 'system'
+  });
+}
+
+// Bulk-add tombstones — used by cascade-delete paths that drop
+// many records at once.
+function s62AddTombstones(collection, ids){
+  if(!Array.isArray(ids)) return;
+  ids.forEach(id => s62AddTombstone(collection, id));
+}
+
+// Return a Set of tombstoned IDs for a collection, for O(1) merge filtering.
+function s62TombstoneSet(collection){
+  const arr = S62_TOMBSTONES[collection];
+  if(!Array.isArray(arr)) return new Set();
+  return new Set(arr.map(t => t && t.id).filter(Boolean));
+}
+
+// Remove tombstones older than the retention window. Runs at load time.
+function s62PruneOldTombstones(){
+  const cutoff = Date.now() - S62_TOMBSTONE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  let pruned = 0;
+  S62_TOMBSTONE_COLLECTIONS.forEach(c => {
+    if(!Array.isArray(S62_TOMBSTONES[c])) return;
+    const before = S62_TOMBSTONES[c].length;
+    S62_TOMBSTONES[c] = S62_TOMBSTONES[c].filter(t => {
+      if(!t || !t.deletedAt) return false; // drop malformed
+      try { return new Date(t.deletedAt).getTime() >= cutoff; }
+      catch(_){ return false; }
+    });
+    pruned += before - S62_TOMBSTONES[c].length;
+  });
+  if(pruned > 0) console.log('[v101.52] pruned '+pruned+' tombstone(s) older than '+S62_TOMBSTONE_RETENTION_DAYS+' days');
+}
+
+// If a record is re-created with the same ID as a previous tombstone
+// (rare, but possible if user imports/restores from a backup), clear
+// the tombstone so cloud merge doesn't keep dropping it.
+function s62ClearTombstone(collection, id){
+  if(!Array.isArray(S62_TOMBSTONES[collection])) return;
+  S62_TOMBSTONES[collection] = S62_TOMBSTONES[collection].filter(t => !t || t.id !== id);
+}
+
 // FIX 1 — Drawing locks
 let _fbLocksRef     = null;
 let _myDrawingLock  = null;  // drawingId currently locked by me
@@ -7308,7 +7415,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.51 — duplicate-drawing dedup: detect and clean drawings sharing the same ID, harden merge against re-duplication');
+console.log('S62 v101.52 — sync architecture fix: tombstone tracking + immediate-save on critical mutations + force-rebase + wipe-except-staff recovery tools');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -13968,7 +14075,10 @@ function reassignDrw(id,sid){
   try { updateNavBadges();  } catch(_){}
 
   // ── Push to Firebase ──────────────────────────────────────
-  scheduleSave();
+  // v101.52 — immediate save. Without {immediate:true}, the 2.8s debounce
+  // means a quick reload or another tab's poll can wipe the assignment
+  // before it reaches Firebase.
+  scheduleSave({immediate:true});
 }
 function addSingleDrawing(projId){
   openAddDrawingModal(projId||activeProjId);
@@ -14496,6 +14606,27 @@ function doRemoveProject(projId){
   };
 
   // ── Cascade-delete from every collection ──────────────────────
+  // v101.52 — Record tombstones for every deleted id BEFORE the splice so
+  // the next Firebase merge knows these IDs are intentionally absent and
+  // won't resurrect them. Capture impact arrays' IDs into the tombstone
+  // store keyed by collection name (matching the keys used in
+  // S62_TOMBSTONE_COLLECTIONS / s62MergeById debugNames).
+  s62AddTombstone('projs', projId);
+  s62AddTombstones('drawings',    impact.drawings.map(d => d.id));
+  s62AddTombstones('meetings',    impact.meetings.map(m => m.id));
+  s62AddTombstones('schedTasks',  impact.schedTasks.map(t => t.id));
+  s62AddTombstones('tsEntries',   impact.tsEntries.map(e => e.id));
+  s62AddTombstones('drwPackages', impact.packages.map(p => p.id));
+  s62AddTombstones('caRfis',      impact.rfis.map(r => r.id));
+  s62AddTombstones('caSnags',     impact.snags.map(r => r.id));
+  s62AddTombstones('caSubmittals',impact.submittals.map(r => r.id));
+  s62AddTombstones('caAis',       impact.ais.map(r => r.id));
+  s62AddTombstones('caSvr',       impact.svr.map(r => r.id));
+  s62AddTombstones('visuals',     impact.visuals.map(v => v.id));
+  s62AddTombstones('transmittals',impact.transmittals.map(t => t.id));
+  s62AddTombstones('invoices',    impact.invoices.map(i => i.id));
+  s62AddTombstones('notifications',impact.notifications.map(n => n.id));
+
   PROJS = PROJS.filter(x => x.id !== projId);
 
   // DRAWINGS (uses .proj)
@@ -14611,7 +14742,11 @@ function doRemoveProject(projId){
   try { if(typeof updateVisBadge    === 'function') updateVisBadge();    } catch(_){}
 
   updateNavBadges();
-  scheduleSave();
+  // v101.52 — force immediate save. Deletions cannot tolerate the 2.8s
+  // debounce — a reload in that window would lose the delete and let the
+  // next Firebase poll resurrect the project. Immediate save fires both
+  // localStorage write and cloud transaction synchronously.
+  scheduleSave({immediate:true});
 }
 
 function exportRegister(){
@@ -18056,6 +18191,9 @@ function packData() {
     caAis:         CA_AIS||[],
     vendors:       VENDORS||[],
     drwTemplates:  DRW_TEMPLATES||[],
+    // v101.52 — Tombstones for deleted records, persisted so all clients
+    // honor each other's deletions. See declaration of S62_TOMBSTONES.
+    tombstones:    (typeof S62_TOMBSTONES !== 'undefined' && S62_TOMBSTONES) ? S62_TOMBSTONES : {},
     // currentUserId: REMOVED from sync — each browser/staff member has their own
     // identity from Google sign-in. Including it here caused all users to take on
     // whoever was the last person to sync.
@@ -18098,6 +18236,22 @@ function packData() {
 function s62MergeById(localArr, cloudArr, debugName){
   // Bail on bad inputs — fall back to cloud (current behavior)
   if (!Array.isArray(cloudArr)) return Array.isArray(localArr) ? localArr : [];
+
+  // v101.52 — Apply tombstones FIRST. Filter out cloud records whose ID has
+  // been tombstoned locally. This is what makes deletions stick across syncs.
+  // Without it, every cloud poll resurrects records the user deleted.
+  const tombstones = (typeof s62TombstoneSet === 'function' && debugName)
+    ? s62TombstoneSet(debugName)
+    : new Set();
+  if(tombstones.size > 0){
+    const before = cloudArr.length;
+    cloudArr = cloudArr.filter(r => !r || r.id == null || !tombstones.has(r.id));
+    const dropped = before - cloudArr.length;
+    if(dropped > 0){
+      console.log('[v101.52 tombstone] '+debugName+': dropped '+dropped+' cloud record(s) marked deleted');
+    }
+  }
+
   if (!Array.isArray(localArr) || localArr.length === 0) return s62DedupArrayById(cloudArr, debugName);
 
   // v101.51 — Dedupe the cloud array FIRST, in case it arrived with duplicates
@@ -18110,9 +18264,12 @@ function s62MergeById(localArr, cloudArr, debugName){
   const cloudIds = new Set();
   cloudDeduped.forEach(r => { if (r && r.id !== undefined && r.id !== null) cloudIds.add(r.id); });
 
-  // Find local-only records (preserve these)
+  // Find local-only records (preserve these — also filter out any local
+  // records that are themselves tombstoned, in case stale local data
+  // still has the deleted record)
   const localOnly = localArr.filter(r => {
     if (!r || r.id === undefined || r.id === null) return false; // skip malformed
+    if (tombstones.has(r.id)) return false; // v101.52
     return !cloudIds.has(r.id);
   });
 
@@ -18525,6 +18682,209 @@ function s62RepairDrawingAssignments(){
   scheduleSave({immediate:true});
 }
 
+/* ════════════════════════════════════════════════════════════
+   v101.52 — RECOVERY TOOLS
+   ════════════════════════════════════════════════════════════
+   s62ForceRebase()
+     Pushes current local state to Firebase synchronously, wipes
+     localStorage, then reloads. Result: Firebase is now the source
+     of truth and the local cache is rebuilt fresh from it.
+     Use when local and cloud have drifted and you want a clean
+     restart with your most recent local edits preserved as the
+     server's authoritative state.
+
+   s62WipeExceptStaff()
+     Wipes every project-related collection (drawings, schedule,
+     CA, timesheets, meetings, invoices, etc.) while keeping STAFF,
+     FIRM_CONFIG, DRW_TEMPLATES (including custom), VENDORS, and
+     PIPELINE. Pushes the wipe to Firebase immediately. Records
+     tombstones so the deletion can't be reverted by another tab.
+     Reloads. Double-confirmation required.
+   ──────────────────────────────────────────────────────────── */
+
+async function s62ForceRebase(){
+  if(typeof s62IsReadOnlyTab === 'function' && s62IsReadOnlyTab()){
+    showNotif('Cannot rebase','Open the app on the primary tab to rebase. Secondary tabs are read-only.');
+    return;
+  }
+  const msg = 'Push the current local state to Firebase and reload the app from the server.\n\n'
+    + 'What this does:\n'
+    + '  1. Saves everything you currently see to Firebase NOW (no debounce).\n'
+    + '  2. Clears the local browser cache.\n'
+    + '  3. Reloads the page — boot will pull cleanly from Firebase.\n\n'
+    + 'After reload, Firebase becomes the single source of truth. Any other '
+    + 'tab/device on the same Firebase will see your latest state on its next poll.\n\n'
+    + 'Continue?';
+  if(!confirm(msg)) return;
+  if(!isCloudConfigured()){
+    showNotif('Cloud not configured','Set up Firebase sync first via the Cloud Sync button, then try again.');
+    return;
+  }
+
+  showNotif('Rebasing…','Pushing local state to Firebase. The page will reload when done.');
+
+  try {
+    // Force immediate save (bypasses 2.8s debounce, awaits cloud transaction)
+    if(typeof cloudSave === 'function'){
+      await cloudSave();
+    } else {
+      scheduleSave({immediate:true});
+      // Give the immediate path ~3 seconds to settle if cloudSave isn't directly callable
+      await new Promise(res => setTimeout(res, 3000));
+    }
+  } catch(e){
+    console.error('[v101.52] force rebase — cloudSave failed:', e);
+    if(!confirm('Push to Firebase failed (see console). Continue with reload anyway? Your local changes may be lost.')){
+      showNotif('Rebase cancelled','Local data preserved. Try again when network is stable.');
+      return;
+    }
+  }
+
+  // Clear the local cache so the next boot must pull from Firebase
+  try {
+    localStorage.removeItem(S62_LS_KEY);
+  } catch(_){}
+
+  // Audit log entry (will be in the just-saved state)
+  try {
+    addAudit('settings', 'Force rebase from cloud', 'Local cache cleared; reloading to rebuild from Firebase', null);
+  } catch(_){}
+
+  setTimeout(() => location.reload(), 600);
+}
+
+function s62WipeExceptStaff(){
+  if(typeof s62IsReadOnlyTab === 'function' && s62IsReadOnlyTab()){
+    showNotif('Cannot wipe','Open the app on the primary tab to wipe. Secondary tabs are read-only.');
+    return;
+  }
+  // Pre-compute counts so the confirmation shows what's about to vanish
+  const counts = {
+    projects:    (typeof PROJS!=='undefined'? PROJS.length:0),
+    drawings:    (typeof DRAWINGS!=='undefined'? DRAWINGS.length:0),
+    schedTasks:  (typeof SCHED_TASKS!=='undefined'? SCHED_TASKS.length:0),
+    meetings:    (typeof MEETINGS!=='undefined'? MEETINGS.length:0),
+    tsEntries:   (typeof TS_ENTRIES!=='undefined'? TS_ENTRIES.length:0),
+    ca:          ((typeof CA_RFIS!=='undefined'? CA_RFIS.length:0)
+                 +(typeof CA_SNAGS!=='undefined'? CA_SNAGS.length:0)
+                 +(typeof CA_SUBMITTALS!=='undefined'? CA_SUBMITTALS.length:0)
+                 +(typeof CA_AIS!=='undefined'? CA_AIS.length:0)
+                 +(typeof CA_SVR!=='undefined'? CA_SVR.length:0)),
+    visuals:     (typeof VISUALS!=='undefined'? VISUALS.length:0),
+    transmittals:(typeof TRANSMITTALS!=='undefined'? TRANSMITTALS.length:0),
+    invoices:    (typeof INVOICES!=='undefined'? INVOICES.length:0),
+    packages:    (typeof DRW_PACKAGES!=='undefined'? DRW_PACKAGES.length:0),
+    notifications:(typeof NOTIFICATIONS!=='undefined'? NOTIFICATIONS.length:0),
+    sentEmails:  (typeof SENT_EMAILS!=='undefined'? SENT_EMAILS.length:0)
+  };
+  const staffCount = (typeof STAFF!=='undefined'? STAFF.length:0);
+
+  // First confirmation — show full impact
+  const msg1 = '⚠ WIPE ALL PROJECT DATA\n\n'
+    + 'This will permanently delete EVERY:\n'
+    + '  • '+counts.projects+' projects\n'
+    + '  • '+counts.drawings+' drawings\n'
+    + '  • '+counts.schedTasks+' scheduled tasks\n'
+    + '  • '+counts.meetings+' meetings\n'
+    + '  • '+counts.tsEntries+' timesheet entries\n'
+    + '  • '+counts.ca+' CA items (RFIs/snags/submittals/AIs/SVRs)\n'
+    + '  • '+counts.visuals+' visuals, '+counts.transmittals+' transmittals, '+counts.invoices+' invoices\n'
+    + '  • '+counts.packages+' packages, '+counts.notifications+' notifications, '+counts.sentEmails+' sent emails\n\n'
+    + 'KEPT: '+staffCount+' staff records, firm config, drawing templates, vendor register, audit log.\n\n'
+    + 'The wipe is pushed to Firebase immediately. Other tabs/devices on the same Firebase will see the wipe on their next poll.\n\n'
+    + 'This cannot be undone via any in-app action. Restore would require importing a previous data export.\n\n'
+    + 'Continue?';
+  if(!confirm(msg1)) return;
+
+  // Second confirmation — type-to-confirm style
+  const typed = prompt('To confirm, type the word:  WIPE\n\n(or click Cancel)');
+  if(typed !== 'WIPE'){
+    showNotif('Wipe cancelled','No data was deleted.');
+    return;
+  }
+
+  // Capture IDs for tombstone records BEFORE we wipe the arrays
+  function capIds(arr){ return Array.isArray(arr) ? arr.map(r => r && r.id).filter(Boolean) : []; }
+  const ts = {
+    projs:         capIds(typeof PROJS!=='undefined'? PROJS : []),
+    drawings:      capIds(typeof DRAWINGS!=='undefined'? DRAWINGS : []),
+    schedTasks:    capIds(typeof SCHED_TASKS!=='undefined'? SCHED_TASKS : []),
+    meetings:      capIds(typeof MEETINGS!=='undefined'? MEETINGS : []),
+    tsEntries:     capIds(typeof TS_ENTRIES!=='undefined'? TS_ENTRIES : []),
+    drwPackages:   capIds(typeof DRW_PACKAGES!=='undefined'? DRW_PACKAGES : []),
+    caRfis:        capIds(typeof CA_RFIS!=='undefined'? CA_RFIS : []),
+    caSnags:       capIds(typeof CA_SNAGS!=='undefined'? CA_SNAGS : []),
+    caSubmittals:  capIds(typeof CA_SUBMITTALS!=='undefined'? CA_SUBMITTALS : []),
+    caAis:         capIds(typeof CA_AIS!=='undefined'? CA_AIS : []),
+    caSvr:         capIds(typeof CA_SVR!=='undefined'? CA_SVR : []),
+    visuals:       capIds(typeof VISUALS!=='undefined'? VISUALS : []),
+    transmittals:  capIds(typeof TRANSMITTALS!=='undefined'? TRANSMITTALS : []),
+    invoices:      capIds(typeof INVOICES!=='undefined'? INVOICES : []),
+    notifications: capIds(typeof NOTIFICATIONS!=='undefined'? NOTIFICATIONS : []),
+    sentEmails:    capIds(typeof SENT_EMAILS!=='undefined'? SENT_EMAILS : [])
+  };
+
+  // Audit log entry BEFORE wipe so the trail survives
+  try {
+    const breakdown = Object.entries(counts).map(([k,v]) => v+' '+k).filter(([,v])=>v>0).map(([,]) => '').join(''); // placeholder
+    addAudit('settings', 'WIPE — all project data',
+      counts.projects+' projects, '+counts.drawings+' drawings, '+counts.schedTasks+' tasks, '+counts.meetings+' meetings, '+counts.tsEntries+' TS entries, '+counts.ca+' CA items, '+counts.visuals+' visuals, '+counts.transmittals+' transmittals, '+counts.invoices+' invoices, '+counts.packages+' packages, '+counts.notifications+' notifs, '+counts.sentEmails+' emails',
+      null);
+  } catch(_){}
+
+  // ── The wipe — clear every project-related collection ─────
+  if(typeof PROJS         !== 'undefined') PROJS = [];
+  if(typeof DRAWINGS      !== 'undefined') DRAWINGS = [];
+  if(typeof SCHED_TASKS   !== 'undefined') SCHED_TASKS = [];
+  if(typeof MEETINGS      !== 'undefined') MEETINGS = [];
+  if(typeof TS_ENTRIES    !== 'undefined') TS_ENTRIES = [];
+  if(typeof TS_WEEK_STATUS!== 'undefined') TS_WEEK_STATUS = {};
+  if(typeof DRW_PACKAGES  !== 'undefined') DRW_PACKAGES = [];
+  if(typeof CA_RFIS       !== 'undefined') CA_RFIS = [];
+  if(typeof CA_SNAGS      !== 'undefined') CA_SNAGS = [];
+  if(typeof CA_SUBMITTALS !== 'undefined') CA_SUBMITTALS = [];
+  if(typeof CA_AIS        !== 'undefined') CA_AIS = [];
+  if(typeof CA_SVR        !== 'undefined') CA_SVR = [];
+  if(typeof VISUALS       !== 'undefined') VISUALS = [];
+  if(typeof TRANSMITTALS  !== 'undefined') TRANSMITTALS = [];
+  if(typeof INVOICES      !== 'undefined') INVOICES = [];
+  if(typeof NOTIFICATIONS !== 'undefined') NOTIFICATIONS = [];
+  if(typeof SENT_EMAILS   !== 'undefined') SENT_EMAILS = [];
+  if(typeof CONSULTANT_LOGS!== 'undefined') CONSULTANT_LOGS = [];
+  if(typeof DQ_ASSESSMENTS!== 'undefined') DQ_ASSESSMENTS = [];
+  if(typeof REVIEWS       !== 'undefined') REVIEWS = { daily:[], weekly:[] };
+
+  // Reset filter state and active selection
+  if(typeof activeProjId !== 'undefined') activeProjId = null;
+  if(typeof schedProjFilter !== 'undefined') schedProjFilter = 'ALL';
+  if(typeof ssProjFil !== 'undefined') ssProjFil = 'ALL';
+  if(typeof _caCollapsedProjs !== 'undefined') _caCollapsedProjs = {};
+  if(typeof _txCollapsedProjs !== 'undefined') _txCollapsedProjs = {};
+  if(typeof _mwSelectedDay !== 'undefined') _mwSelectedDay = null;
+
+  // Clean staff project links + vendor project links
+  if(typeof STAFF !== 'undefined' && Array.isArray(STAFF)){
+    STAFF.forEach(s => { if(Array.isArray(s.projects)) s.projects = []; });
+  }
+  if(typeof VENDORS !== 'undefined' && Array.isArray(VENDORS)){
+    VENDORS.forEach(v => { if(Array.isArray(v.linkedProjectIds)) v.linkedProjectIds = []; });
+  }
+
+  // Write tombstones for every wiped record so Firebase merges can't bring
+  // any of them back. These propagate via Firebase to all other clients.
+  Object.entries(ts).forEach(([collection, ids]) => {
+    if(ids && ids.length) s62AddTombstones(collection, ids);
+  });
+
+  showNotif('Wiped','All project data cleared. Pushing to Firebase…');
+
+  // Immediate save — must reach Firebase before any reload
+  scheduleSave({immediate:true});
+
+  // Give Firebase a moment to confirm, then reload to rebuild UI cleanly
+  setTimeout(() => location.reload(), 1500);
+}
+
 function unpackData(data) {
   // v101.44 — coerce any Firebase array-as-object fields back to arrays
   // BEFORE the unpacking logic touches them. Without this, sparse-array
@@ -18636,6 +18996,34 @@ function unpackData(data) {
   if(Array.isArray(data.caSnags))      CA_SNAGS      = _mergeOn ? s62MergeById(CA_SNAGS, data.caSnags, 'caSnags')           : data.caSnags;
   if(Array.isArray(data.caAis))        CA_AIS        = _mergeOn ? s62MergeById(CA_AIS, data.caAis, 'caAis')                : data.caAis;
   if(Array.isArray(data.vendors))      VENDORS       = _mergeOn ? s62MergeById(VENDORS, data.vendors, 'vendors')           : data.vendors;
+
+  // v101.52 — Merge tombstones from the incoming snapshot. Tombstones are
+  // additive (union of local + cloud) so a deletion on any client is
+  // honored everywhere. Cleaned of expired entries below.
+  if(data.tombstones && typeof data.tombstones === 'object'){
+    S62_TOMBSTONE_COLLECTIONS.forEach(c => {
+      if(!Array.isArray(S62_TOMBSTONES[c])) S62_TOMBSTONES[c] = [];
+      const incoming = data.tombstones[c];
+      if(Array.isArray(incoming)){
+        // Union by id — keep the earliest deletedAt if there are duplicates
+        const byId = new Map();
+        S62_TOMBSTONES[c].forEach(t => { if(t && t.id) byId.set(t.id, t); });
+        incoming.forEach(t => {
+          if(!t || !t.id) return;
+          const existing = byId.get(t.id);
+          if(!existing || (t.deletedAt && existing.deletedAt && t.deletedAt < existing.deletedAt)){
+            byId.set(t.id, t);
+          } else if(!existing){
+            byId.set(t.id, t);
+          }
+        });
+        S62_TOMBSTONES[c] = Array.from(byId.values());
+      }
+    });
+  }
+
+  // Prune anything older than the retention window — small house-keeping
+  try { s62PruneOldTombstones(); } catch(e){ console.warn('[v101.52] tombstone prune:', e); }
 
   // ── v101.50 — Post-load data integrity normalization ───────────
   // v101.51 — Extended to also detect duplicate drawing/sched records
