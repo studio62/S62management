@@ -7278,7 +7278,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.46 — bug-sweep: renderDashboard wrapper auto-refreshes My Work · openDrwDetail · estHrs · TBC null-check · CA submittal filter · pkg createdBy · UX polish');
+console.log('S62 v101.47 — SVR multi-vendor support · vendor email blast from site visit report');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -25370,6 +25370,15 @@ function renderCASVR(){
     const openIss=(r.issues||[]).filter(i=>i.status!=='resolved').length;
     const totalIss=(r.issues||[]).length;
     const visitor=STAFF.find(x=>x.id===r.visitedBy);
+    // v101.47 — quick email button. Only visible when at least one vendor is
+    // selected on the report. stopPropagation prevents the row's onclick
+    // from also opening the modal.
+    const vendorIdsForRow = (Array.isArray(r.contractorVendorIds) && r.contractorVendorIds.length)
+      ? r.contractorVendorIds
+      : (r.contractorVendorId ? [r.contractorVendorId] : []);
+    const emailBtn = vendorIdsForRow.length > 0
+      ? '<button class="btn bg bsm" style="font-size:10px;padding:3px 8px;margin-right:6px;border-color:rgba(240,201,122,.3);color:var(--gold);flex-shrink:0" title="Email vendors selected on this report" onclick="event.stopPropagation();caEmailSVRVendors(\''+r.id+'\')">📧 Email</button>'
+      : '';
     return '<div class="ca-row" onclick="openCASVRDetail(\''+r.id+'\')">'
       +'<div class="ca-proj-dot" style="background:'+(p?.color||'var(--txd)')+'"></div>'
       +'<div class="ca-row-num">'+r.num+'</div>'
@@ -25383,6 +25392,7 @@ function renderCASVR(){
           +(r.status==='scheduled'?' · Auto-created from meeting — tap to complete after visit':'')+'</div>'
       +'</div>'
       +(totalIss>0?'<div style="font-family:var(--fm);font-size:9px;flex-shrink:0;margin-right:6px"><span style="color:'+(openIss>0?'var(--red)':'var(--grn)')+'">'+openIss+' open</span> / '+totalIss+' issues</div>':'')
+      +emailBtn
       +'<span class="ca-status '+(r.status==='scheduled'?'ca-st-pending':openIss>0?'ca-st-overdue':'ca-st-closed')+'">'
         +(r.status==='scheduled'?'Scheduled':openIss>0?openIss+' Open Issue'+(openIss>1?'s':''):'All Clear')
       +'</span>'
@@ -25716,26 +25726,76 @@ function openCASVRModal(id){
       +'<div class="frow"><label class="flbl" for="svr-time">Visit Time</label><input class="finp" type="time" id="svr-time" value="'+(r?.time||'09:00')+'"></div>'
       +'<div class="frow"><label class="flbl" for="svr-pct">% Complete (Overall)</label><input class="finp" type="number" min="0" max="100" id="svr-pct" value="'+(r?.progressPct||0)+'" style="width:80px"></div>'
       +'<div class="frow"><label class="flbl" for="svr-cpresent">Contractor Present</label><select class="fsel" id="svr-cpresent"><option value="yes" '+(r?.contractorPresent!==false?'selected':'')+'>Yes</option><option value="no" '+(r?.contractorPresent===false?'selected':'')+'>No</option></select></div>'
-      // v101.35 — Contractor field now a vendor dropdown + custom text. If
-      // the existing contractorName matches a known vendor, it\'s pre-selected.
-      // Otherwise the value flows into the custom input below.
+      // v101.47 — Multi-vendor contractor section. Replaces the previous
+      // single-vendor dropdown with a chip-based multi-select matching the
+      // staff-attendees pattern below. Vendors with no email on record get
+      // a "✉?" hint so the user knows they'll be skipped on email send.
+      // Off-list contractors (foremen, day labour, sub-subs) go in the
+      // custom names text field — they appear in the report but won't be
+      // emailed. Backward-compat: existing reports with `contractorVendorId`
+      // (singular) or just `contractorName` (free text) are migrated on
+      // load — singular ID → first chip pre-checked; free-text name with
+      // no matching vendor → populates the custom names field.
       +(function(){
         const activeVendors = (typeof VENDORS !== 'undefined' && Array.isArray(VENDORS))
           ? VENDORS.filter(v => v && v.status !== 'blacklisted')
           : [];
-        const existingName = r?.contractorName || '';
-        const matchedVendor = activeVendors.find(v => (v.companyName||'') === existingName);
-        const selectedId = matchedVendor ? matchedVendor.id : '';
-        return '<div class="frow"><label class="flbl" for="svr-cvendor">Contractor / Vendor</label>'
-          +'<select class="fsel" id="svr-cvendor" onchange="(function(){var sel=document.getElementById(\'svr-cvendor\');var custom=document.getElementById(\'svr-cname\');if(sel.value===\'__custom\'){custom.style.display=\'\';custom.focus();}else if(sel.value===\'\'){custom.style.display=\'none\';custom.value=\'\';}else{custom.style.display=\'none\';var v=VENDORS.find(x=>x.id===sel.value);if(v)custom.value=v.companyName;}})()">'
-            +'<option value="">— None / not present —</option>'
-            +activeVendors.map(v => {
-              const cat = (typeof VENDOR_CATEGORIES !== 'undefined') ? (VENDOR_CATEGORIES.find(c=>c.id===v.primaryCategory)?.icon||'') : '';
-              return '<option value="'+v.id+'" '+(selectedId===v.id?'selected':'')+'>'+cat+' '+(v.companyName||'(unnamed)')+(v.contactPerson?' — '+v.contactPerson:'')+'</option>';
-            }).join('')
-            +'<option value="__custom" '+(existingName && !matchedVendor ? 'selected' : '')+'>+ Custom (not in vendor list)…</option>'
-          +'</select>'
-          +'<input class="finp" id="svr-cname" value="'+existingName+'" placeholder="Contractor name / foreman" style="margin-top:6px;display:'+((existingName && !matchedVendor)?'':'none')+'">'
+
+        // Migrate existing record shape into IDs[] + custom names
+        let preselectedIds = [];
+        if (Array.isArray(r?.contractorVendorIds) && r.contractorVendorIds.length){
+          preselectedIds = r.contractorVendorIds.slice();
+        } else if (r?.contractorVendorId){
+          preselectedIds = [r.contractorVendorId];
+        }
+        let customNames = '';
+        if (Array.isArray(r?.contractorCustomNames) && r.contractorCustomNames.length){
+          customNames = r.contractorCustomNames.join(', ');
+        } else if (r?.contractorName && preselectedIds.length === 0){
+          // Legacy: contractor stored as free text. If we can match the name
+          // to a vendor, pre-select it; otherwise treat as a custom name.
+          const matched = activeVendors.find(v => (v.companyName||'') === r.contractorName);
+          if (matched){
+            preselectedIds = [matched.id];
+          } else {
+            customNames = r.contractorName;
+          }
+        }
+
+        // Build chips
+        const chips = activeVendors.length === 0
+          ? '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);font-style:italic;padding:6px">No active vendors in the register. Add vendors via CA → Vendors tab, or use the custom names field below.</div>'
+          : activeVendors.map(v => {
+              const cat = (typeof VENDOR_CATEGORIES !== 'undefined')
+                ? (VENDOR_CATEGORIES.find(c=>c.id===v.primaryCategory)?.icon || '')
+                : '';
+              const checked = preselectedIds.includes(v.id);
+              const hasEmail = !!(v.email && v.email.trim());
+              const titleText = (v.companyName||'(unnamed)')
+                + (v.contactPerson ? ' — '+v.contactPerson : '')
+                + (v.email ? ' · '+v.email : ' · (no email on record)');
+              return '<label style="display:inline-flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--gold)':'var(--bd)')+'" id="vnd-lbl-'+v.id+'" title="'+titleText.replace(/"/g,'&quot;')+'">'
+                +'<input type="checkbox" class="svr-vnd-cb" data-vid="'+v.id+'" id="svr-vnd-'+v.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'vnd-lbl-'+v.id+'\').style.borderColor=this.checked?\'var(--gold)\':\'var(--bd)\'">'
+                +(cat ? '<span style="font-size:11px;flex-shrink:0">'+cat+'</span>' : '')
+                +'<span style="overflow:hidden;text-overflow:ellipsis;max-width:160px;white-space:nowrap">'+(v.companyName||'(unnamed)')+'</span>'
+                +(hasEmail ? '' : '<span style="color:var(--txd);font-size:9px;opacity:.6;margin-left:2px" title="No email on record — will be skipped on send">✉?</span>')
+              +'</label>';
+            }).join('');
+
+        return '<div style="background:rgba(240,201,122,.04);border:1px solid rgba(240,201,122,.15);border-radius:8px;padding:12px 14px;margin:8px 0 4px">'
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+            +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">'
+              +'🏗 Contractors / Vendors on site — multiple allowed'
+            +'</div>'
+            +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">tap to select · ✉? = no email</div>'
+          +'</div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow-y:auto">'
+            +chips
+          +'</div>'
+          +'<div style="margin-top:10px">'
+            +'<label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em" for="svr-custom-names">Custom names (off-list — won&rsquo;t be emailed)</label>'
+            +'<input class="finp" id="svr-custom-names" value="'+customNames.replace(/"/g,'&quot;')+'" placeholder="e.g. Site foreman Ramesh, day labour crew" style="font-size:11px;margin-top:2px">'
+          +'</div>'
         +'</div>';
       })()
     +'</div>'
@@ -25805,6 +25865,13 @@ function openCASVRModal(id){
 
     +'<div style="display:flex;gap:8px;margin-top:12px">'
       +'<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="saveCASVR('+(isEdit?'\''+id+'\'':"''")+')">'+( isEdit?'💾 Save Changes':'✓ Save &amp; Sync')+'</button>'
+      // v101.47 — Email Vendors button. Only shown on saved reports (edit
+      // mode) because the email body builder needs a saved record with
+      // committed vendor selections. New reports get the button after first
+      // save (when the user re-opens to edit). Disabled visually if no
+      // vendors selected — the click handler also short-circuits to a
+      // helpful notification, so this is a soft hint not a hard block.
+      +(isEdit ? '<button class="btn bg" style="padding:11px 14px;border-color:rgba(240,201,122,.4);color:var(--gold)" onclick="caEmailSVRVendors(\''+id+'\')" title="Compose email to selected vendors with the report contents">📧 Email Vendors</button>' : '')
       +'<button class="btn bg" onclick="closeModal(\'ca-svr-ov\')">Cancel</button>'
     +'</div>'
   +'</div>';
@@ -25854,20 +25921,37 @@ function saveCASVR(editId){
     stage:document.getElementById('svr-stage')?.value||'CA',
     weather:document.getElementById('svr-weather')?.value||'',
     contractorPresent:document.getElementById('svr-cpresent')?.value==='yes',
-    // v101.35 — derive contractorName from vendor dropdown when not custom
+    // v101.47 — Multi-vendor + custom names. Schema:
+    //   contractorVendorIds: array of VENDOR.id (matched to VENDORS register)
+    //   contractorCustomNames: array of free-text names (off-list contractors)
+    //   contractorName: derived comma-separated display string — populated
+    //     for backward compatibility with the SVR list row (line ~25380),
+    //     project filtering (line ~24599), and vendor cross-reference
+    //     counters (line ~24918), all of which read this single field.
+    //   contractorVendorId (singular): preserved for older serialized data;
+    //     not written on save but normalized on edit.
+    contractorVendorIds:(function(){
+      return Array.from(document.querySelectorAll('.svr-vnd-cb:checked'))
+        .map(cb=>cb.getAttribute('data-vid'))
+        .filter(Boolean);
+    })(),
+    contractorCustomNames:(function(){
+      const raw = (document.getElementById('svr-custom-names')?.value || '').trim();
+      if(!raw) return [];
+      return raw.split(',').map(s=>s.trim()).filter(Boolean);
+    })(),
     contractorName:(function(){
-      const sel = document.getElementById('svr-cvendor');
-      const cnameEl = document.getElementById('svr-cname');
-      if (!sel) return cnameEl?.value || '';
-      if (sel.value === '' || sel.value === '__custom') return cnameEl?.value || '';
-      const v = (typeof VENDORS !== 'undefined') ? VENDORS.find(x => x.id === sel.value) : null;
-      return v ? (v.companyName || '') : (cnameEl?.value || '');
+      const vendorIds = Array.from(document.querySelectorAll('.svr-vnd-cb:checked'))
+        .map(cb=>cb.getAttribute('data-vid'));
+      const vendorNames = vendorIds
+        .map(id => (typeof VENDORS!=='undefined') ? VENDORS.find(v=>v.id===id) : null)
+        .filter(Boolean)
+        .map(v => v.companyName || '');
+      const customRaw = (document.getElementById('svr-custom-names')?.value || '').trim();
+      const customNames = customRaw ? customRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+      return [...vendorNames, ...customNames].filter(Boolean).join(', ');
     })(),
-    contractorVendorId:(function(){
-      const sel = document.getElementById('svr-cvendor');
-      if (!sel || sel.value === '' || sel.value === '__custom') return '';
-      return sel.value;
-    })(),
+    contractorVendorId:'', // v101.47 — no longer written; legacy reports keep their value
     constructionStage:document.getElementById('svr-cstage')?.value||'',
     progressPct:parseInt(document.getElementById('svr-pct')?.value)||0,
     drawingsChecked:drwsRaw,
@@ -26038,6 +26122,191 @@ function saveCASVR(editId){
   if(document.getElementById('panel-staffsched')?.classList.contains('active')) renderStaffSched();
   if(document.getElementById('panel-meetings')?.classList.contains('active')) renderMeetings();
   showNotif('Site report saved',entry.num+' — '+caProjName(projId));
+}
+
+/* ════════════════════════════════════════════════════════════
+   v101.47 — SITE VISIT REPORT EMAIL TO VENDORS
+   ════════════════════════════════════════════════════════════
+   buildSVREmail(svrId) — pure builder. Returns { to, cc, subject,
+     body, withEmail, withoutEmail } or null. Used by both the
+     "Email Vendors" button (caEmailSVRVendors) and any preview UI.
+
+   caEmailSVRVendors(svrId) — handler. Opens mailto with TO=vendor
+     emails (comma-separated), CC=visiting architect, body=formatted
+     SVR contents. Logs to SENT_EMAILS for audit. Skips vendors with
+     no email on record and reports which were skipped.
+
+   Recipient logic:
+     - TO: vendors selected on the SVR who have an email in VENDORS
+     - CC: visiting architect's email if available (so they keep a
+       copy in their own inbox without cluttering Principal's)
+     - Custom (off-list) names are listed in the report body but
+       not emailed — they have no email to send to.
+
+   Body format follows the existing email convention in this app:
+     plain text with eSection / eLine / eFooter helpers. Issues are
+     numbered with severity tags so contractors can prioritize.
+   ──────────────────────────────────────────────────────────── */
+
+function buildSVREmail(svrId){
+  const r = CA_SVR.find(x=>x.id===svrId);
+  if(!r) return null;
+  const p = PROJS.find(x=>x.id===r.projId);
+  const visitor = STAFF.find(x=>x.id===r.visitedBy);
+  // Normalize vendor IDs (handle legacy singular `contractorVendorId`)
+  let vendorIds = [];
+  if (Array.isArray(r.contractorVendorIds) && r.contractorVendorIds.length){
+    vendorIds = r.contractorVendorIds.slice();
+  } else if (r.contractorVendorId){
+    vendorIds = [r.contractorVendorId];
+  }
+  const vendors = vendorIds
+    .map(id => (typeof VENDORS!=='undefined') ? VENDORS.find(v=>v.id===id) : null)
+    .filter(Boolean);
+  const withEmail    = vendors.filter(v => v.email && v.email.trim());
+  const withoutEmail = vendors.filter(v => !v.email || !v.email.trim());
+  const customNames = Array.isArray(r.contractorCustomNames) ? r.contractorCustomNames : [];
+
+  const to = withEmail.map(v => v.email.trim()).join(', ');
+  const cc = (visitor && visitor.email) ? visitor.email : '';
+
+  // Format the visit date in a human-readable way matching FIRM convention
+  let visitDateFmt = r.date;
+  try {
+    const d = new Date(r.date);
+    if(!isNaN(d.getTime())){
+      visitDateFmt = d.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    }
+  } catch(_){}
+
+  const projName = p?.name || r.projId || 'Project';
+  const projCode = p?.code || p?.id || r.projId || '';
+  const subject = '['+projCode+'] Site Visit Report '+r.num+' — '+visitDateFmt;
+
+  let body = 'Dear team,\n\n';
+  body += 'Please find below the site visit report from '+visitDateFmt
+       +(r.time ? ' at '+r.time : '')+'.\n';
+
+  body += eSection('Visit Details');
+  body += 'Project: '+projName+'\n';
+  body += 'Report number: '+r.num+'\n';
+  body += 'Stage: '+r.stage+'\n';
+  body += 'Visiting architect: '+(visitor ? visitor.first+' '+visitor.last : '—')+'\n';
+  if(r.constructionStage) body += 'Construction stage: '+r.constructionStage+'\n';
+  if(r.progressPct!==undefined && r.progressPct!==null && r.progressPct!=='')
+    body += 'Overall progress: '+r.progressPct+'%\n';
+
+  // Vendors / contractors on site (listed by company name)
+  const onSiteParts = [
+    ...vendors.map(v => v.companyName + (v.contactPerson?' ('+v.contactPerson+')':'')),
+    ...customNames
+  ];
+  if(onSiteParts.length){
+    body += eSection('Contractors / Vendors on site');
+    body += onSiteParts.join('\n')+'\n';
+  }
+
+  if(Array.isArray(r.drawingsChecked) && r.drawingsChecked.length){
+    body += eSection('Drawings checked on site');
+    body += r.drawingsChecked.join(', ')+'\n';
+  }
+
+  if(r.observations && r.observations.trim()){
+    body += eSection('Observations');
+    body += r.observations.trim()+'\n';
+  }
+
+  const openIssues = (r.issues||[]).filter(i => i.status !== 'resolved');
+  if(openIssues.length){
+    body += eSection('Issues found ('+openIssues.length+' open)');
+    openIssues.forEach((iss,i)=>{
+      const sev = iss.severity ? '['+iss.severity.toUpperCase()+'] ' : '';
+      const loc = iss.location ? ' — '+iss.location : '';
+      body += (i+1)+'. '+sev+iss.desc+loc+'\n';
+    });
+  }
+
+  if(r.instructions && r.instructions.trim()){
+    body += eSection('Instructions Given on Site');
+    body += r.instructions.trim()+'\n';
+  }
+
+  if(openIssues.length){
+    body += '\n\nPlease take action on the open issues above and reply with status updates and target dates for resolution.\n';
+  } else {
+    body += '\n\nNo open issues from this visit. Please reply if you have any questions about the observations or instructions above.\n';
+  }
+
+  body += '\nRegards,\n';
+  body += (visitor ? visitor.first+' '+visitor.last : (FIRM_CONFIG.name || 'Studio 62 Design'));
+  if(visitor && visitor.email) body += '\n'+visitor.email;
+  body += eFooter();
+
+  return { to, cc, subject, body, withEmail, withoutEmail, customNames, vendors };
+}
+
+function caEmailSVRVendors(svrId){
+  const data = buildSVREmail(svrId);
+  if(!data){ showNotif('Report not found',''); return; }
+
+  // No vendors selected at all
+  if(data.vendors.length === 0){
+    showNotif('No vendors selected','Open the report and select at least one contractor/vendor from the chip list to email.');
+    return;
+  }
+  // Vendors selected, but none have email on record
+  if(data.withEmail.length === 0){
+    const names = data.withoutEmail.map(v=>v.companyName).join(', ');
+    showNotif('No email addresses on record',
+      data.withoutEmail.length+' selected vendor'+(data.withoutEmail.length===1?'':'s')+' (' + names + ') have no email. '
+      +'Add emails via CA → Vendors → edit, then try again.');
+    return;
+  }
+
+  // Build the mailto URL directly (openMailto helper doesn't support CC)
+  let url = 'mailto:'+encodeURIComponent(data.to);
+  url += '?subject='+encodeURIComponent(data.subject);
+  if(data.cc) url += '&cc='+encodeURIComponent(data.cc);
+  url += '&body='+encodeURIComponent(data.body);
+
+  // Log to SENT_EMAILS so the comm appears in the email panel audit trail
+  try {
+    const now = new Date();
+    SENT_EMAILS.unshift({
+      to: data.to,
+      cc: data.cc,
+      from: currentUser().email || (FIRM_CONFIG.email || 'studio62@studio62.in'),
+      subject: data.subject,
+      body: data.body,
+      date: now.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})
+         +' · '+now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),
+      dateISO: toISO(now),
+      type: 'sent',
+      status: 'sent',
+      read: true,
+      svrSourceId: svrId
+    });
+    scheduleSave();
+  } catch(e){ console.warn('[v101.47] SVR email log failed:', e); }
+
+  // Audit log entry — separate from sent-emails store
+  try {
+    addAudit('communication',
+      'SVR vendor email composed',
+      data.subject + ' · '+data.withEmail.length+' recipient'+(data.withEmail.length===1?'':'s'),
+      CA_SVR.find(x=>x.id===svrId)?.projId || null);
+  } catch(_){}
+
+  window.location.href = url;
+
+  // Status notification — call out skipped vendors so user can fix data
+  let msg = '📧 Composed for '+data.withEmail.length+' vendor'+(data.withEmail.length===1?'':'s');
+  if(data.cc) msg += ' (CC: visiting architect)';
+  if(data.withoutEmail.length){
+    const skipped = data.withoutEmail.map(v=>v.companyName).join(', ');
+    msg += ' · skipped (no email): '+skipped;
+  }
+  showNotif('Vendor email opened', msg);
 }
 
 /* ── NEW RFI ────────────────────────────────────────────── */
