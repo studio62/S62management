@@ -7548,7 +7548,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log("S62 v101.58 — meeting save-before-async fix (root cause of new-meetings-missing): save fires before await gcalCreateEvent. Also: signOutUser flushes pending cloudSave, pagehide local-snapshot save, count-based protective resave on login. Fixes parse error from v101.57 (unescaped apostrophes broke the entire JS).");
+console.log("S62 v101.59 — drawing-mutation save audit: setDrawingTarget + quickSaveDrawing + setPctFromSlider + logHrsFromDetail + cancelPct100 all now immediate-save with updatedAt stamping. Previously deferred saves on drawings caused target date/status/pct/hours updates to silently vanish if user logged out or refreshed within the 2.8s debounce. Includes all v101.54-v101.58 fixes.");
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -13678,6 +13678,7 @@ function logHrsFromDetail(drawingId){
   // Update SCHED_TASKS actHrs
   const task=SCHED_TASKS.find(t=>t.drawingId===drawingId);
   if(task) task.actHrs=d.hrs;
+  d.updatedAt = new Date().toISOString();    // v101.59 — dirty-tracking
   // Update UI
   const tot=document.getElementById('dd-hrs-total');
   if(tot) tot.textContent=d.hrs+'h';
@@ -13686,7 +13687,8 @@ function logHrsFromDetail(drawingId){
   syncHoursFromTimesheets();
   // If drawing is already at 100% (could be after previous update), auto-submit
   maybeAutoSubmitForCheck(drawingId);
-  renderDrawings();scheduleSave();
+  renderDrawings();
+  scheduleSave({immediate:true});            // v101.59 — was deferred
 }
 function openDrwDetail(id){
   const d=DRAWINGS.find(x=>x.id===id);if(!d)return;
@@ -16901,10 +16903,12 @@ function quickSaveDrawing(drawingId){
   // Sync SCHED_TASKS
   const task=SCHED_TASKS.find(t=>t.drawingId===drawingId);
   if(task){task.status=d.status;task.pct=d.pct;task.actHrs=d.hrs;task.rag=ragFromSpi(d.pct>0?d.pct/100:0);}
+  d.updatedAt = new Date().toISOString();    // v101.59 — dirty-tracking
+  if(task) task.updatedAt = new Date().toISOString();   // v101.59
   showNotif('Progress saved',d.title+' — '+d.pct+'% · '+{nst:'Not Started',ip:'In Progress',chk:'Ready for Review',done:'✓ Issued'}[d.status]||d.status);
   maybeAutoSubmitForCheck(drawingId);
   renderStaffSched();renderDrawings();renderProjList();renderDashboard();updateNavBadges();
-  scheduleSave();
+  scheduleSave({immediate:true});            // v101.59 — was deferred
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -17650,6 +17654,7 @@ function setDrawingTarget(drawingId, newTgt){
   const prev=d.tgt;
   d.tgt=newTgt.trim()||'';
   d.setby=currentUser().id;
+  d.updatedAt = new Date().toISOString();    // v101.59 — dirty-tracking
   if(prev!==d.tgt&&d.tgt){
     if(!d.revHistory) d.revHistory=[];
     d.revHistory.push({
@@ -17662,11 +17667,13 @@ function setDrawingTarget(drawingId, newTgt){
   const task=SCHED_TASKS.find(t=>t.drawingId===drawingId);
   if(task&&d.tgt){
     try{const td=parseDue(d.tgt);if(td&&!isNaN(td))task.due=td.getFullYear()+'-'+String(td.getMonth()+1).padStart(2,'0')+'-'+String(td.getDate()).padStart(2,'0');}catch(e){}
+    task.updatedAt = new Date().toISOString();   // v101.59
   }
+  console.log('[v101.59] setDrawingTarget: '+d.id+' tgt='+d.tgt+' (was '+(prev||'empty')+')');
   showNotif('Target date set',d.id+' → '+(d.tgt||'cleared')+' · set by '+currentUser().first);
   renderDrawings();renderProjList();renderDashboard();
   renderSchedule();renderStaffSched();updateNavBadges();renderTimesheets();
-  scheduleSave();
+  scheduleSave({immediate:true});            // v101.59 — was deferred → caused target date updates to vanish on relog
 }
 
 /* Bulk target date — opens date picker, applies to all selected */
@@ -18599,7 +18606,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.58',
+        appVersion: 'S62-v101.59',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -18759,7 +18766,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.58',
+    appVersion: 'S62-v101.59',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -20505,14 +20512,16 @@ function setPctFromSlider(drawingId, val) {
   const newPct=parseInt(val);
   d.pct = newPct;
   if(newPct>0 && newPct<100 && d.status==='nst') d.status='ip';
+  d.updatedAt = new Date().toISOString();    // v101.59 — dirty-tracking
   const task = SCHED_TASKS.find(t=>t.drawingId===drawingId);
   if(task){
     task.pct = d.pct;
     const ev = Math.round(d.pct/100*(task.estHrs||0)*10)/10;
     const spi = task.estHrs>0 ? ev/task.estHrs : 1;
     task.rag = d.status==='done'?'blue':spi>=0.95?'green':spi>=0.75?'amber':'red';
+    task.updatedAt = new Date().toISOString();   // v101.59
   }
-  scheduleSave(); updateNavBadges();
+  scheduleSave({immediate:true}); updateNavBadges();  // v101.59 — was deferred
   // v98 Option C — Auto-submit at 100% with Undo toast.
   // The v94 popup was friction; reaching 100% IS the signal that work is
   // done. Submit immediately and surface a 5-second Undo so the drafter can
@@ -20588,9 +20597,10 @@ function cancelPct100(drawingId){
   const d = DRAWINGS.find(x => x.id === drawingId);
   if(!d) return;
   d.pct = 99;
+  d.updatedAt = new Date().toISOString();      // v101.59
   const t = SCHED_TASKS.find(x => x.drawingId === drawingId);
-  if(t) t.pct = 99;
-  scheduleSave();
+  if(t){ t.pct = 99; t.updatedAt = new Date().toISOString(); }   // v101.59
+  scheduleSave({immediate:true});              // v101.59 — was deferred
   renderDrawings();
   updateNavBadges();
 }
