@@ -4333,6 +4333,198 @@ if (typeof window !== 'undefined'){
   window.s62Poll        = s62Poll;
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+   v101.42a — Per-record dirty tracking.
+
+   PURPOSE:
+     The monolithic save pattern pushes the entire 1.6MB dataset on every
+     edit. For per-record writes (v101.42b+) we need to know exactly which
+     records changed since the last successful sync, so we only push those.
+
+   APPROACH:
+     Snapshot-diff. After each successful save, capture a lightweight
+     snapshot of (id, updatedAt) for each tracked collection. On the next
+     save, compare current state to snapshot to detect adds/updates/deletes.
+
+   TRACKED COLLECTIONS (the id-keyed ones that benefit most):
+     vendors, projs, drawings, meetings, schedTasks, caSvr, caRfis,
+     caSubmittals, caSnags, caAis, invoices, transmittals, consultantLogs,
+     sentEmails, dqAssessments, notifications, drwPackages, visuals,
+     auditLog, tsEntries, staff
+
+   NOT TRACKED (no id field, kept as monolithic save):
+     firmConfig, pipeline, tsWeekStatus, perfScores, drwCols, reviews
+
+   THIS SHIP IS PASSIVE:
+     The dirty list is computed and maintained, but cloudSave() does not
+     yet use it. v101.42b will start using it for the vendors collection.
+     Until then it just sits there, observable via s62GetDirtyList().
+   ────────────────────────────────────────────────────────────────── */
+
+const _S62_TRACKED_COLLECTIONS = [
+  {name: 'vendors',         arr: () => typeof VENDORS         !== 'undefined' ? VENDORS         : []},
+  {name: 'projs',           arr: () => typeof PROJS           !== 'undefined' ? PROJS           : []},
+  {name: 'drawings',        arr: () => typeof DRAWINGS        !== 'undefined' ? DRAWINGS        : []},
+  {name: 'meetings',        arr: () => typeof MEETINGS        !== 'undefined' ? MEETINGS        : []},
+  {name: 'schedTasks',      arr: () => typeof SCHED_TASKS     !== 'undefined' ? SCHED_TASKS     : []},
+  {name: 'caSvr',           arr: () => typeof CA_SVR          !== 'undefined' ? CA_SVR          : []},
+  {name: 'caRfis',          arr: () => typeof CA_RFIS         !== 'undefined' ? CA_RFIS         : []},
+  {name: 'caSubmittals',    arr: () => typeof CA_SUBMITTALS   !== 'undefined' ? CA_SUBMITTALS   : []},
+  {name: 'caSnags',         arr: () => typeof CA_SNAGS        !== 'undefined' ? CA_SNAGS        : []},
+  {name: 'caAis',           arr: () => typeof CA_AIS          !== 'undefined' ? CA_AIS          : []},
+  {name: 'invoices',        arr: () => typeof INVOICES        !== 'undefined' ? INVOICES        : []},
+  {name: 'transmittals',    arr: () => typeof TRANSMITTALS    !== 'undefined' ? TRANSMITTALS    : []},
+  {name: 'consultantLogs',  arr: () => typeof CONSULTANT_LOGS !== 'undefined' ? CONSULTANT_LOGS : []},
+  {name: 'sentEmails',      arr: () => typeof SENT_EMAILS     !== 'undefined' ? SENT_EMAILS     : []},
+  {name: 'dqAssessments',   arr: () => typeof DQ_ASSESSMENTS  !== 'undefined' ? DQ_ASSESSMENTS  : []},
+  {name: 'notifications',   arr: () => typeof NOTIFICATIONS   !== 'undefined' ? NOTIFICATIONS   : []},
+  {name: 'drwPackages',     arr: () => typeof DRW_PACKAGES    !== 'undefined' ? DRW_PACKAGES    : []},
+  {name: 'visuals',         arr: () => typeof VISUALS         !== 'undefined' ? VISUALS         : []},
+  {name: 'auditLog',        arr: () => typeof AUDIT_LOG       !== 'undefined' ? AUDIT_LOG       : []},
+  {name: 'tsEntries',       arr: () => typeof TS_ENTRIES      !== 'undefined' ? TS_ENTRIES      : []},
+  {name: 'staff',           arr: () => typeof STAFF           !== 'undefined' ? STAFF           : []}
+];
+
+// _s62Snapshot[collectionName] = Map<id, updatedAt>
+//   Captured after each successful save. Used to diff next time.
+let _s62Snapshot = {};
+
+function _s62SnapshotCollection(name, arr){
+  const m = new Map();
+  for (const r of arr){
+    if (!r || r.id === undefined || r.id === null) continue;
+    m.set(r.id, r.updatedAt || '');
+  }
+  return m;
+}
+
+/** Capture a fresh snapshot of all tracked collections.
+ *  Called after a successful save so the next save starts from a clean diff. */
+function s62SnapshotAll(){
+  const snapshot = {};
+  for (const c of _S62_TRACKED_COLLECTIONS){
+    try {
+      snapshot[c.name] = _s62SnapshotCollection(c.name, c.arr());
+    } catch(e){
+      console.warn('[v101.42a] snapshot of '+c.name+' failed:', e.message);
+      snapshot[c.name] = new Map();
+    }
+  }
+  _s62Snapshot = snapshot;
+  return snapshot;
+}
+
+/** Compute the dirty list by comparing current state to last snapshot.
+ *  Returns array of {collection, id, op: 'add'|'update'|'delete', record?}
+ *  where record is included for adds/updates (the current data) and absent for deletes.
+ *
+ *  Special case: if no snapshot exists yet (first call), returns empty list.
+ *  This avoids false "everything is dirty" reports at startup. */
+function s62GetDirtyList(){
+  if (!_s62Snapshot || Object.keys(_s62Snapshot).length === 0){
+    return [];  // no baseline yet — nothing reported dirty until first snapshot
+  }
+  const dirty = [];
+  for (const c of _S62_TRACKED_COLLECTIONS){
+    const prev = _s62Snapshot[c.name];
+    if (!prev) continue;
+    let arr;
+    try { arr = c.arr(); } catch(_){ continue; }
+    if (!Array.isArray(arr)) continue;
+
+    const currentIds = new Set();
+    for (const r of arr){
+      if (!r || r.id === undefined || r.id === null) continue;
+      currentIds.add(r.id);
+      const prevUpdatedAt = prev.get(r.id);
+      if (prevUpdatedAt === undefined){
+        // New record
+        dirty.push({collection: c.name, id: r.id, op: 'add', record: r});
+      } else if ((r.updatedAt || '') !== prevUpdatedAt){
+        // Existing record changed (updatedAt differs)
+        dirty.push({collection: c.name, id: r.id, op: 'update', record: r});
+      }
+    }
+    // Detect deletes: ids in snapshot but not in current
+    for (const id of prev.keys()){
+      if (!currentIds.has(id)){
+        dirty.push({collection: c.name, id, op: 'delete'});
+      }
+    }
+  }
+  return dirty;
+}
+
+/** Summary stats for the dirty list — for quick console inspection. */
+function s62DirtyStats(){
+  const list = s62GetDirtyList();
+  const byColl = {};
+  const byOp = {add: 0, update: 0, delete: 0};
+  for (const d of list){
+    byColl[d.collection] = (byColl[d.collection] || 0) + 1;
+    byOp[d.op]++;
+  }
+  return {
+    total: list.length,
+    byOp,
+    byColl,
+    hasSnapshot: Object.keys(_s62Snapshot).length > 0
+  };
+}
+
+/** Flush the dirty list to Firebase via s62Cloud.write/patch/delete.
+ *  Returns {ok, written, errors} report.
+ *
+ *  NOT WIRED IN YET — exists for v101.42b to call. Safe to invoke manually
+ *  from console for testing.
+ *
+ *  Strategy:
+ *    - 'add' and 'update' → s62Cloud.write (PUT replaces whole record)
+ *    - 'delete' → s62Cloud.delete
+ *  After all writes succeed, refresh the snapshot. If ANY write fails,
+ *  the snapshot is NOT refreshed so the next call retries those records. */
+async function s62FlushDirtyToCloud(){
+  const list = s62GetDirtyList();
+  if (list.length === 0) return {ok: true, written: 0, errors: []};
+
+  const errors = [];
+  let written = 0;
+
+  for (const d of list){
+    try {
+      let r;
+      if (d.op === 'delete'){
+        r = await s62Cloud.delete(d.collection, d.id);
+      } else {
+        r = await s62Cloud.write(d.collection, d.id, d.record);
+      }
+      if (r.ok){
+        written++;
+      } else {
+        errors.push({collection: d.collection, id: d.id, op: d.op, error: r.error});
+      }
+    } catch(err){
+      errors.push({collection: d.collection, id: d.id, op: d.op, error: err.message || String(err)});
+    }
+  }
+
+  // Only refresh snapshot if ALL writes succeeded — otherwise retry next time
+  if (errors.length === 0){
+    s62SnapshotAll();
+  }
+
+  return {ok: errors.length === 0, written, errors};
+}
+
+if (typeof window !== 'undefined'){
+  window.s62SnapshotAll       = s62SnapshotAll;
+  window.s62GetDirtyList      = s62GetDirtyList;
+  window.s62DirtyStats        = s62DirtyStats;
+  window.s62FlushDirtyToCloud = s62FlushDirtyToCloud;
+}
+
+
+
 
 
 let _fbDb           = null;
@@ -5240,6 +5432,10 @@ async function cloudSave(){
       updateSaveIndicator('cloud-saved');
       _lastCloudSaveAt = Date.now();  // v101.31 — track for chip display
       updateSyncStatusBar();
+      // v101.42a — Refresh dirty snapshot. Now this session's
+      // "changes since last save" baseline = NOW. After this, only
+      // newly modified records will appear in s62GetDirtyList().
+      if (typeof s62SnapshotAll === 'function') s62SnapshotAll();
     } else {
       console.warn('S62: save failed after 3 attempts');
       _saveState = 'error';   // v96
@@ -6899,7 +7095,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.41 — Phase 2 Ship 2: reads now via REST polling · s62PollerInfo() for status · writes still on SDK');
+console.log('S62 v101.42a — Phase 2 Ship 3a: dirty tracking added (passive) · s62DirtyStats() to inspect · writes still monolithic for now');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -6944,6 +7140,18 @@ function s62MigrateSeedTemplates(){
   }
 }
 s62MigrateSeedTemplates();
+
+// v101.42a — Take initial snapshot of all tracked collections after data
+// has loaded. This becomes the baseline for dirty detection. Until this
+// runs, s62GetDirtyList() returns [] (no false positives).
+setTimeout(() => {
+  try {
+    if (typeof s62SnapshotAll === 'function'){
+      s62SnapshotAll();
+      console.log('[v101.42a] initial dirty-tracking snapshot captured');
+    }
+  } catch(e){ console.warn('[v101.42a] snapshot error:', e.message); }
+}, 100);
 
 /* v101.38 — Clear in-code demo data when an auto-reset was scheduled.
    PROJS, DRAWINGS, MEETINGS, etc. are seeded with hardcoded demo
@@ -16157,7 +16365,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.41',
+        appVersion: 'S62-v101.42a',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -16317,7 +16525,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.41',
+    appVersion: 'S62-v101.42a',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
