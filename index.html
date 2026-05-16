@@ -1867,17 +1867,45 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     <button onclick="document.getElementById('mw-drive-banner').style.display='none'" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:16px;flex-shrink:0;padding:4px" title="Dismiss">✕</button>
   </div>
 
-  <!-- Greeting + Quick Actions Bar -->
+  <!-- ── v101.48 A+B LAYOUT ─────────────────────────────────────
+       The layout is:
+         Row 1: Quick actions strip (greeting + chips + buttons)
+         Row 2: Today hero (2fr) | KPI sidebar (1fr, vertical 2×3)
+         Row 3: My 2-week schedule — interactive, click any day to
+                filter Drawings/Calendar/CA below
+         Row 4: My drawings (3fr) | My calendar (2fr)
+         Row 5: My CA items (1fr) | My hours-this-week bars (1fr)
+         Row 6: My recent activity (3fr) | Recently created (2fr)
+       ──────────────────────────────────────────────────────────── -->
+
+  <!-- Quick Actions Bar -->
   <div id="mw-quick-actions" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap"></div>
 
-  <!-- MY KPI Strip (6 cards) -->
-  <div class="sg" id="mw-kpi-strip" style="grid-template-columns:repeat(6,1fr);margin-bottom:12px"></div>
-
-  <!-- Row 1: My Drawings (2/3) + My Calendar (1/3) -->
+  <!-- Row 2: Today hero + KPI sidebar -->
   <div class="dash-row-halves" style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
+    <div class="card" id="mw-today-hero" style="padding:0;overflow:hidden;min-height:260px;background:linear-gradient(135deg,rgba(240,201,122,.04),rgba(82,201,122,.02))"></div>
+    <div class="card" id="mw-kpi-strip" style="padding:10px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:8px;min-height:260px"></div>
+  </div>
+
+  <!-- Row 3: 2-Week Schedule — INTERACTIVE hero. Click any day to filter
+       Drawings, Calendar, and CA Items below. -->
+  <div style="margin-bottom:12px">
+    <div class="sechd">
+      <div class="sectitle">🗓 My Next 2 Weeks</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="mw-2week-filter-banner" style="display:none;font-family:var(--fm);font-size:10px;padding:3px 8px;border-radius:10px;background:rgba(82,133,224,.15);color:var(--blu);border:1px solid rgba(82,133,224,.3)"></span>
+        <button class="btn bg bsm" id="mw-2week-clear" onclick="mwClearDayFilter()" style="font-size:10px;display:none">Clear filter ✕</button>
+        <button class="btn bg bsm" onclick="go('staffsched',null)" style="font-size:10px">Full Schedule →</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden"><div id="mw-2week" style="overflow-x:auto"></div></div>
+  </div>
+
+  <!-- Row 4: My Drawings (3/5) + My Calendar (2/5) — day-filter aware -->
+  <div class="dash-row-halves" style="display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:12px">
     <div>
       <div class="sechd">
-        <div class="sectitle">📐 My Drawings</div>
+        <div class="sectitle">📐 My Drawings <span id="mw-drw-filter-tag" style="font-family:var(--fm);font-size:10px;color:var(--blu);margin-left:6px"></span></div>
         <div style="display:flex;gap:6px">
           <button class="btn bg bsm mw-dtab on" data-mw-dtab="all" onclick="setMyDrawingTab('all',this)" style="font-size:10px">All</button>
           <button class="btn bg bsm mw-dtab" data-mw-dtab="ip" onclick="setMyDrawingTab('ip',this)" style="font-size:10px" title="Drawings assigned to me">Mine</button>
@@ -1885,37 +1913,26 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
           <button class="btn bg bsm" onclick="go('drawings',null)" style="font-size:10px">All →</button>
         </div>
       </div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="mw-drawings" style="max-height:340px;overflow-y:auto"></div></div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="mw-drawings" style="max-height:300px;overflow-y:auto"></div></div>
     </div>
     <div>
       <div class="sechd">
-        <div class="sectitle">📅 My Calendar</div>
+        <div class="sectitle">📅 My Calendar <span id="mw-cal-filter-tag" style="font-family:var(--fm);font-size:10px;color:var(--blu);margin-left:6px"></span></div>
         <button class="btn bg bsm" onclick="goMeetings()" style="font-size:10px">All →</button>
       </div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="mw-calendar" style="max-height:340px;overflow-y:auto"></div></div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="mw-calendar" style="max-height:300px;overflow-y:auto"></div></div>
     </div>
   </div>
 
-  <!-- Row 2: My 2-Week Schedule (2/3) + My Open CA Items (1/3) -->
-  <div class="dash-row-halves" style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
+  <!-- Row 5: My CA Items (1/2) + My Hours This Week (1/2) -->
+  <div class="dash-row-halves" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
     <div>
       <div class="sechd">
-        <div class="sectitle">🗓 My Next 2 Weeks</div>
-        <button class="btn bg bsm" onclick="go('staffsched',null)" style="font-size:10px">Full Schedule →</button>
-      </div>
-      <div class="card" style="padding:0;overflow:hidden"><div id="mw-2week" style="overflow-x:auto;max-height:240px;overflow-y:auto"></div></div>
-    </div>
-    <div>
-      <div class="sechd">
-        <div class="sectitle">🏗 My Open CA Items</div>
+        <div class="sectitle">🏗 My Open CA Items <span id="mw-ca-filter-tag" style="font-family:var(--fm);font-size:10px;color:var(--blu);margin-left:6px"></span></div>
         <button class="btn bg bsm" onclick="go('ca',null)" style="font-size:10px">All →</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden"><div id="mw-ca" style="max-height:240px;overflow-y:auto"></div></div>
     </div>
-  </div>
-
-  <!-- Row 3: My Hours This Week (1/2) + Items I Created Recently (1/2) -->
-  <div class="dash-row-halves" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
     <div>
       <div class="sechd">
         <div class="sectitle">⏱ My Hours This Week</div>
@@ -1923,9 +1940,17 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       </div>
       <div class="card" style="padding:14px 16px"><div id="mw-hours"></div></div>
     </div>
+  </div>
+
+  <!-- Row 6: My Recent Activity (3/5) + Recently Created (2/5) — compact footer -->
+  <div class="dash-row-halves" style="display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:12px">
     <div>
       <div class="sechd"><div class="sectitle">📋 Recently Created by Me</div></div>
       <div class="card" style="padding:0;overflow:hidden"><div id="mw-mine" style="max-height:200px;overflow-y:auto"></div></div>
+    </div>
+    <div>
+      <div class="sechd"><div class="sectitle">↻ Activity Stream</div></div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="mw-activity-stream" style="max-height:200px;overflow-y:auto;padding:14px 16px;font-family:var(--fm);font-size:10.5px;color:var(--txd);font-style:italic">Track of edits, completions, and assignments will appear here.</div></div>
     </div>
   </div>
 
@@ -7278,7 +7303,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.47 — SVR multi-vendor support · vendor email blast from site visit report');
+console.log('S62 v101.48 — My Work redesigned: Today hero + interactive 2-week schedule with day-filter (A+B layout)');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -10544,14 +10569,209 @@ function sendStudioEmail(type){
    ═══════════════════════════════════════════════════════════════════ */
 let _mwDrawingTab = 'all';
 
+// v101.48 — selected day in the 2-week schedule. When set (YYYY-MM-DD),
+// the drawings / calendar / CA panels below filter to that day. Null = no
+// filter. Toggled via mwSelectDay() and mwClearDayFilter().
+let _mwSelectedDay = null;
+
+function mwSelectDay(dayISO){
+  if(_mwSelectedDay === dayISO){
+    // Click the same day again to deselect
+    _mwSelectedDay = null;
+  } else {
+    _mwSelectedDay = dayISO;
+  }
+  // Re-render the whole My Work view — every sub-render honors the filter
+  if(typeof renderMyWork === 'function') renderMyWork();
+}
+
+function mwClearDayFilter(){
+  _mwSelectedDay = null;
+  if(typeof renderMyWork === 'function') renderMyWork();
+}
+
+function mwFmtSelectedDay(){
+  // Render the currently-selected day for the banner label.
+  // Returns '' when nothing is selected.
+  if(!_mwSelectedDay) return '';
+  try {
+    const d = new Date(_mwSelectedDay);
+    return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+  } catch(_){ return _mwSelectedDay; }
+}
+
+function mwParseDueToISO(tgt){
+  // Convert a drawing's tgt (which may be 'YYYY-MM-DD' or 'DD MMM YYYY' or
+  // 'Mar 24, 2026') to ISO YYYY-MM-DD for comparing against _mwSelectedDay.
+  // Returns null when unparseable.
+  const d = parseDue(tgt);
+  if(!d) return null;
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+/* ── v101.48 — TODAY HERO PANEL ────────────────────────────
+   The hero answers the question "what's on my plate today?"
+   Sections:
+     • Greeting line (date + name)
+     • Next meeting callout (if any meetings today)
+     • Action items: returned-for-revision, drawings due today,
+       CA items due today — each clickable
+     • Hours-this-week bar at the bottom
+   ─────────────────────────────────────────────────────────── */
+function renderMyTodayHero(){
+  const el = document.getElementById('mw-today-hero');
+  if(!el) return;
+  const me = currentUser(); if(!me) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const todayFmt = today.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short',year:'numeric'});
+  const now = new Date();
+  const greet = now.getHours()<12 ? 'Good morning' : (now.getHours()<17 ? 'Good afternoon' : 'Good evening');
+
+  // Today's meetings for me, sorted by time
+  const myMtgs = MEETINGS.filter(m=>{
+    if(m.status==='cancelled') return false;
+    if(!(m.attendees||[]).includes(me.id)) return false;
+    return m.date === todayStr;
+  }).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+
+  // Find the "next" meeting — first one whose time hasn't passed
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  let nextMtg = null;
+  for(const m of myMtgs){
+    if(!m.time){ if(!nextMtg) nextMtg = m; continue; }
+    const parts = m.time.split(':').map(Number);
+    if((parts[0]||0)*60 + (parts[1]||0) >= nowMin){ nextMtg = m; break; }
+  }
+  if(!nextMtg && myMtgs.length) nextMtg = myMtgs[0]; // all past — fall back to first
+
+  // Drawings due today (mine, not done)
+  const myDueToday = DRAWINGS.filter(d=>{
+    if(d.sid!==me.id || d.status==='done') return false;
+    const dd = parseDue(d.tgt);
+    return dd && dd.getTime()===today.getTime();
+  });
+
+  // Returned for revision
+  const myReturned = DRAWINGS.filter(d=>
+    d.sid===me.id && d.rejectedAt && d.status==='ip' && d.pct<100
+  );
+
+  // Drawings I'm checking (QA reviewer)
+  const myCheckingNow = DRAWINGS.filter(d => d.status==='chk' && d.checkedBy===me.id);
+
+  // CA items due today (RFIs/snags/AIs assigned to me with date matching today)
+  const caToday = []
+    .concat((typeof CA_RFIS!=='undefined'?CA_RFIS:[]).filter(r=>r.assignedTo===me.id && (r.responseDue===todayStr||r.targetDate===todayStr) && r.status!=='closed' && r.status!=='resolved'))
+    .concat((typeof CA_SNAGS!=='undefined'?CA_SNAGS:[]).filter(r=>r.assignedTo===me.id && (r.targetDate===todayStr||r.dueDate===todayStr) && r.status!=='resolved'))
+    .concat((typeof CA_AIS!=='undefined'?CA_AIS:[]).filter(r=>r.assignedTo===me.id && (r.targetDate===todayStr||r.responseDue===todayStr) && r.status!=='closed' && r.status!=='resolved'));
+
+  // Hours logged this week
+  let hoursWeek = 0;
+  try {
+    const wkKey = tsWeekKey(0);
+    TS_ENTRIES.forEach(e=>{
+      if(e.sid===me.id && e.weekKey===wkKey){
+        (e.days||[]).forEach(h=>{ hoursWeek += (parseFloat(h)||0); });
+      }
+    });
+  } catch(_){}
+
+  let html = '<div style="padding:18px 20px;height:100%;display:flex;flex-direction:column;min-height:260px">';
+
+  // Header
+  html += '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">';
+  html += '<span style="font-family:var(--fm);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);font-weight:600">Today</span>';
+  html += '<span style="font-family:var(--fm);font-size:10px;color:var(--txd)">'+todayFmt+'</span>';
+  html += '</div>';
+  html += '<div style="font-family:var(--fd);font-size:19px;color:var(--tx);margin-bottom:14px;font-weight:500">'+greet+', '+me.first+'</div>';
+
+  // Next meeting callout
+  if(nextMtg){
+    const proj = PROJS.find(p=>p.id===nextMtg.proj);
+    html += '<div style="background:rgba(82,133,224,.08);border-left:3px solid var(--blu);padding:10px 12px;border-radius:0 6px 6px 0;margin-bottom:10px;cursor:pointer" onclick="goMeetingsOpen(\''+nextMtg.id+'\')" title="Open meeting">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">';
+    html += '<span style="font-family:var(--fm);font-size:9px;color:var(--blu);text-transform:uppercase;letter-spacing:.06em;font-weight:600">Next meeting</span>';
+    if(nextMtg.time) html += '<span style="font-family:var(--fm);font-size:11px;color:var(--blu);font-weight:600">'+nextMtg.time+'</span>';
+    html += '</div>';
+    html += '<div style="font-size:12.5px;color:var(--tx);font-weight:500;line-height:1.3">'+(nextMtg.title||'Meeting')+'</div>';
+    if(proj) html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">'+proj.name+'</div>';
+    if(myMtgs.length>1) html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txm);margin-top:4px">+ '+(myMtgs.length-1)+' more meeting'+(myMtgs.length-1===1?'':'s')+' today</div>';
+    html += '</div>';
+  }
+
+  // Action items
+  const actions = [];
+  if(myReturned.length) actions.push({
+    icon:'↺',
+    color:'var(--red)',
+    bg:'rgba(224,82,82,.06)',
+    text: myReturned.length+' drawing'+(myReturned.length===1?'':'s')+' returned for revision',
+    onclick: "setMyDrawingTab('ip',document.querySelector('[data-mw-dtab=&quot;ip&quot;]'))"
+  });
+  if(myDueToday.length) actions.push({
+    icon:'📐',
+    color:'var(--gold)',
+    bg:'rgba(240,201,122,.06)',
+    text: myDueToday.length+' drawing'+(myDueToday.length===1?'':'s')+' due today',
+    onclick: "go('drawings',null);setTimeout(()=>setDrwView('overdue',document.getElementById('sv-overdue')),200)"
+  });
+  if(myCheckingNow.length) actions.push({
+    icon:'◈',
+    color:'var(--pur)',
+    bg:'rgba(138,82,224,.06)',
+    text: myCheckingNow.length+' drawing'+(myCheckingNow.length===1?'':'s')+' awaiting your review',
+    onclick: "setMyDrawingTab('chk',document.querySelector('[data-mw-dtab=&quot;chk&quot;]'))"
+  });
+  if(caToday.length) actions.push({
+    icon:'🏗',
+    color:'var(--gold)',
+    bg:'rgba(240,201,122,.06)',
+    text: caToday.length+' CA item'+(caToday.length===1?'':'s')+' due today',
+    onclick: "go('ca',null)"
+  });
+
+  if(actions.length){
+    html += '<div style="display:flex;flex-direction:column;gap:5px;flex:1">';
+    actions.forEach(a=>{
+      html += '<div style="display:flex;align-items:center;gap:9px;padding:8px 11px;background:'+a.bg+';border-radius:6px;cursor:pointer;font-size:11.5px" onclick="'+a.onclick+'">';
+      html += '<span style="font-size:13px;color:'+a.color+';flex-shrink:0">'+a.icon+'</span>';
+      html += '<span style="color:var(--tx);flex:1;line-height:1.3">'+a.text+'</span>';
+      html += '<span style="color:var(--txd);font-size:11px;flex-shrink:0">→</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  } else if(!nextMtg) {
+    html += '<div style="font-family:var(--fm);font-size:11px;color:var(--txd);font-style:italic;text-align:center;padding:18px 12px;flex:1;display:flex;align-items:center;justify-content:center;line-height:1.6">No meetings or items due today.<br>A good day to push through your queue.</div>';
+  }
+
+  // Footer: hours-this-week mini progress
+  const targetH = 40;
+  const pct = Math.min(100, Math.round(hoursWeek/targetH*100));
+  const hrsRound = Math.round(hoursWeek*10)/10;
+  const barColor = hoursWeek>=targetH ? 'var(--grn)' : (hoursWeek>=targetH*0.5 ? 'var(--blu)' : 'var(--gold)');
+  html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--ln)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;font-family:var(--fm);font-size:10px;color:var(--txd)">';
+  html += '<span>Hours logged this week</span>';
+  html += '<span style="color:var(--tx);font-weight:600">'+hrsRound+' / '+targetH+'h</span>';
+  html += '</div>';
+  html += '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+barColor+';transition:width .3s"></div></div>';
+  html += '</div>';
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
 function renderMyWork(){
   syncSchedTasks();
   if(typeof updateCloudSyncBtn==='function') updateCloudSyncBtn();
   renderMyQuickActions();
+  renderMyTodayHero();  // v101.48 — new Today hero panel (A+B layout)
   renderMyKPIs();
+  renderMy2Week();       // v101.48 — order: schedule before drawings (it now filters them)
   renderMyDrawings();
   renderMyCalendar();
-  renderMy2Week();
   renderMyCA();
   renderMyHours();
   renderMine();
@@ -10618,29 +10838,37 @@ function renderMyKPIs(){
   const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
 
   const myActive = DRAWINGS.filter(d=>d.sid===me.id && d.status!=='done');
-  // v101.46 — null-check parseDue (TBC returns null, and `null < today`
-  // is truthy because null coerces to 0).
   const overdue = myActive.filter(d=>{ const dd=parseDue(d.tgt); return dd && dd<today; }).length;
   const dueWeek = myActive.filter(d=>{const dd=parseDue(d.tgt);return dd && dd>=today && dd<=weekEnd;}).length;
   const checking = DRAWINGS.filter(d=>d.checkedBy===me.id && d.status==='chk').length;
   const myCA = (typeof CA_RFIS!=='undefined'?CA_RFIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved' && r.status!=='closed').length
              + (typeof CA_SNAGS!=='undefined'?CA_SNAGS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved').length
-             // v101.46 — match the codebase convention at line ~26444 which
-             // treats anything not 'approved' and not 'rejected' as open
-             // (pending / under-review / resubmit / etc). The previous filter
-             // only counted 'pending' and missed in-flight states.
              + (typeof CA_SUBMITTALS!=='undefined'?CA_SUBMITTALS:[]).filter(r=>r.assignedTo===me.id && r.status!=='approved' && r.status!=='rejected').length
              + (typeof CA_AIS!=='undefined'?CA_AIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='closed' && r.status!=='resolved').length;
   const mtgsToday = MEETINGS.filter(m=>m.status!=='cancelled' && m.date===todayStr && (m.attendees||[]).includes(me.id)).length;
   const hoursThisWeek = _mwHoursLoggedThisWeek(me.id);
 
+  // v101.48 — Compact 2×3 sidebar cards. Each tile is smaller than the
+  // previous horizontal strip (which spread 6 cards across the page width).
+  // Border accent on the left edge encodes urgency/category. Click any
+  // tile to drill into the relevant panel.
+  function tile(opts){
+    const click = opts.onclick ? ' onclick="'+opts.onclick+'" style="cursor:pointer;"' : ' style="cursor:default;"';
+    return '<div'+click+' title="'+opts.title+'" '
+      +'data-mw-kpi="'+(opts.id||'')+'" '
+      +'class="sc" style="padding:9px 11px;border-left:3px solid '+opts.color+';display:flex;flex-direction:column;justify-content:center;min-height:0">'
+      +'<div class="slbl" style="color:'+opts.color+';font-size:9.5px;letter-spacing:.04em;margin-bottom:3px">'+opts.label+'</div>'
+      +'<div class="sval" style="color:'+opts.color+';font-size:20px;line-height:1;margin-bottom:2px">'+opts.value+'</div>'
+      +'<div class="schg" style="font-size:9px;color:var(--txd)">'+opts.sub+'</div>'
+    +'</div>';
+  }
   el.innerHTML =
-      '<div class="sc" style="border-color:rgba(224,82,82,.3)"><div class="slbl" style="color:var(--red)">Overdue</div><div class="sval" style="color:var(--red)">'+overdue+'</div><div class="schg">my drawings past due</div></div>'
-    + '<div class="sc" style="border-color:rgba(240,201,122,.3)"><div class="slbl" style="color:var(--gold)">Due This Week</div><div class="sval" style="color:var(--gold)">'+dueWeek+'</div><div class="schg">next 7 days</div></div>'
-    + '<div class="sc" style="border-color:rgba(138,82,224,.3)"><div class="slbl" style="color:var(--pur)">To Review</div><div class="sval" style="color:var(--pur)">'+checking+'</div><div class="schg">awaiting my check</div></div>'
-    + '<div class="sc" style="border-color:rgba(82,133,224,.3)"><div class="slbl" style="color:var(--blu)">My CA Items</div><div class="sval" style="color:var(--blu)">'+myCA+'</div><div class="schg">RFIs · snags · subs · AIs</div></div>'
-    + '<div class="sc"><div class="slbl">Today\'s Meetings</div><div class="sval">'+mtgsToday+'</div><div class="schg">'+(mtgsToday?'starting today':'free today')+'</div></div>'
-    + '<div class="sc" style="border-color:rgba(82,201,122,.3)"><div class="slbl" style="color:var(--grn)">Hours Logged</div><div class="sval" style="color:var(--grn)">'+hoursThisWeek.toFixed(1)+'</div><div class="schg">this week (Mon–Sun)</div></div>';
+      tile({id:'overdue', color:'var(--red)',  label:'Overdue',   value:overdue,             sub:overdue===0?'all on track':'past due',         title:'Drawings assigned to you whose target date has passed', onclick:"go(\\'drawings\\',null);setTimeout(()=>setDrwView(\\'overdue\\',document.getElementById(\\'sv-overdue\\')),200)"})
+    + tile({id:'week',    color:'var(--gold)', label:'Due / week',value:dueWeek,             sub:'next 7 days',                                  title:'Drawings due within 7 days', onclick:""})
+    + tile({id:'review',  color:'var(--pur)',  label:'Reviewing', value:checking,            sub:checking===0?'queue clear':'in QA queue',       title:'Drawings awaiting your QA check', onclick:"setMyDrawingTab(\\'chk\\',document.querySelector(\\'[data-mw-dtab=&quot;chk&quot;]\\'))"})
+    + tile({id:'ca',      color:'var(--blu)',  label:'CA items',  value:myCA,                sub:myCA===0?'no open items':'RFIs · snags · subs', title:'Open CA items assigned to you', onclick:"go(\\'ca\\',null)"})
+    + tile({id:'mtgs',    color:'var(--txm)',  label:'Today',     value:mtgsToday,           sub:mtgsToday?'meeting'+(mtgsToday===1?'':'s'):'no meetings', title:'Meetings on your calendar today', onclick:"goMeetings()"})
+    + tile({id:'hours',   color:'var(--grn)',  label:'Hours / wk',value:hoursThisWeek.toFixed(1), sub:'of 40h target',                                    title:'Hours logged this week', onclick:"go(\\'timesheets\\',null)"});
 }
 
 /* ── Drawing list + tab switcher ── */
@@ -10665,6 +10893,17 @@ function renderMyDrawings(){
     list = DRAWINGS.filter(d=>(d.sid===me.id || d.checkedBy===me.id) && d.status!=='done');
   }
 
+  // v101.48 — when a day is selected in the 2-week schedule strip, further
+  // filter to drawings whose target date matches that day. Update the tag
+  // next to the section title to confirm the filter is active.
+  const tagEl = document.getElementById('mw-drw-filter-tag');
+  if(_mwSelectedDay){
+    list = list.filter(d => mwParseDueToISO(d.tgt) === _mwSelectedDay);
+    if(tagEl) tagEl.textContent = '· '+mwFmtSelectedDay();
+  } else {
+    if(tagEl) tagEl.textContent = '';
+  }
+
   list.sort((a,b)=>{
     const da = parseDue(a.tgt), db = parseDue(b.tgt);
     const ovA = (da && da<today)?0:1, ovB = (db && db<today)?0:1;
@@ -10673,7 +10912,10 @@ function renderMyDrawings(){
   });
 
   if(list.length===0){
-    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">No drawings in this view.</div>';
+    const msg = _mwSelectedDay
+      ? 'No drawings due on '+mwFmtSelectedDay()+'.'
+      : 'No drawings in this view.';
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">'+msg+'</div>';
     return;
   }
 
@@ -10721,15 +10963,29 @@ function renderMyCalendar(){
   const weekEnd = new Date(today.getTime()+7*24*60*60*1000);
   const todayStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
 
-  const mine = MEETINGS.filter(m=>{
-    if(m.status==='cancelled') return false;
-    if(!(m.attendees||[]).includes(me.id)) return false;
-    const md = m.date?new Date(m.date):null;
-    return md && md>=today && md<=weekEnd;
-  }).sort((a,b)=>{
-    if(a.date!==b.date) return a.date<b.date?-1:1;
-    return (a.time||'')<(b.time||'')?-1:1;
-  });
+  // v101.48 — When a day is selected in the 2-week strip, filter to meetings
+  // on just that day. Otherwise the default behavior is the next 7 days.
+  const tagEl = document.getElementById('mw-cal-filter-tag');
+  let mine;
+  if(_mwSelectedDay){
+    if(tagEl) tagEl.textContent = '· '+mwFmtSelectedDay();
+    mine = MEETINGS.filter(m=>{
+      if(m.status==='cancelled') return false;
+      if(!(m.attendees||[]).includes(me.id)) return false;
+      return m.date === _mwSelectedDay;
+    }).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  } else {
+    if(tagEl) tagEl.textContent = '';
+    mine = MEETINGS.filter(m=>{
+      if(m.status==='cancelled') return false;
+      if(!(m.attendees||[]).includes(me.id)) return false;
+      const md = m.date?new Date(m.date):null;
+      return md && md>=today && md<=weekEnd;
+    }).sort((a,b)=>{
+      if(a.date!==b.date) return a.date<b.date?-1:1;
+      return (a.time||'')<(b.time||'')?-1:1;
+    });
+  }
 
   // Clash detection
   const clashIds = new Set();
@@ -10750,7 +11006,10 @@ function renderMyCalendar(){
   });
 
   if(mine.length===0){
-    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">No meetings scheduled in the next 7 days.</div>';
+    const msg = _mwSelectedDay
+      ? 'No meetings on '+mwFmtSelectedDay()+'.'
+      : 'No meetings scheduled in the next 7 days.';
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">'+msg+'</div>';
     return;
   }
 
@@ -10786,8 +11045,7 @@ function _mwMtgRow(m, isClash){
 
 /* ── My 2-week schedule strip ── */
 function renderMy2Week(){
-  const el = document.getElementById('mw-2week');
-  if(!el) return;
+  const el = document.getElementById('mw-2week'); if(!el) return;
   const me = currentUser(); if(!me) return;
   const today = new Date(); today.setHours(0,0,0,0);
   const days = [];
@@ -10804,20 +11062,34 @@ function renderMy2Week(){
       if(!s || !e) return;
       if(date>=s && date<=e){
         const spanDays = Math.max(1, Math.round((e-s)/(24*60*60*1000))+1);
-        // v101.46 — SCHED_TASKS uses estHrs (the canonical field name across
-        // the codebase, 27 references), not hrs. The earlier `t.hrs||8` always
-        // hit the 8h fallback, making every assigned day appear "full" load.
         hrs += ((t.estHrs||t.hrs)||8)/spanDays;
       }
     });
     return hrs;
   }
 
-  let html = '<div style="display:flex;min-width:'+(14*68)+'px;padding:6px">';
+  // v101.48 — Sync the filter banner + clear button to the current
+  // _mwSelectedDay state. These live outside the strip itself so they
+  // can sit in the section header.
+  const bannerEl = document.getElementById('mw-2week-filter-banner');
+  const clearEl  = document.getElementById('mw-2week-clear');
+  if(_mwSelectedDay && bannerEl && clearEl){
+    bannerEl.style.display = '';
+    bannerEl.textContent = 'Filtering by ' + mwFmtSelectedDay();
+    clearEl.style.display = '';
+  } else if(bannerEl && clearEl){
+    bannerEl.style.display = 'none';
+    clearEl.style.display = 'none';
+  }
+
+  let html = '<div style="display:flex;min-width:'+(14*68)+'px;padding:8px">';
   days.forEach((d,i)=>{
     const hrs = hrsOnDay(d);
     const isWeekend = d.getDay()===0 || d.getDay()===6;
     const isToday = d.getTime()===today.getTime();
+    const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const isSelected = _mwSelectedDay === iso;
+
     let bg = 'rgba(255,255,255,.02)';
     let txtColor = 'var(--txd)';
     if(hrs>0 && !isWeekend){
@@ -10826,22 +11098,43 @@ function renderMy2Week(){
       else if(hrs<=8){ bg='rgba(82,133,224,.18)'; txtColor='var(--blu)'; }
       else { bg='rgba(224,82,82,.18)'; txtColor='var(--red)'; }
     }
-    const todayBox = isToday?'box-shadow:inset 0 0 0 1.5px var(--blu)':'';
-    html += '<div style="flex:1;min-width:60px;padding:8px 4px;text-align:center;border-radius:6px;margin-right:4px;background:'+bg+';'+todayBox+'">';
-    html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;margin-bottom:2px">'+d.toLocaleDateString('en-US',{weekday:'short'})+'</div>';
+
+    // v101.48 — Visual states stacked from least → most specific:
+    //   • base bg from workload
+    //   • light blue border for "today"
+    //   • thick gold border + gold tint for "selected"
+    let outline = '';
+    if(isSelected){
+      outline = 'box-shadow:inset 0 0 0 2px var(--gold);background:rgba(240,201,122,.15)';
+    } else if(isToday){
+      outline = 'box-shadow:inset 0 0 0 1.5px var(--blu)';
+    }
+
+    html += '<div onclick="mwSelectDay(\''+iso+'\')" title="Click to '+(isSelected?'clear filter':'filter to '+mwFmtSelectedDayFor(iso))+'" style="flex:1;min-width:60px;padding:9px 4px;text-align:center;border-radius:6px;margin-right:4px;cursor:pointer;background:'+bg+';'+outline+';transition:transform .1s" onmouseover="this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.transform=\'\'">';
+    html += '<div style="font-family:var(--fm);font-size:9px;color:'+(isSelected?'var(--gold)':'var(--txd)')+';text-transform:uppercase;margin-bottom:2px;font-weight:'+(isSelected?'600':'400')+'">'+d.toLocaleDateString('en-US',{weekday:'short'})+'</div>';
     html += '<div style="font-family:var(--fd);font-size:14px;color:var(--tx);font-weight:500">'+d.getDate()+'</div>';
     html += '<div style="font-family:var(--fm);font-size:10px;color:'+txtColor+';margin-top:3px;font-weight:600">'+(hrs>0?hrs.toFixed(1)+'h':isWeekend?'·':'free')+'</div>';
     html += '</div>';
   });
   html += '</div>';
   html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 12px;border-top:1px solid var(--ln);font-family:var(--fm);font-size:9px;color:var(--txd)">';
-  html += '<span>Load:</span>';
+  html += '<span>Click a day to filter the panels below by that date</span>';
+  html += '<span style="margin-left:auto;display:flex;align-items:center;gap:10px">';
   html += '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(82,201,122,.4);border-radius:2px"></span>Light (≤4h)</span>';
   html += '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(240,201,122,.5);border-radius:2px"></span>Med</span>';
   html += '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(82,133,224,.5);border-radius:2px"></span>Full</span>';
   html += '<span style="display:inline-flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(224,82,82,.5);border-radius:2px"></span>Over</span>';
+  html += '</span>';
   html += '</div>';
   el.innerHTML = html;
+}
+
+// v101.48 — small helper for the cell hover/title text.
+function mwFmtSelectedDayFor(iso){
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+  } catch(_){ return iso; }
 }
 
 /* ── My CA items grouped by type ── */
@@ -10850,16 +11143,34 @@ function renderMyCA(){
   if(!el) return;
   const me = currentUser(); if(!me) return;
 
-  const rfis  = (typeof CA_RFIS!=='undefined'?CA_RFIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved' && r.status!=='closed');
-  const snags = (typeof CA_SNAGS!=='undefined'?CA_SNAGS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved');
-  // v101.46 — see renderMyKPIs comment. Use !approved !rejected (codebase
-  // convention) instead of ==='pending' to include in-flight states.
-  const subs  = (typeof CA_SUBMITTALS!=='undefined'?CA_SUBMITTALS:[]).filter(r=>r.assignedTo===me.id && r.status!=='approved' && r.status!=='rejected');
-  const ais   = (typeof CA_AIS!=='undefined'?CA_AIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='closed' && r.status!=='resolved');
+  let rfis  = (typeof CA_RFIS!=='undefined'?CA_RFIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved' && r.status!=='closed');
+  let snags = (typeof CA_SNAGS!=='undefined'?CA_SNAGS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved');
+  let subs  = (typeof CA_SUBMITTALS!=='undefined'?CA_SUBMITTALS:[]).filter(r=>r.assignedTo===me.id && r.status!=='approved' && r.status!=='rejected');
+  let ais   = (typeof CA_AIS!=='undefined'?CA_AIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='closed' && r.status!=='resolved');
+
+  // v101.48 — apply 2-week day filter when set. A CA item matches the day
+  // if any of its date fields (responseDue, targetDate, dueDate) equals the
+  // selected ISO date. Reflect the active filter in the section tag.
+  const tagEl = document.getElementById('mw-ca-filter-tag');
+  if(_mwSelectedDay){
+    if(tagEl) tagEl.textContent = '· '+mwFmtSelectedDay();
+    const dayMatch = r => (r.responseDue===_mwSelectedDay
+                         || r.targetDate===_mwSelectedDay
+                         || r.dueDate===_mwSelectedDay);
+    rfis = rfis.filter(dayMatch);
+    snags = snags.filter(dayMatch);
+    subs = subs.filter(dayMatch);
+    ais = ais.filter(dayMatch);
+  } else {
+    if(tagEl) tagEl.textContent = '';
+  }
 
   const total = rfis.length + snags.length + subs.length + ais.length;
   if(total===0){
-    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">No open CA items assigned to you.</div>';
+    const msg = _mwSelectedDay
+      ? 'No CA items due on '+mwFmtSelectedDay()+'.'
+      : 'No open CA items assigned to you.';
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txd);font-size:11px">'+msg+'</div>';
     return;
   }
 
