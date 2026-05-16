@@ -4268,6 +4268,49 @@ const s62Cloud = (function(){
   }
 
   /**
+   * v101.61 — Low-level write that accepts a PRE-SERIALIZED JSON string body.
+   * Used by s62FlushDirtyToCloud to eliminate the race window between when a
+   * dirty record is identified and when its JSON body is built. The caller is
+   * responsible for any enrichment (_v, id, createdAt, updatedAt).
+   *
+   * Why this exists: with the regular write(), JSON.stringify happens AFTER an
+   * `await _getToken`. If the live record is mutated during that await,
+   * the body sent reflects the post-mutation state, while the dirty-tracker
+   * captured a pre-mutation hash. This caused order-dependent data loss:
+   * "set target date, then assign staff → staff assignment lost on relog."
+   *
+   * writeRaw lets the flush logic capture both hash and serialized body
+   * synchronously in the same tick, eliminating the window.
+   */
+  async function writeRaw(collection, id, serializedBody){
+    if (!id) return { ok: false, error: 'writeRaw requires an id' };
+    if (typeof serializedBody !== 'string') return { ok: false, error: 'writeRaw requires a pre-serialized string body' };
+    try {
+      await _getToken(false);
+      let url = _buildUrl(collection, id);
+      const opts = {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: serializedBody
+      };
+      let response = await fetch(url, opts);
+      if (response.status === 401){
+        await _getToken(true);
+        url = _buildUrl(collection, id);
+        response = await fetch(url, opts);
+      }
+      if (!response.ok){
+        const text = await response.text().catch(() => '');
+        return { ok: false, status: response.status, error: 'HTTP ' + response.status + ': ' + (text.slice(0, 200) || response.statusText) };
+      }
+      // Don't bother parsing the response; we only need ok status
+      return { ok: true, status: response.status };
+    } catch(err){
+      return { ok: false, error: err.message || String(err) };
+    }
+  }
+
+  /**
    * Patch a record (merge fields with existing). Auto-updates updatedAt.
    * createdAt is NOT touched (preserves original create time).
    */
@@ -4366,7 +4409,7 @@ const s62Cloud = (function(){
 
   // Public API
   return {
-    read, list, write, patch, delete: del,
+    read, list, write, writeRaw, patch, delete: del,
     lastChangedSince, selfTest,
     // Diagnostics
     _getToken,
@@ -4801,27 +4844,95 @@ async function s62FlushDirtyToCloud(){
   const errors = [];
   let written = 0;
 
+  // v101.61 — Per-record snapshot capture (fixes order-dependent data loss).
+  //
+  // The previous design called s62SnapshotAll() at the end of this function,
+  // which captured the CURRENT in-memory state of every record. The problem:
+  // if a mutation happened DURING this loop (between when a record's body was
+  // serialized inside s62Cloud.write and when the loop finished), that
+  // mutation got recorded in the snapshot as if it had been written — even
+  // though Firebase never received it. On the next save, dirty-detection
+  // saw "snapshot matches current" and skipped the write entirely. Firebase
+  // stayed stale, and on relog the merge-by-id overwrote the local change
+  // with cloud's stale value.
+  //
+  // Now: for each record we write, we capture both its hash and its
+  // serialized body SYNCHRONOUSLY in the same JS tick. After a successful
+  // write, we update _s62Snapshot for ONLY that record, using the captured
+  // hash. Concurrent mutations remain dirty for the next flush.
+  const writtenSnapshots = {};
+
   for (const d of list){
     try {
-      let r;
       if (d.op === 'delete'){
-        r = await s62Cloud.delete(d.collection, d.id);
+        const r = await s62Cloud.delete(d.collection, d.id);
+        if (r.ok){
+          if (!writtenSnapshots[d.collection]) writtenSnapshots[d.collection] = new Map();
+          writtenSnapshots[d.collection].set(d.id, '__deleted__');
+          written++;
+        } else {
+          errors.push({collection: d.collection, id: d.id, op: d.op, error: r.error});
+        }
       } else {
-        r = await s62Cloud.write(d.collection, d.id, d.record);
-      }
-      if (r.ok){
-        written++;
-      } else {
-        errors.push({collection: d.collection, id: d.id, op: d.op, error: r.error});
+        // v101.61 — Synchronously enrich, serialize, AND hash. All three
+        // happen in the same event-loop tick, so no mutation can slip in.
+        let sentHash, sentBody;
+        try {
+          const nowIso = new Date().toISOString();
+          // Match the enrichment that s62Cloud.write() applies, so the
+          // body we send is identical to what write() would have produced.
+          const enriched = {
+            _v: 1,
+            ...d.record,
+            id: d.id,
+            createdAt: (d.record && d.record.createdAt) || nowIso,
+            updatedAt: nowIso
+          };
+          // Update the in-memory record's updatedAt to match what was sent.
+          // This keeps the in-memory state and the snapshot hash in sync,
+          // so a redundant write isn't triggered on the next dirty-check.
+          if (d.record){
+            d.record.updatedAt = nowIso;
+            if (!d.record.createdAt) d.record.createdAt = nowIso;
+          }
+          sentHash = _s62StableHash(enriched);
+          sentBody = JSON.stringify(enriched);
+        } catch(serErr){
+          errors.push({collection: d.collection, id: d.id, op: d.op, error: 'serialization failed: '+(serErr.message||serErr)});
+          continue;
+        }
+        const r = await s62Cloud.writeRaw(d.collection, d.id, sentBody);
+        if (r.ok){
+          if (!writtenSnapshots[d.collection]) writtenSnapshots[d.collection] = new Map();
+          writtenSnapshots[d.collection].set(d.id, sentHash);
+          written++;
+        } else {
+          errors.push({collection: d.collection, id: d.id, op: d.op, error: r.error});
+        }
       }
     } catch(err){
       errors.push({collection: d.collection, id: d.id, op: d.op, error: err.message || String(err)});
     }
   }
 
-  // Only refresh snapshot if ALL writes succeeded — otherwise retry next time
-  if (errors.length === 0){
-    s62SnapshotAll();
+  // v101.61 — Apply per-record snapshot updates. NOTE: we update _s62Snapshot
+  // even when there are errors — for the records that DID succeed, their hash
+  // is now what's in cloud. Failed records remain dirty (their snapshot entry
+  // isn't touched), so they'll be retried on the next flush.
+  for (const coll in writtenSnapshots){
+    if (!_s62Snapshot[coll]) _s62Snapshot[coll] = new Map();
+    const updates = writtenSnapshots[coll];
+    for (const [id, hash] of updates){
+      if (hash === '__deleted__'){
+        _s62Snapshot[coll].delete(id);
+      } else {
+        _s62Snapshot[coll].set(id, hash);
+      }
+    }
+  }
+
+  if (written > 0){
+    console.log('[v101.61] s62FlushDirtyToCloud: wrote '+written+' record(s)'+(errors.length?' ('+errors.length+' error(s))':''));
   }
 
   return {ok: errors.length === 0, written, errors};
@@ -5941,10 +6052,13 @@ async function cloudSave(){
       updateSaveIndicator('cloud-saved');
       _lastCloudSaveAt = Date.now();  // v101.31 — track for chip display
       updateSyncStatusBar();
-      // v101.42a — Refresh dirty snapshot. Now this session's
-      // "changes since last save" baseline = NOW. After this, only
-      // newly modified records will appear in s62GetDirtyList().
-      if (typeof s62SnapshotAll === 'function') s62SnapshotAll();
+      // v101.61 — REMOVED wholesale s62SnapshotAll() here. It was the
+      // second half of the race: even if s62FlushDirtyToCloud got the
+      // snapshot right per-record, this line ran AFTER the await chain
+      // and re-captured CURRENT in-memory state, again grabbing any
+      // mutation that happened during the fetch as "already synced."
+      // Per-record snapshot updates in s62FlushDirtyToCloud are now the
+      // single source of truth for what's been written to cloud.
     } else {
       // v101.43 — REST save failed (single attempt). Schedule retry.
       console.warn('[v101.43] REST save failed — retry scheduled');
@@ -7587,7 +7701,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log("S62 v101.60 — dirty-tracker now uses content-hash comparison (not just updatedAt), so every mutation is detected regardless of whether the calling code stamped updatedAt. Fixes assignment-not-saving and similar bugs across drawings/meetings/CA/tasks. Also stamps updatedAt in reassignDrw as belt-and-suspenders. Includes all v101.54-v101.59 fixes.");
+console.log("S62 v101.61 — fixes order-dependent data loss (race condition in snapshot refresh). Per-record snapshot capture: hash + JSON body captured synchronously before fetch, snapshot updated per-record after successful write. Eliminates wholesale s62SnapshotAll() which was grabbing concurrent mutations as if already-synced. Fixes: target-date-then-assign-staff losing the assignment; approving a drawing reverting to chk on relog; any rapid two-action sequence where the second action raced the first cloudSave. Includes all v101.54-v101.60 fixes (content-hash dirty-tracking, save-before-await for meetings, etc.).");
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -18648,7 +18762,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.60',
+        appVersion: 'S62-v101.61',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -18808,7 +18922,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.60',
+    appVersion: 'S62-v101.61',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
