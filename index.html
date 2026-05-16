@@ -4907,16 +4907,12 @@ async function fbStartListener(){
     // object". The permission_denied detection is now merged into this
     // (the correct 3rd-arg cancel callback) which fires on listener
     // errors anyway.
-    // v101.42 — SDK listener errors are now COSMETIC. REST poller is the
-    // real data path. Silence the error (was: console.error). The SDK
-    // listener will be deleted entirely in v101.43.
-    if (typeof _s62PollerActive === 'undefined' || !_s62PollerActive){
-      // Only log if poller isn't running (real concern)
-      console.error('S62 Firebase listener error:', err);
-    }
+    // v101.43 — SDK listener errors fully silenced. REST poller is the
+    // real data path. SDK socket failures are now expected and harmless.
     _fbConnected = true;  // REST poller is our source of truth for connection
     updateSyncStatusBar();
-    // v101.28/32 — permission_denied recovery (now no-op since poller handles reads)
+    // (recovery block kept below for the unlikely case of a real auth issue,
+    // but it's now effectively dead code since poller doesn't depend on it)
     const m = String(err && err.message || '').toLowerCase();
     if (m.indexOf('permission_denied') >= 0 || m.indexOf('permission denied') >= 0){
       _pendingResave = true;
@@ -5484,6 +5480,16 @@ async function cloudSave(){
   const ok = await fbInit();
   if(!ok) return;
   if(_fbApplying) return; // don't save while applying remote update
+  // v101.43 — pre-auth boot saves (e.g. from generateOverdueNotifs) used to
+  // fail noisily with "Not signed in". Short-circuit: no auth = local-only
+  // save was already done by scheduleSave's doLocalSave step.
+  if (typeof _fbAuth === 'undefined' || !_fbAuth || !_fbAuth.currentUser){
+    return;
+  }
+  // v101.43 — secondary tab: don't write (primary handles all saves)
+  if (typeof s62IsReadOnlyTab === 'function' && s62IsReadOnlyTab()){
+    return;
+  }
 
   updateSaveIndicator('cloud-saving');  // v96 — explicit state during transaction
   _saveState = 'cloud-saving';
@@ -5527,7 +5533,8 @@ async function cloudSave(){
       // newly modified records will appear in s62GetDirtyList().
       if (typeof s62SnapshotAll === 'function') s62SnapshotAll();
     } else {
-      console.warn('S62: save failed after 3 attempts');
+      // v101.43 — REST save failed (single attempt). Schedule retry.
+      console.warn('[v101.43] REST save failed — retry scheduled');
       _saveState = 'error';   // v96
       _pendingResave = true;  // v101.13 — flag for reconnect/periodic retry
       updateSaveIndicator('cloud-error');
@@ -5541,16 +5548,10 @@ async function cloudSave(){
     // v101.42 — silenced. This catch is only reached for REST errors now.
     // SDK transaction is no longer called.
     console.warn('[v101.42] cloud save failed (will retry):', err && err.message || err);
-    // v101.28 — if this looks like stale-socket permission_denied, attempt
-    // an automatic reconnect (rate-limited). Most of the time the rules
-    // and auth are actually fine — the SDK just has a stale connection
-    // that picked up an older permission state.
-    const msg = String(err && err.message || err || '').toLowerCase();
-    if (msg.indexOf('permission_denied') >= 0 || msg.indexOf('permission denied') >= 0){
-      s62MaybeAutoReconnect('save permission_denied');
-      showNotif('Sync interrupted', 'Reconnecting to cloud — your changes are saved locally and will sync as soon as connection refreshes.');
-    } else {
-      showNotif('Sync failed', err.message+' — saved locally only');
+    // v101.43 — Simplified catch. REST has only one failure mode (network/auth).
+    // No reconnect logic needed (no socket to reconnect). Just notify + retry.
+    if (err && err.message){
+      showNotif('Sync failed', err.message + ' — saved locally only');
     }
     s62SchedulePendingRetry();  // v101.13
   }
@@ -5974,7 +5975,9 @@ async function fbAutoConnect(){
     // so the user doesn\'t need to type s62Reconnect() in the console.
     const msg = String(e && e.message || e || '').toLowerCase();
     if (msg.indexOf('permission_denied') >= 0 || msg.indexOf('permission denied') >= 0){
-      console.log('[v101.30] initial-load permission_denied detected — triggering recovery');
+      // v101.43 — initial-load permission_denied is now handled by REST poller
+      // which provides data regardless of SDK socket state. Log silenced.
+      // (was: console.log('[v101.30] initial-load permission_denied detected — triggering recovery');)
       if (typeof s62MaybeAutoReconnect === 'function'){
         s62MaybeAutoReconnect('initial-load');
       }
@@ -7187,7 +7190,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.42 — Phase 2 Ship 3: writes now via REST per-record · cloudSave uses s62CloudSaveViaRest · SDK no longer writes');
+console.log('S62 v101.43 — Phase 2 Ship 4: dead SDK code removed · cleaner console · REST is the only data path');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -16457,7 +16460,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.42',
+        appVersion: 'S62-v101.43',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -16617,7 +16620,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.42',
+    appVersion: 'S62-v101.43',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -18521,21 +18524,10 @@ if(isCloudConfigured()){
       s62StartPoller().catch(e => console.warn('[v101.41] poller start failed:', e));
     }
   }, 3500);
-  // v101.32 — second-chance reconnect at T+8s. If sync is still failing at
-  // this point, the first reconnect didn\'t clear the stale socket. Force
-  // another reconnect, bypassing the cooldown (this is a scheduled retry,
-  // not auto-detected). Only fires if state is still bad.
-  setTimeout(() => {
-    try {
-      const stillFailing = (_saveState === 'error' || _saveState === 'cloud-error' || _pendingResave || !_fbConnected);
-      if (stillFailing && typeof s62ForceReconnect === 'function'){
-        console.log('[v101.32] second-chance reconnect — first attempt did not clear sync state');
-        s62ForceReconnect('second-chance-startup');
-      } else {
-        console.log('[v101.32] second-chance reconnect — skipped (sync already healthy)');
-      }
-    } catch(e){ console.warn('[v101.32] second-chance error:', e); }
-  }, 8000);
+  // v101.43 — second-chance reconnect REMOVED. The SDK socket reconnect
+  // was relevant when reads came through the SDK. Now REST polling is the
+  // data path; SDK socket state is irrelevant. Whole timer removed.
+  // (was: 8s scheduled s62ForceReconnect with stale-state detection)
 }
 
 // v96 Option B — beforeunload guard against closing while a save is pending
