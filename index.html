@@ -3759,6 +3759,39 @@ function waitForFirebasePull(){
             }
             console.log('[v101.54] waitForFirebasePull merged cloud snapshot (v'+(v.version||'?')+') with local state');
 
+            // v101.64 — Re-render the currently active panel after the
+            // boot-time Firebase merge brings in cloud data. Without this,
+            // whatever was rendered during initial boot (from localStorage
+            // only) stays on screen, even though the underlying arrays
+            // (DRAWINGS, MEETINGS, etc.) have just been refreshed with
+            // cloud data. Specifically: My Work's "Reviewing" count would
+            // render at boot showing 0 (no chk drawings in old local data),
+            // then the merge brings in 10 chk drawings from cloud, but the
+            // tile keeps showing 0 until the user navigates away and back.
+            try {
+              const active = document.querySelector('.panel.active');
+              const pid = active ? active.id.replace('panel-','') : '';
+              if(pid){
+                if(pid==='mywork'      && typeof renderMyWork==='function')      renderMyWork();
+                else if(pid==='drawings'   && typeof renderDrawings==='function')   { renderProjList(); renderDrawings(); }
+                else if(pid==='timesheets' && typeof renderTimesheets==='function') renderTimesheets();
+                else if(pid==='schedule'   && typeof renderSchedule==='function')   renderSchedule();
+                else if(pid==='staffsched' && typeof renderStaffSched==='function') renderStaffSched();
+                else if(pid==='workload'   && typeof renderWorkload==='function')   renderWorkload();
+                else if(pid==='meetings'   && typeof renderMeetings==='function')   renderMeetings();
+                else if(pid==='financials' && typeof renderFinancials==='function') renderFinancials();
+                else if(pid==='transmittals'&&typeof renderTransmittals==='function')renderTransmittals();
+                else if(pid==='visuals'    && typeof renderVisuals==='function')    renderVisuals();
+                else if(pid==='ca'         && typeof renderCA==='function')         renderCA();
+                else if(pid==='pipeline'   && typeof renderPipeline==='function')   renderPipeline();
+                else if(pid==='staff'      && typeof renderStaff==='function')      renderStaff();
+                else if(pid==='dashboard'  && typeof renderDashboard==='function')  renderDashboard();
+                console.log('[v101.64] post-merge re-render of active panel: '+pid);
+              }
+              if(typeof updateNavBadges === 'function') updateNavBadges();
+            } catch(reRenderErr){
+              console.warn('[v101.64] post-merge re-render failed:', reRenderErr);
+            }
             // v101.57 — ALWAYS schedule a protective resave after login.
             //
             // Previously this only fired when local-savedAt > cloud-savedAt+1s.
@@ -7656,7 +7689,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log("S62 v101.63 — Reviewing count on My Work was logically broken: all 5 surfaces (chips bar, KPI tile, queue review tab, drawings chk tab, _mwBuildQueueItems) filtered by d.checkedBy===me.id, but checkedBy is only set when a reviewer clicks Approve or Reject. submitForCheck does NOT pre-assign a reviewer. So nothing ever appeared in Reviewing until review was already complete. Fix: option A per user — anyone with canReview:true sees all chk-status drawings. Centralized in new _mwIsForMyReview helper so future changes have one place to edit. Includes v101.62 panel-aware refresh + v101.61 schema additions + all earlier fixes.");
+console.log("S62 v101.64 — fixes stale post-merge render. After waitForFirebasePull merges cloud data at boot, the currently-active panel was never re-rendered, so whatever was on screen from initial localStorage render stayed stale. Fix: after merge, look at .panel.active and call the matching render function. Specifically resolves the reported symptom: My Work's Reviewing tile showed 0 while DRAWINGS array contained 10 chk-status records. Includes v101.63 _mwIsForMyReview helper + v101.62 save-time refresh hook + v101.61 schema additions.");
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -18883,7 +18916,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.63',
+        appVersion: 'S62-v101.64',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -19043,7 +19076,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.63',
+    appVersion: 'S62-v101.64',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
