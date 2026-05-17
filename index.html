@@ -7656,7 +7656,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log("S62 v101.62 — Step 1 + auto-refresh My Work on every save. About 40 mutation functions (submitForCheck/approveDrawing/reassignDrw/submitMtg/saveCARFI/setVisStatus/etc.) call renderDrawings or renderMeetings or renderCA but not renderMyWork. Fix: panel-aware refresh hook in scheduleSave.doLocalSave — if user is on My Work, re-render after every local save. Also Step 1 of 3 of the My Work redesign: schema fields (leadArchitect/projectArchitect/projectManager/feeStructure on projects), Add/Edit Project modal team-assignment section, isMyProject and myProjects helpers, Interior Designer promoted to canReview and canSchedule firm-wide. Step 2 (leadership view) + Step 3 (execution view) to follow.");
+console.log("S62 v101.63 — Reviewing count on My Work was logically broken: all 5 surfaces (chips bar, KPI tile, queue review tab, drawings chk tab, _mwBuildQueueItems) filtered by d.checkedBy===me.id, but checkedBy is only set when a reviewer clicks Approve or Reject. submitForCheck does NOT pre-assign a reviewer. So nothing ever appeared in Reviewing until review was already complete. Fix: option A per user — anyone with canReview:true sees all chk-status drawings. Centralized in new _mwIsForMyReview helper so future changes have one place to edit. Includes v101.62 panel-aware refresh + v101.61 schema additions + all earlier fixes.");
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -11058,7 +11058,9 @@ function renderMyTodayHero(){
   );
 
   // Drawings I'm checking (QA reviewer)
-  const myCheckingNow = DRAWINGS.filter(d => d.status==='chk' && d.checkedBy===me.id);
+  // v101.63 — was filtering by `d.checkedBy === me.id` which is only set AFTER
+  // approval/rejection; replaced with _mwIsForMyReview (option A).
+  const myCheckingNow = DRAWINGS.filter(d => _mwIsForMyReview(d, me));
 
   // CA items due today (RFIs/snags/AIs assigned to me with date matching today)
   const caToday = []
@@ -11188,7 +11190,9 @@ function renderMyQuickActions(){
   const now = new Date();
   const greet = now.getHours()<12?'Good morning':now.getHours()<17?'Good afternoon':'Good evening';
 
-  const myChecking = DRAWINGS.filter(d=>d.checkedBy===me.id && d.status==='chk').length;
+  // v101.63 — was filtering by `d.checkedBy === me.id` (only set after review).
+  // Now uses _mwIsForMyReview: anyone with canReview sees all chk drawings.
+  const myChecking = DRAWINGS.filter(d => _mwIsForMyReview(d, me)).length;
   // v101.46 — parseDue('TBC') returns null, and `null < today` evaluates to
   // true because null coerces to 0. Without the explicit `dd &&` null-check,
   // every drawing with a 'TBC' or '—' target date was inflating the overdue
@@ -11241,7 +11245,8 @@ function renderMyKPIs(){
   const myActive = DRAWINGS.filter(d=>d.sid===me.id && d.status!=='done');
   const overdue = myActive.filter(d=>{ const dd=parseDue(d.tgt); return dd && dd<today; }).length;
   const dueWeek = myActive.filter(d=>{const dd=parseDue(d.tgt);return dd && dd>=today && dd<=weekEnd;}).length;
-  const checking = DRAWINGS.filter(d=>d.checkedBy===me.id && d.status==='chk').length;
+  // v101.63 — was filtering by `d.checkedBy === me.id` (only set after review).
+  const checking = DRAWINGS.filter(d => _mwIsForMyReview(d, me)).length;
   const myCA = (typeof CA_RFIS!=='undefined'?CA_RFIS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved' && r.status!=='closed').length
              + (typeof CA_SNAGS!=='undefined'?CA_SNAGS:[]).filter(r=>r.assignedTo===me.id && r.status!=='resolved').length
              + (typeof CA_SUBMITTALS!=='undefined'?CA_SUBMITTALS:[]).filter(r=>r.assignedTo===me.id && r.status!=='approved' && r.status!=='rejected').length
@@ -11364,8 +11369,12 @@ function _mwBuildQueueItems(meId){
   });
 
   // ── Drawings I'm reviewing (QA queue) ───────────────────────
+  // v101.63 — was `d.checkedBy !== meId || d.status !== 'chk'` (only matched
+  // after approval). Now uses option-A rule: anyone with canReview sees all
+  // chk drawings.
+  const _meStaff = (typeof STAFF !== 'undefined') ? STAFF.find(s => s.id === meId) : null;
   DRAWINGS.forEach(d => {
-    if(!d || d.checkedBy !== meId || d.status !== 'chk') return;
+    if(!_mwIsForMyReview(d, _meStaff)) return;
     const due = parseDue(d.tgt);
     const proj = PROJS.find(p => p.id === d.proj);
     items.push({
@@ -11611,9 +11620,12 @@ function renderMyDrawings(){
   if(_mwDrawingTab==='ip'){
     list = DRAWINGS.filter(d=>d.sid===me.id && d.status!=='done');
   } else if(_mwDrawingTab==='chk'){
-    list = DRAWINGS.filter(d=>d.checkedBy===me.id && d.status==='chk');
+    // v101.63 — was `d.checkedBy === me.id && d.status === 'chk'` which never
+    // matched until after review; now uses option-A reviewer rule.
+    list = DRAWINGS.filter(d => _mwIsForMyReview(d, me));
   } else {
-    list = DRAWINGS.filter(d=>(d.sid===me.id || d.checkedBy===me.id) && d.status!=='done');
+    // v101.63 — same fix in the "all" branch (was checkedBy)
+    list = DRAWINGS.filter(d => (d.sid===me.id || _mwIsForMyReview(d, me)) && d.status!=='done');
   }
 
   // v101.48 — when a day is selected in the 2-week schedule strip, further
@@ -11963,6 +11975,35 @@ function _mwHoursLoggedThisWeek(staffId){
   });
   return total;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   v101.63 — Helper for "Reviewing" filter on My Work.
+
+   PROBLEM (reported): the four "Reviewing" surfaces on My Work
+   (chips bar, KPI tile, queue review tab, _mwBuildQueueItems
+   review section, and the dedicated drawings panel chk-tab) all
+   filter as `d.checkedBy === me.id && d.status === 'chk'`. But
+   `d.checkedBy` is ONLY set when a reviewer clicks Approve or
+   Reject — AFTER review is complete. `submitForCheck` doesn't
+   pre-assign a reviewer; it just sets `status='chk'` and emails
+   all approvers. So nothing ever shows in My Work's "Reviewing"
+   until the moment review is finished, by which point it's not
+   really "reviewing" anymore.
+
+   FIX (option A per user): anyone with `canReview: true` sees ALL
+   drawings currently in `chk` status. Matches the existing
+   "notify all approvers" behavior at submit-time. Centralized
+   here so all five callsites use the same rule.
+
+   FUTURE: if you later want per-reviewer assignment (option B/C),
+   change only this helper. */
+function _mwIsForMyReview(d, me){
+  if(!d || d.status !== 'chk') return false;
+  // Anyone with canReview sees all chk-status drawings
+  return !!(me && me.role && rd(me.role).canReview);
+}
+if(typeof window !== 'undefined') window._mwIsForMyReview = _mwIsForMyReview;
+
 
 function renderMyHours(){
   const el = document.getElementById('mw-hours');
@@ -18842,7 +18883,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.62',
+        appVersion: 'S62-v101.63',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -19002,7 +19043,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.62',
+    appVersion: 'S62-v101.63',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
