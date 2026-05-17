@@ -4268,49 +4268,6 @@ const s62Cloud = (function(){
   }
 
   /**
-   * v101.61 — Low-level write that accepts a PRE-SERIALIZED JSON string body.
-   * Used by s62FlushDirtyToCloud to eliminate the race window between when a
-   * dirty record is identified and when its JSON body is built. The caller is
-   * responsible for any enrichment (_v, id, createdAt, updatedAt).
-   *
-   * Why this exists: with the regular write(), JSON.stringify happens AFTER an
-   * `await _getToken`. If the live record is mutated during that await,
-   * the body sent reflects the post-mutation state, while the dirty-tracker
-   * captured a pre-mutation hash. This caused order-dependent data loss:
-   * "set target date, then assign staff → staff assignment lost on relog."
-   *
-   * writeRaw lets the flush logic capture both hash and serialized body
-   * synchronously in the same tick, eliminating the window.
-   */
-  async function writeRaw(collection, id, serializedBody){
-    if (!id) return { ok: false, error: 'writeRaw requires an id' };
-    if (typeof serializedBody !== 'string') return { ok: false, error: 'writeRaw requires a pre-serialized string body' };
-    try {
-      await _getToken(false);
-      let url = _buildUrl(collection, id);
-      const opts = {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: serializedBody
-      };
-      let response = await fetch(url, opts);
-      if (response.status === 401){
-        await _getToken(true);
-        url = _buildUrl(collection, id);
-        response = await fetch(url, opts);
-      }
-      if (!response.ok){
-        const text = await response.text().catch(() => '');
-        return { ok: false, status: response.status, error: 'HTTP ' + response.status + ': ' + (text.slice(0, 200) || response.statusText) };
-      }
-      // Don't bother parsing the response; we only need ok status
-      return { ok: true, status: response.status };
-    } catch(err){
-      return { ok: false, error: err.message || String(err) };
-    }
-  }
-
-  /**
    * Patch a record (merge fields with existing). Auto-updates updatedAt.
    * createdAt is NOT touched (preserves original create time).
    */
@@ -4409,7 +4366,7 @@ const s62Cloud = (function(){
 
   // Public API
   return {
-    read, list, write, writeRaw, patch, delete: del,
+    read, list, write, patch, delete: del,
     lastChangedSince, selfTest,
     // Diagnostics
     _getToken,
@@ -4844,95 +4801,27 @@ async function s62FlushDirtyToCloud(){
   const errors = [];
   let written = 0;
 
-  // v101.61 — Per-record snapshot capture (fixes order-dependent data loss).
-  //
-  // The previous design called s62SnapshotAll() at the end of this function,
-  // which captured the CURRENT in-memory state of every record. The problem:
-  // if a mutation happened DURING this loop (between when a record's body was
-  // serialized inside s62Cloud.write and when the loop finished), that
-  // mutation got recorded in the snapshot as if it had been written — even
-  // though Firebase never received it. On the next save, dirty-detection
-  // saw "snapshot matches current" and skipped the write entirely. Firebase
-  // stayed stale, and on relog the merge-by-id overwrote the local change
-  // with cloud's stale value.
-  //
-  // Now: for each record we write, we capture both its hash and its
-  // serialized body SYNCHRONOUSLY in the same JS tick. After a successful
-  // write, we update _s62Snapshot for ONLY that record, using the captured
-  // hash. Concurrent mutations remain dirty for the next flush.
-  const writtenSnapshots = {};
-
   for (const d of list){
     try {
+      let r;
       if (d.op === 'delete'){
-        const r = await s62Cloud.delete(d.collection, d.id);
-        if (r.ok){
-          if (!writtenSnapshots[d.collection]) writtenSnapshots[d.collection] = new Map();
-          writtenSnapshots[d.collection].set(d.id, '__deleted__');
-          written++;
-        } else {
-          errors.push({collection: d.collection, id: d.id, op: d.op, error: r.error});
-        }
+        r = await s62Cloud.delete(d.collection, d.id);
       } else {
-        // v101.61 — Synchronously enrich, serialize, AND hash. All three
-        // happen in the same event-loop tick, so no mutation can slip in.
-        let sentHash, sentBody;
-        try {
-          const nowIso = new Date().toISOString();
-          // Match the enrichment that s62Cloud.write() applies, so the
-          // body we send is identical to what write() would have produced.
-          const enriched = {
-            _v: 1,
-            ...d.record,
-            id: d.id,
-            createdAt: (d.record && d.record.createdAt) || nowIso,
-            updatedAt: nowIso
-          };
-          // Update the in-memory record's updatedAt to match what was sent.
-          // This keeps the in-memory state and the snapshot hash in sync,
-          // so a redundant write isn't triggered on the next dirty-check.
-          if (d.record){
-            d.record.updatedAt = nowIso;
-            if (!d.record.createdAt) d.record.createdAt = nowIso;
-          }
-          sentHash = _s62StableHash(enriched);
-          sentBody = JSON.stringify(enriched);
-        } catch(serErr){
-          errors.push({collection: d.collection, id: d.id, op: d.op, error: 'serialization failed: '+(serErr.message||serErr)});
-          continue;
-        }
-        const r = await s62Cloud.writeRaw(d.collection, d.id, sentBody);
-        if (r.ok){
-          if (!writtenSnapshots[d.collection]) writtenSnapshots[d.collection] = new Map();
-          writtenSnapshots[d.collection].set(d.id, sentHash);
-          written++;
-        } else {
-          errors.push({collection: d.collection, id: d.id, op: d.op, error: r.error});
-        }
+        r = await s62Cloud.write(d.collection, d.id, d.record);
+      }
+      if (r.ok){
+        written++;
+      } else {
+        errors.push({collection: d.collection, id: d.id, op: d.op, error: r.error});
       }
     } catch(err){
       errors.push({collection: d.collection, id: d.id, op: d.op, error: err.message || String(err)});
     }
   }
 
-  // v101.61 — Apply per-record snapshot updates. NOTE: we update _s62Snapshot
-  // even when there are errors — for the records that DID succeed, their hash
-  // is now what's in cloud. Failed records remain dirty (their snapshot entry
-  // isn't touched), so they'll be retried on the next flush.
-  for (const coll in writtenSnapshots){
-    if (!_s62Snapshot[coll]) _s62Snapshot[coll] = new Map();
-    const updates = writtenSnapshots[coll];
-    for (const [id, hash] of updates){
-      if (hash === '__deleted__'){
-        _s62Snapshot[coll].delete(id);
-      } else {
-        _s62Snapshot[coll].set(id, hash);
-      }
-    }
-  }
-
-  if (written > 0){
-    console.log('[v101.61] s62FlushDirtyToCloud: wrote '+written+' record(s)'+(errors.length?' ('+errors.length+' error(s))':''));
+  // Only refresh snapshot if ALL writes succeeded — otherwise retry next time
+  if (errors.length === 0){
+    s62SnapshotAll();
   }
 
   return {ok: errors.length === 0, written, errors};
@@ -6052,13 +5941,10 @@ async function cloudSave(){
       updateSaveIndicator('cloud-saved');
       _lastCloudSaveAt = Date.now();  // v101.31 — track for chip display
       updateSyncStatusBar();
-      // v101.61 — REMOVED wholesale s62SnapshotAll() here. It was the
-      // second half of the race: even if s62FlushDirtyToCloud got the
-      // snapshot right per-record, this line ran AFTER the await chain
-      // and re-captured CURRENT in-memory state, again grabbing any
-      // mutation that happened during the fetch as "already synced."
-      // Per-record snapshot updates in s62FlushDirtyToCloud are now the
-      // single source of truth for what's been written to cloud.
+      // v101.42a — Refresh dirty snapshot. Now this session's
+      // "changes since last save" baseline = NOW. After this, only
+      // newly modified records will appear in s62GetDirtyList().
+      if (typeof s62SnapshotAll === 'function') s62SnapshotAll();
     } else {
       // v101.43 — REST save failed (single attempt). Schedule retry.
       console.warn('[v101.43] REST save failed — retry scheduled');
@@ -6524,7 +6410,7 @@ const ROLES = [
   { role:'Site Engineer',         rank:4, color:'#e08a52', bg:'rgba(224,138,82,.15)',  canReview:false, canForecast:false, canSchedule:false },
   { role:'Structural Engineer',   rank:4, color:'#e05252', bg:'rgba(224,82,82,.15)',   canReview:false, canForecast:false, canSchedule:false },
   { role:'BIM Coordinator',       rank:4, color:'#52c9c9', bg:'rgba(82,201,201,.12)',  canReview:false, canForecast:false, canSchedule:false },
-  { role:'Interior Designer',     rank:4, color:'#e052a0', bg:'rgba(224,82,160,.12)',  canReview:false, canForecast:false, canSchedule:false },
+  { role:'Interior Designer',     rank:4, color:'#e052a0', bg:'rgba(224,82,160,.12)',  canReview:true,  canForecast:false, canSchedule:true  },  // v101.61 — promoted to project-leadership tier per redesign spec
   { role:'Consultant',            rank:7, color:'#8a52e0', bg:'rgba(138,82,224,.12)',  canReview:false, canForecast:false, canSchedule:false },
 ];
 function rd(role){return ROLES.find(r=>r.role===role)||{role,rank:5,color:'var(--txm)',bg:'rgba(122,120,136,.15)',canReview:false,canForecast:false,canSchedule:false}}
@@ -6557,6 +6443,75 @@ function canSeeAllSchedules(){
 }
 
 function rs(role){const r=rd(role);return `color:${r.color};background:${r.bg}`}
+
+/* ═══════════════════════════════════════════════════════════
+   v101.61 — MY WORK TIER CLASSIFICATION + PROJECT OWNERSHIP
+
+   Three tiers control which My Work layout each staff member sees:
+
+   • 'firm'      — Principal Architect, Associate Principal.
+                   Sees firm-wide portfolio, decisions pending, risks,
+                   delivery targets, team capacity, plus their own work.
+
+   • 'project'   — Lead Architect, Project Architect, Interior Designer.
+                   Same layout as 'firm' but every "firm-wide" card is
+                   SCOPED to projects where they are leadArchitect,
+                   projectArchitect, or projectManager.
+
+   • 'execution' — Junior Architect, Architectural Assistant, Intern,
+                   Site/Structural/BIM Engineer, Consultant.
+                   Sees execution-focused layout: returned-for-revision
+                   first, today's focus, this week, next 2 weeks, task list,
+                   hours.
+
+   A Junior Architect added to a project's team (via leadArchitect/
+   projectArchitect/projectManager fields, OR via individual drawing
+   assignment) still sees the EXECUTION layout — the assignment just
+   filters their task list to those projects.
+═══════════════════════════════════════════════════════════ */
+
+const MYWORK_TIER_FIRM      = ['Principal Architect','Associate Principal'];
+const MYWORK_TIER_PROJECT   = ['Lead Architect','Project Architect','Interior Designer'];
+// Anyone not in the above two lists falls through to 'execution' tier
+
+function myWorkTier(role){
+  if(MYWORK_TIER_FIRM.includes(role))    return 'firm';
+  if(MYWORK_TIER_PROJECT.includes(role)) return 'project';
+  return 'execution';
+}
+
+/** isMyProject — does this staff member own (lead / architect / manage)
+ *  the given project? Used to scope the "project-leadership" view.
+ *  Defensive: handles missing fields gracefully. */
+function isMyProject(proj, staffId){
+  if(!proj || !staffId) return false;
+  return proj.leadArchitect    === staffId
+      || proj.projectArchitect === staffId
+      || proj.projectManager   === staffId;
+}
+
+/** myProjects — the list of projects this staff member owns.
+ *  For 'firm' tier callers we still return ALL active projects (firm-wide).
+ *  For 'project' tier we filter via isMyProject().
+ *  For 'execution' tier we return projects where they're on STAFF.projects
+ *  (already maintained today via drawing assignment). */
+function myProjects(staffId){
+  if(!staffId || !Array.isArray(PROJS)) return [];
+  const u = (typeof STAFF !== 'undefined') ? STAFF.find(s => s.id === staffId) : null;
+  if(!u) return [];
+  const tier = myWorkTier(u.role);
+  if(tier === 'firm') return PROJS.filter(p => (p.status||'active') !== 'archived');
+  if(tier === 'project') return PROJS.filter(p => isMyProject(p, staffId) && (p.status||'active') !== 'archived');
+  // execution: use STAFF[].projects (already maintained via drawing assignment)
+  const idList = Array.isArray(u.projects) ? u.projects : [];
+  return PROJS.filter(p => idList.includes(p.id) && (p.status||'active') !== 'archived');
+}
+
+if(typeof window !== 'undefined'){
+  window.myWorkTier  = myWorkTier;
+  window.isMyProject = isMyProject;
+  window.myProjects  = myProjects;
+}
 
 /* ═══════════════════════════════════════════════════════════
    FEEDBACK MARKERS — RIBA/AIA/ARB Framework
@@ -7701,7 +7656,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log("S62 v101.61 — fixes order-dependent data loss (race condition in snapshot refresh). Per-record snapshot capture: hash + JSON body captured synchronously before fetch, snapshot updated per-record after successful write. Eliminates wholesale s62SnapshotAll() which was grabbing concurrent mutations as if already-synced. Fixes: target-date-then-assign-staff losing the assignment; approving a drawing reverting to chk on relog; any rapid two-action sequence where the second action raced the first cloudSave. Includes all v101.54-v101.60 fixes (content-hash dirty-tracking, save-before-await for meetings, etc.).");
+console.log("S62 v101.61 — My Work redesign Step 1 of 3: schema fields (leadArchitect/projectArchitect/projectManager/feeStructure on projects), Add/Edit Project modal team-assignment section, isMyProject and myProjects helpers, Interior Designer promoted to canReview and canSchedule firm-wide. Pre-seeded team assignments for existing TH/RA/CP projects from drawing assignment patterns. Step 2 (leadership view) + Step 3 (execution view) to follow. Includes all v101.54-v101.60 fixes (content-hash dirty-tracking, save-before-await meetings, etc.).");
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -13565,9 +13520,16 @@ const DISC=[
 
 /* ── LIVE PROJECT DATA ── */
 let PROJS=[
-  {id:'TH',name:'Thornfield Residence',client:'Anderson Family',   phase:'CD',fee:'₹1.2Cr',color:'#c9a96e',type:'RES-NEW', start:'2024-09-01',end:'2025-06-30',status:'active',contract:'Lump Sum',stages:{SD:{start:'2024-09-01',end:'2024-10-31'},DD:{start:'2024-11-01',end:'2024-12-31'},CD:{start:'2025-01-01',end:'2025-03-31'},CA:{start:'2025-04-01',end:'2025-06-30'}}},
-  {id:'RA',name:'River Arts Center',   client:'City of Millbrook', phase:'DD',fee:'₹4.8Cr',color:'#52c97a',type:'CIV-LIB', start:'2024-10-01',end:'2026-03-31',status:'active',contract:'Cost Plus',stages:{SD:{start:'2024-10-01',end:'2025-01-31'},DD:{start:'2025-02-01',end:'2025-07-31'},CD:{start:'2025-08-01',end:'2025-12-31'},CA:{start:'2026-01-01',end:'2026-03-31'}}},
-  {id:'CP',name:'Coastal Pavilion',    client:'Harland Trust',     phase:'CA',fee:'₹3.6Cr',color:'#5285e0',type:'SPO-CEN', start:'2024-01-01',end:'2025-05-31',status:'active',contract:'Lump Sum',stages:{SD:{start:'2024-01-01',end:'2024-03-31'},DD:{start:'2024-04-01',end:'2024-06-30'},CD:{start:'2024-07-01',end:'2024-09-30'},CA:{start:'2024-10-01',end:'2025-05-31'}}},
+  // v101.61 — Added project-team fields: leadArchitect, projectArchitect, projectManager.
+  //   Determine "who owns this project" for the My Work redesign. Pre-seeded
+  //   from existing drawing assignments and staff seniority. Editable via
+  //   the Add/Edit Project modal.
+  // v101.61 — Added feeStructure schema skeleton. Populated to zero for now;
+  //   when stage-wise fees are entered later, the FEE column in Portfolio
+  //   Health will compute automatically.
+  {id:'TH',name:'Thornfield Residence',client:'Anderson Family',   phase:'CD',fee:'₹1.2Cr',color:'#c9a96e',type:'RES-NEW', start:'2024-09-01',end:'2025-06-30',status:'active',contract:'Lump Sum',stages:{SD:{start:'2024-09-01',end:'2024-10-31'},DD:{start:'2024-11-01',end:'2024-12-31'},CD:{start:'2025-01-01',end:'2025-03-31'},CA:{start:'2025-04-01',end:'2025-06-30'}},  leadArchitect:'JR',projectArchitect:'PS',projectManager:'MS',  feeStructure:{SD:0,DD:0,CD:0,CA:0,Handover:0}},
+  {id:'RA',name:'River Arts Center',   client:'City of Millbrook', phase:'DD',fee:'₹4.8Cr',color:'#52c97a',type:'CIV-LIB', start:'2024-10-01',end:'2026-03-31',status:'active',contract:'Cost Plus',stages:{SD:{start:'2024-10-01',end:'2025-01-31'},DD:{start:'2025-02-01',end:'2025-07-31'},CD:{start:'2025-08-01',end:'2025-12-31'},CA:{start:'2026-01-01',end:'2026-03-31'}},  leadArchitect:'MS',projectArchitect:'PS',projectManager:'JR',  feeStructure:{SD:0,DD:0,CD:0,CA:0,Handover:0}},
+  {id:'CP',name:'Coastal Pavilion',    client:'Harland Trust',     phase:'CA',fee:'₹3.6Cr',color:'#5285e0',type:'SPO-CEN', start:'2024-01-01',end:'2025-05-31',status:'active',contract:'Lump Sum',stages:{SD:{start:'2024-01-01',end:'2024-03-31'},DD:{start:'2024-04-01',end:'2024-06-30'},CD:{start:'2024-07-01',end:'2024-09-30'},CA:{start:'2024-10-01',end:'2025-05-31'}},  leadArchitect:'JR',projectArchitect:'AN',projectManager:'MS',  feeStructure:{SD:0,DD:0,CD:0,CA:0,Handover:0}},
 ];
 
 let DRAWINGS=[
@@ -14823,6 +14785,81 @@ function addSingleDrawing(projId){
 /* ── ADD PROJECT MODAL ── */
 const PROJ_COLORS=['#c9a96e','#52c97a','#5285e0','#e052a0','#e08a52','#52c9c9','#8a52e0','#e05252','#f0c97a'];
 
+/* ─────────────────────────────────────────────────────────────
+   v101.61 — Project Team Assignment helpers (Add/Edit Project modal)
+   ───────────────────────────────────────────────────────────── */
+
+function populateApTeamDropdowns(leadSel, archSel, mgrSel){
+  // Build option lists by rank constraint:
+  //   Lead Architect    → canReview:true  (Principal, AP, Lead, Project Arch, Interior Designer)
+  //   Project Architect → canSchedule:true (same set today)
+  //   Project Manager   → any active staff (could be anyone running schedule/comms)
+  const buildOpts = (filter, selected) => {
+    const list = (typeof STAFF !== 'undefined' ? STAFF : [])
+      .filter(s => (s.type||'active') !== 'contractor' || filter(s))
+      .filter(filter);
+    let html = '<option value="">— Unassigned —</option>';
+    list.forEach(s => {
+      const sel = (s.id === selected) ? ' selected' : '';
+      html += '<option value="'+s.id+'"'+sel+'>'+s.first+' '+s.last+' · '+s.role+'</option>';
+    });
+    return html;
+  };
+
+  const leadList = (s) => { const r = rd(s.role); return !!r.canReview && (s.type||'active')!=='contractor'; };
+  const archList = (s) => { const r = rd(s.role); return !!r.canSchedule && (s.type||'active')!=='contractor'; };
+  const mgrList  = (s) => (s.type||'active') !== 'contractor';
+
+  const elLead = document.getElementById('ap-lead-arch');
+  const elArch = document.getElementById('ap-proj-arch');
+  const elMgr  = document.getElementById('ap-proj-mgr');
+  if(elLead) elLead.innerHTML = buildOpts(leadList, leadSel || '');
+  if(elArch) elArch.innerHTML = buildOpts(archList, archSel || '');
+  if(elMgr)  elMgr.innerHTML  = buildOpts(mgrList,  mgrSel  || '');
+
+  // Wire summary refresh on any change
+  [elLead, elArch, elMgr].forEach(el => {
+    if(el) el.onchange = updateApTeamSummary;
+  });
+}
+
+function updateApTeamSummary(){
+  const el = document.getElementById('ap-team-summary');
+  if(!el) return;
+  const leadV = document.getElementById('ap-lead-arch')?.value || '';
+  const archV = document.getElementById('ap-proj-arch')?.value || '';
+  const mgrV  = document.getElementById('ap-proj-mgr')?.value  || '';
+  const fmt = (id) => {
+    if(!id) return null;
+    const s = (typeof STAFF !== 'undefined') ? STAFF.find(x => x.id === id) : null;
+    return s ? (s.first+' '+s.last) : null;
+  };
+  const names = [fmt(leadV), fmt(archV), fmt(mgrV)].filter(Boolean);
+  const uniqueNames = [...new Set(names)];
+  if(uniqueNames.length === 0){
+    el.textContent = '— optional';
+    el.style.color = 'var(--txd)';
+  } else {
+    el.textContent = '· ' + uniqueNames.join(', ');
+    el.style.color = 'var(--tx)';
+  }
+}
+
+function toggleApTeam(){
+  const body = document.getElementById('ap-team-body');
+  const chev = document.getElementById('ap-team-chevron');
+  if(!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if(chev) chev.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+if(typeof window !== 'undefined'){
+  window.populateApTeamDropdowns = populateApTeamDropdowns;
+  window.updateApTeamSummary     = updateApTeamSummary;
+  window.toggleApTeam            = toggleApTeam;
+}
+
 function openAddProjectModal(){
   apColor=PROJ_COLORS[PROJS.length%PROJ_COLORS.length];
   document.getElementById('ap-title').textContent='Add New Project';
@@ -14833,6 +14870,9 @@ function openAddProjectModal(){
   // v101.53 — clear client contact fields
   const _apCP = document.getElementById('ap-client-phone'); if(_apCP) _apCP.value='';
   const _apCE = document.getElementById('ap-client-email'); if(_apCE) _apCE.value='';
+  // v101.61 — populate team dropdowns + clear selections
+  populateApTeamDropdowns(null, null, null);
+  updateApTeamSummary();
   document.getElementById('ap-fee').value='';
   document.getElementById('ap-start').value='';
   document.getElementById('ap-end').value='';
@@ -14863,6 +14903,16 @@ function openEditProjectModal(projId){
   // v101.53 — load client contact details if previously set
   const _apCPe = document.getElementById('ap-client-phone'); if(_apCPe) _apCPe.value = p.clientPhone || '';
   const _apCEe = document.getElementById('ap-client-email'); if(_apCEe) _apCEe.value = p.clientEmail || '';
+  // v101.61 — populate team dropdowns + hydrate from existing project
+  populateApTeamDropdowns(p.leadArchitect||'', p.projectArchitect||'', p.projectManager||'');
+  updateApTeamSummary();
+  // Auto-open the team section if any are already set
+  if(p.leadArchitect || p.projectArchitect || p.projectManager){
+    const teamBody = document.getElementById('ap-team-body');
+    const teamChev = document.getElementById('ap-team-chevron');
+    if(teamBody) teamBody.style.display = '';
+    if(teamChev) teamChev.style.transform = 'rotate(180deg)';
+  }
   document.getElementById('ap-fee').value=parseFeeINR(p.fee||'0')||'';
   const _revMap={'pre':'0','briefing':'1','SD':'2','DD':'3','CD':'4','CA':'5','Handover':'6','use':'7'};
   document.getElementById('ap-phase').value=_revMap[p.phase]||p.phase;
@@ -15054,9 +15104,24 @@ function submitProject(){
       const _z = (typeof s62ReadZonesFromModal === 'function') ? s62ReadZonesFromModal() : null;
       if (_z) _bldgCfg.zones = _z;
     }
+    // v101.61 — capture project-team assignment
+    const _leadArchitect    = document.getElementById('ap-lead-arch')?.value || '';
+    const _projectArchitect = document.getElementById('ap-proj-arch')?.value || '';
+    const _projectManager   = document.getElementById('ap-proj-mgr')?.value  || '';
     if(idx>=0){
-      PROJS[idx]={...PROJS[idx],name,client,clientPhone,clientEmail,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg};
+      PROJS[idx]={...PROJS[idx],name,client,clientPhone,clientEmail,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg,
+        leadArchitect:_leadArchitect, projectArchitect:_projectArchitect, projectManager:_projectManager,   // v101.61
+        feeStructure: PROJS[idx].feeStructure || {SD:0,DD:0,CD:0,CA:0,Handover:0}                            // v101.61 — skeleton
+      };
       PROJS[idx].updatedAt = new Date().toISOString();   // v101.55 — dirty-tracking
+      // v101.61 — auto-add the assigned team members to their STAFF.projects
+      [_leadArchitect, _projectArchitect, _projectManager].filter(Boolean).forEach(sid => {
+        const s = STAFF.find(x => x.id === sid);
+        if(s && !(s.projects||[]).includes(eid)){
+          (s.projects = s.projects || []).push(eid);
+          s.updatedAt = new Date().toISOString();
+        }
+      });
     }
     showNotif('Project updated',`${name} updated.`);
   } else {
@@ -15070,8 +15135,23 @@ function submitProject(){
       if (_z) _bldgCfg.zones = _z;
     }
     const _nowISO = new Date().toISOString();
+    // v101.61 — read project-team assignment (optional; may all be empty)
+    const _newLead = document.getElementById('ap-lead-arch')?.value || '';
+    const _newArch = document.getElementById('ap-proj-arch')?.value || '';
+    const _newMgr  = document.getElementById('ap-proj-mgr')?.value  || '';
     PROJS.push({id:pid,name,client,clientPhone,clientEmail,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages,bldgConfig:_bldgCfg,
+      leadArchitect:_newLead, projectArchitect:_newArch, projectManager:_newMgr,   // v101.61
+      feeStructure:{SD:0,DD:0,CD:0,CA:0,Handover:0},                                // v101.61 — skeleton, fill later
       createdAt:_nowISO,updatedAt:_nowISO            // v101.55
+    });
+    // v101.61 — auto-add the assigned team members to their STAFF.projects
+    // list so workload, dashboards, and existing filters recognize them.
+    [_newLead, _newArch, _newMgr].filter(Boolean).forEach(sid => {
+      const s = STAFF.find(x => x.id === sid);
+      if(s && !(s.projects||[]).includes(pid)){
+        (s.projects = s.projects || []).push(pid);
+        s.updatedAt = new Date().toISOString();
+      }
     });
     addAudit('project','Project created',name+' ('+pid+') · '+client);
 
@@ -32600,6 +32680,43 @@ function updateVisBadge(){
     <div class="fgrid">
       <div class="frow"><label class="flbl" for="ap-client-phone">Client phone <span style="color:var(--txd);font-weight:400">— optional</span></label><input class="finp" id="ap-client-phone" type="tel" placeholder="e.g. +91 98400 12345"></div>
       <div class="frow"><label class="flbl" for="ap-client-email">Client email <span style="color:var(--txd);font-weight:400">— optional</span></label><input class="finp" id="ap-client-email" type="email" placeholder="e.g. amit.sharma@northgate.in"></div>
+    </div>
+
+    <!-- v101.61 — Project Team Assignment. Determines whose My Work tab will
+         surface this project's status, drawings, RFIs, and risk flags.
+         All three can be the same person on small projects. -->
+    <div class="frow" style="margin-top:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:8px 12px;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;user-select:none"
+           onclick="toggleApTeam()">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg style="width:13px;height:13px;stroke:var(--gold);fill:none;stroke-width:1.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span style="font-family:var(--fm);font-size:10.5px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">Project Team Assignment</span>
+          <span id="ap-team-summary" style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-left:4px">— optional</span>
+        </div>
+        <svg id="ap-team-chevron" style="width:11px;height:11px;stroke:var(--txd);fill:none;stroke-width:2;transition:transform .15s" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div id="ap-team-body" style="display:none;padding:12px 4px 4px">
+        <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);line-height:1.6;margin-bottom:10px">
+          Determines whose "My Work" dashboard tracks this project's targets, decisions, and risks. All three are optional and can be the same person.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:8px">
+          <div>
+            <label class="flbl" for="ap-lead-arch">Lead Architect</label>
+            <select class="fsel" id="ap-lead-arch"></select>
+            <div style="font-family:var(--fm);font-size:8.5px;color:var(--txd);margin-top:3px">Firm-wide leadership (Principal/AP/Lead/PA/ID)</div>
+          </div>
+          <div>
+            <label class="flbl" for="ap-proj-arch">Project Architect</label>
+            <select class="fsel" id="ap-proj-arch"></select>
+            <div style="font-family:var(--fm);font-size:8.5px;color:var(--txd);margin-top:3px">Day-to-day project lead (can schedule)</div>
+          </div>
+          <div>
+            <label class="flbl" for="ap-proj-mgr">Project Manager</label>
+            <select class="fsel" id="ap-proj-mgr"></select>
+            <div style="font-family:var(--fm);font-size:8.5px;color:var(--txd);margin-top:3px">Commercial / schedule oversight</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="frow"><label class="flbl" for="ap-type">Project Type</label>
