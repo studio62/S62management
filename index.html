@@ -1944,6 +1944,47 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   </div>
   <!-- ══ end v101.66 LEADERSHIP-TIER SECTION ══════════════════════════ -->
 
+  <!-- ══ v101.69 — EXECUTION-TIER SECTION ════════════════════════════
+       Only rendered for tier='execution' (Junior Architect, Architectural
+       Assistant, Intern, Site/Structural/BIM Engineer, Consultant).
+       Hidden for firm/project tier (Principal/AP/Lead/PA/Interior).
+       renderMyWork() sets ex-section's display style based on tier.
+
+       Contains two prioritization widgets specific to execution work:
+       1. Returned for Revision — conditional, only shown when drawings
+          have been rejected and bounced back. High-priority signal.
+       2. Today's Focus — 1-3 cards ranking the most important things
+          for this user to work on right now, using pick logic:
+          returned > overdue > due today > due tomorrow not-started >
+          due ≤3d lowest %.
+
+       Rows 3-5 (2-week schedule, Work Queue, Hours) are shared with
+       all tiers — they appear below this section unchanged.
+       ──────────────────────────────────────────────────────────────── -->
+  <div id="ex-section" style="display:none">
+
+    <!-- Returned for Revision — conditional. Rendered with empty body
+         when there are no returned drawings; the container is shown/
+         hidden by renderExReturned() based on count. -->
+    <div id="ex-returned-wrap" style="margin-bottom:12px;display:none">
+      <div class="sechd">
+        <div class="sectitle" style="color:var(--red)">⟲ Returned for Revision <span id="ex-returned-count" style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-left:6px"></span></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;border:1px solid rgba(224,82,82,.3);background:rgba(224,82,82,.04)"><div id="ex-returned"></div></div>
+    </div>
+
+    <!-- Today's Focus — picks 1-3 cards using priority logic -->
+    <div style="margin-bottom:12px">
+      <div class="sechd">
+        <div class="sectitle">🎯 Today's Focus</div>
+        <span id="ex-focus-sub" style="font-family:var(--fm);font-size:10px;color:var(--txd)"></span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="ex-focus"></div></div>
+    </div>
+
+  </div>
+  <!-- ══ end v101.69 EXECUTION-TIER SECTION ══════════════════════════ -->
+
   <!-- Row 3: 2-Week Schedule — INTERACTIVE hero. Click any day to filter
        Drawings, Calendar, and CA Items below. -->
   <div style="margin-bottom:12px">
@@ -7859,8 +7900,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.68 — anti-corruption layer. Disabled atomicRevIncrement transaction path that was actively re-corrupting cloud. Added integrity check in s62NormalizeArrayCollections. Added boot-time corruption check. Includes v101.67 real-time sync fix.');
-
+console.log('S62 v101.69 — My Work Step 3 of 3: execution-tier view. Adds Returned for Revision (conditional) and Todays Focus (1-3 priority cards) for Junior/Assistant/Intern/Engineer/Consultant. Pick logic: returned > overdue > due-today > due-tomorrow-not-started > due-3d-lowest-pct. Leadership tier hidden via display:none. Shared rows (2-week schedule, Work Queue, Hours) still appear for all tiers. Redesign complete.');
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
@@ -11387,6 +11427,11 @@ function renderMyWork(){
   if(lvSection){
     lvSection.style.display = (tier === 'firm' || tier === 'project') ? '' : 'none';
   }
+  // v101.69 — Show/hide the execution section based on tier (mutually exclusive with lv)
+  const exSection = document.getElementById('ex-section');
+  if(exSection){
+    exSection.style.display = (tier === 'execution') ? '' : 'none';
+  }
 
   renderMyQuickActions();
   renderMyTodayHero();
@@ -11409,6 +11454,16 @@ function renderMyWork(){
       renderLvTeamCapacity(scope);
     } catch(e){
       console.warn('[v101.66] leadership render error (non-fatal):', e);
+    }
+  }
+
+  // v101.69 — Execution-tier cards
+  if(tier === 'execution'){
+    try {
+      renderExReturned(me);
+      renderExFocus(me);
+    } catch(e){
+      console.warn('[v101.69] execution render error (non-fatal):', e);
     }
   }
 
@@ -12754,6 +12809,221 @@ function renderLvTeamCapacity(scopeProjects){
       +'<div style="flex:0 0 60px;text-align:right;font-family:var(--fm);font-size:10px;color:'+r.color+';font-weight:600">'+r.utilPct+'%</div>'
       +'<div style="flex:0 0 40px;text-align:right;font-family:var(--fm);font-size:9.5px;color:var(--txd)">'+r.hoursLogged.toFixed(0)+'h</div>'
       +'</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   v101.69 — Step 3 of 3: EXECUTION-TIER metric helpers + renders.
+
+   For Junior Architects, Architectural Assistants, Interns, Site/
+   Structural/BIM Engineers, Consultants. These users get a focused,
+   prioritization-driven My Work view — they don't need firm-wide
+   portfolio matrices, they need "what should I work on right now".
+
+   New surfaces:
+   • Returned for Revision (conditional) — drawings I worked on that
+     came back rejected. Top priority because client/QA expects a
+     resubmit.
+   • Today's Focus — 1-3 ranked cards using the agreed pick logic.
+
+   Pick logic (descending priority):
+   1. Returned for revision (rejected, still in progress, pct < 100)
+   2. Overdue (target date < today, status != done)
+   3. Due today (target = today, status != done)
+   4. Due tomorrow, not started (target = today+1, status == nst)
+   5. Due within 3 days, lowest completion% (closest deadlines with
+      least progress get prioritized)
+   ═════════════════════════════════════════════════════════════════ */
+
+function _exMyOpenDrawings(me){
+  if(!me) return [];
+  return DRAWINGS.filter(d => d && d.sid === me.id && d.status !== 'done');
+}
+
+function _exReturnedDrawings(me){
+  // Drawings the user worked on, got rejected, and are back in progress.
+  // Multiple signals: qaHistory has a 'rejected' action OR rejectedAt is set
+  // AND status is 'ip' (back in progress, not yet resubmitted).
+  if(!me) return [];
+  return DRAWINGS.filter(d => {
+    if(!d || d.sid !== me.id) return false;
+    if(d.status !== 'ip') return false;
+    if((d.pct||0) >= 100) return false;
+    const hasRej = Array.isArray(d.qaHistory) && d.qaHistory.some(h => h && h.action === 'rejected');
+    return hasRej || !!d.rejectedAt;
+  });
+}
+
+function _exTodaysFocus(me, maxCards){
+  // Returns up to maxCards drawings ranked by the priority logic above.
+  if(!me) return [];
+  const max = Math.max(1, Math.min(maxCards||3, 5));
+  const today = _lvToday();
+  const tomorrow = new Date(today.getTime() + 24*60*60*1000);
+  const threeDays = new Date(today.getTime() + 3*24*60*60*1000);
+  const my = _exMyOpenDrawings(me);
+
+  // Bucket assignment — each drawing gets exactly one bucket (highest priority wins)
+  const buckets = {returned:[], overdue:[], dueToday:[], dueTomorrowNst:[], dueSoon:[]};
+  const seen = new Set();
+
+  my.forEach(d => {
+    if(seen.has(d.id)) return;
+    const dd = parseDue(d.tgt);
+    const isRet = Array.isArray(d.qaHistory) && d.qaHistory.some(h => h && h.action === 'rejected');
+    const retFallback = !isRet && !!d.rejectedAt;
+    if(isRet || retFallback){
+      buckets.returned.push(d);
+      seen.add(d.id);
+      return;
+    }
+    if(!dd) return;  // no due date → can't rank
+    if(dd < today){
+      buckets.overdue.push(d);
+      seen.add(d.id);
+      return;
+    }
+    if(dd.getTime() === today.getTime()){
+      buckets.dueToday.push(d);
+      seen.add(d.id);
+      return;
+    }
+    if(dd.getTime() === tomorrow.getTime() && d.status === 'nst'){
+      buckets.dueTomorrowNst.push(d);
+      seen.add(d.id);
+      return;
+    }
+    if(dd <= threeDays){
+      buckets.dueSoon.push(d);
+      seen.add(d.id);
+    }
+  });
+
+  // Within each bucket, sort by useful secondary keys
+  buckets.overdue.sort((a,b) => (parseDue(a.tgt) - parseDue(b.tgt)));     // most-overdue first
+  buckets.dueToday.sort((a,b) => (a.pct||0) - (b.pct||0));                 // least progress first
+  buckets.dueTomorrowNst.sort((a,b) => (a.pct||0) - (b.pct||0));
+  buckets.dueSoon.sort((a,b) => {
+    // closest deadline first; tie → lowest pct first
+    const t = parseDue(a.tgt) - parseDue(b.tgt);
+    return t !== 0 ? t : (a.pct||0) - (b.pct||0);
+  });
+
+  // Concatenate in priority order
+  const all = [
+    ...buckets.returned, ...buckets.overdue, ...buckets.dueToday,
+    ...buckets.dueTomorrowNst, ...buckets.dueSoon
+  ];
+
+  // Tag each with its reason for the UI
+  const labelFor = (d) => {
+    const dd = parseDue(d.tgt);
+    if(buckets.returned.includes(d))       return {tag:'RETURNED',     color:'var(--red)'};
+    if(buckets.overdue.includes(d)){
+      const days = Math.abs(_lvDaysBetween(dd, today));
+      return {tag:days+'d OVERDUE',         color:'var(--red)'};
+    }
+    if(buckets.dueToday.includes(d))       return {tag:'DUE TODAY',    color:'var(--gold)'};
+    if(buckets.dueTomorrowNst.includes(d)) return {tag:'DUE TOMORROW · not started', color:'var(--gold)'};
+    if(buckets.dueSoon.includes(d)){
+      const days = _lvDaysBetween(today, dd);
+      return {tag:'DUE IN '+days+'d',       color:'var(--blu)'};
+    }
+    return {tag:'', color:'var(--txd)'};
+  };
+
+  return all.slice(0, max).map(d => Object.assign({}, d, {_focusLabel: labelFor(d)}));
+}
+
+if(typeof window !== 'undefined'){
+  window._exMyOpenDrawings  = _exMyOpenDrawings;
+  window._exReturnedDrawings = _exReturnedDrawings;
+  window._exTodaysFocus     = _exTodaysFocus;
+}
+
+// ── Render: Returned for Revision ──────────────────────────
+function renderExReturned(me){
+  const wrap = document.getElementById('ex-returned-wrap');
+  const el   = document.getElementById('ex-returned');
+  const cnt  = document.getElementById('ex-returned-count');
+  if(!wrap || !el) return;
+  const list = _exReturnedDrawings(me);
+  if(list.length === 0){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+  if(cnt) cnt.textContent = '· '+list.length+' drawing'+(list.length===1?'':'s')+' to resubmit';
+
+  let html = '<div style="display:flex;flex-direction:column">';
+  list.forEach(d => {
+    const proj = PROJS.find(p => p.id === d.proj);
+    const projName = proj ? proj.name : d.proj;
+    const safeTitle = (d.title||'').replace(/'/g,'&apos;').replace(/"/g,'&quot;');
+    const safeProj  = projName.replace(/'/g,'&apos;').replace(/"/g,'&quot;');
+    const pct = d.pct||0;
+    // Last rejection note if available
+    let lastNote = '';
+    if(Array.isArray(d.qaHistory)){
+      for(let i = d.qaHistory.length - 1; i >= 0; i--){
+        if(d.qaHistory[i].action === 'rejected'){
+          lastNote = d.qaHistory[i].note || d.qaHistory[i].reason || '';
+          break;
+        }
+      }
+    }
+    const safeNote = lastNote ? lastNote.replace(/'/g,'&apos;').replace(/"/g,'&quot;').slice(0,140) : '';
+    html += '<div onclick="openDrawingDetail(\''+d.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(224,82,82,.15);cursor:pointer">'
+      + '<div style="font-family:var(--fm);font-size:14px;color:var(--red);width:18px;text-align:center">⟲</div>'
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="font-family:var(--fm);font-size:11px;font-weight:600;color:var(--tx)">'+d.id+' — '+safeTitle+'</div>'
+        + '<div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-top:1px">'+safeProj+' · '+pct+'% complete</div>'
+        + (safeNote ? '<div style="font-family:var(--fm);font-size:9.5px;color:var(--txm);margin-top:3px;font-style:italic">"'+safeNote+'"</div>' : '')
+      + '</div>'
+      + '<div style="font-family:var(--fm);font-size:10px;color:var(--red);font-weight:600;padding:3px 7px;background:rgba(224,82,82,.12);border-radius:9px">RESUBMIT</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ── Render: Today's Focus ──────────────────────────────────
+function renderExFocus(me){
+  const el = document.getElementById('ex-focus');
+  const sub = document.getElementById('ex-focus-sub');
+  if(!el) return;
+  const focus = _exTodaysFocus(me, 3);
+  if(focus.length === 0){
+    el.innerHTML = '<div style="padding:24px 14px;font-family:var(--fm);font-size:11px;color:var(--grn);text-align:center">✓ No urgent work. Browse the queue below for upcoming items.</div>';
+    if(sub) sub.textContent = '';
+    return;
+  }
+  if(sub) sub.textContent = 'Top '+focus.length+' priority item'+(focus.length===1?'':'s');
+
+  let html = '<div style="display:flex;flex-direction:column">';
+  focus.forEach((d, idx) => {
+    const proj = PROJS.find(p => p.id === d.proj);
+    const projName = proj ? proj.name : d.proj;
+    const safeTitle = (d.title||'').replace(/'/g,'&apos;').replace(/"/g,'&quot;');
+    const safeProj  = projName.replace(/'/g,'&apos;').replace(/"/g,'&quot;');
+    const pct = d.pct||0;
+    const label = d._focusLabel || {tag:'',color:'var(--txd)'};
+    html += '<div onclick="openDrawingDetail(\''+d.id+'\')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--bd);cursor:pointer">'
+      + '<div style="font-family:var(--fm);font-size:18px;font-weight:600;color:var(--gold);width:24px;text-align:center">'+(idx+1)+'</div>'
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">'
+          + (label.tag ? '<span style="font-family:var(--fm);font-size:9px;font-weight:600;padding:2px 6px;background:'+label.color+';color:#fff;border-radius:9px;letter-spacing:.04em">'+label.tag+'</span>' : '')
+        + '</div>'
+        + '<div style="font-family:var(--fm);font-size:11.5px;font-weight:600;color:var(--tx)">'+d.id+' — '+safeTitle+'</div>'
+        + '<div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-top:2px">'+safeProj+'</div>'
+      + '</div>'
+      + '<div style="flex:0 0 60px;text-align:right">'
+        + '<div style="font-family:var(--fm);font-size:16px;font-weight:600;color:var(--tx)">'+pct+'%</div>'
+        + '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:1px">'+(d.tgt||'no date')+'</div>'
+      + '</div>'
+      + '</div>';
   });
   html += '</div>';
   el.innerHTML = html;
@@ -19637,7 +19907,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.68',
+        appVersion: 'S62-v101.69',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -19797,7 +20067,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.68',
+    appVersion: 'S62-v101.69',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
