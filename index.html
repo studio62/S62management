@@ -5682,6 +5682,37 @@ async function replayOfflineQueue(){
       }
       data = await response.json();
       console.log('[v101.41] initial load via REST: success');
+
+      // v101.68 — Boot-time integrity check. Surfaces cloud corruption
+      // immediately on load. Counts numeric keys in each tracked collection
+      // and warns if any are detected. Numeric keys mean per-record saves
+      // will silently fail for that collection. See v101.67 cleanup procedure.
+      try {
+        const checked = ['meetings','drawings','projs','staff','tsEntries','schedTasks','drwPackages','sentEmails','invoices','notifications','transmittals','visuals','auditLog','caSvr','caRfis','caSubmittals','caSnags','caAis','vendors','dqAssessments','consultantLogs'];
+        let totalDirty = 0;
+        let dirtyCollections = [];
+        for(const ck of checked){
+          const v = data ? data[ck] : null;
+          if(!v || typeof v !== 'object' || Array.isArray(v)) continue;
+          const keys = Object.keys(v);
+          const numericCount = keys.filter(kk => /^\d+$/.test(kk)).length;
+          if(numericCount > 0){
+            totalDirty += numericCount;
+            dirtyCollections.push(ck+':'+numericCount);
+          }
+        }
+        if(totalDirty > 0){
+          console.warn('═══════════════════════════════════════════════════════════');
+          console.warn('[v101.68 INTEGRITY] CLOUD CORRUPTION DETECTED');
+          console.warn(totalDirty+' numeric keys across: '+dirtyCollections.join(', '));
+          console.warn('Per-record saves may silently fail. Run cleanup procedure.');
+          console.warn('═══════════════════════════════════════════════════════════');
+        } else {
+          console.log('[v101.68 INTEGRITY] cloud shape clean — no numeric keys in tracked collections');
+        }
+      } catch(intErr){
+        console.warn('[v101.68 INTEGRITY] check threw:', intErr.message);
+      }
     } catch (restErr){
       console.warn('[v101.41] REST initial load failed, falling back to SDK:', restErr.message);
       const snap = await _fbRef.once('value');
@@ -5825,6 +5856,18 @@ function nextRev(currentRev){
    Called from approveDrawing() instead of direct increment.
    ════════════════════════════════════════════════════════ */
 async function atomicRevIncrement(drawingId){
+  // v101.68 — DISABLED the SDK-transaction path. It was the source of cloud
+  // corruption: line 5845 explicitly serialized DRAWINGS as a numeric-keyed
+  // object and wrote it via _fbRef.transaction. Every approve operation
+  // poured 5000+ zombie drawings back into cloud at numeric keys.
+  // The per-record save path (s62Cloud.write) handles rev increment fine
+  // through the normal scheduleSave flow — local mutation, content-hash
+  // dirty-tracker catches it, per-record PUT flushes it. No transaction
+  // needed; concurrent edits are extremely rare in this workflow.
+  const d = DRAWINGS.find(x=>x.id===drawingId);
+  return nextRev(d?.rev||'-');
+}
+async function _DISABLED_atomicRevIncrement_via_transaction(drawingId){
   // Returns the new revision string (P1, P2 ... A, B, C ...)
   if(!_fbRef) {
     // Offline fallback — compute locally
@@ -7816,7 +7859,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.67 — CRITICAL real-time sync fix. Per-record and aggregate saves never bumped the top-level data.version or data.savedAt fields, so the REST poller compared frozen cloud version (603) vs frozen local version (603) and never applied. Cross-client changes were invisible. Symptom: Diya created a meeting, it reached cloud, but Mahendra never saw it. Fix: after every successful save, PATCH /s62data with fresh savedAt/lastSavedBy/saveKey markers. Poller now treats EITHER higher version OR newer savedAt as a real change. Plus all v101.66 Step 2 leadership view, v101.65 tombstone-to-cloud, v101.64 post-merge render, v101.63 Reviewing helper.');
+console.log('S62 v101.68 — anti-corruption layer. Disabled atomicRevIncrement transaction path that was actively re-corrupting cloud. Added integrity check in s62NormalizeArrayCollections. Added boot-time corruption check. Includes v101.67 real-time sync fix.');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -19594,7 +19637,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.67',
+        appVersion: 'S62-v101.68',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -19754,7 +19797,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.67',
+    appVersion: 'S62-v101.68',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -19947,6 +19990,40 @@ function s62NormalizeArrayCollections(data){
   ARRAY_KEYS.forEach(k => {
     const v = data[k];
     if (v != null && !Array.isArray(v) && typeof v === 'object'){
+      // v101.68 — INTEGRITY CHECK: warn if numeric keys present alongside
+      // string keys. Numeric keys mean an old monolithic save serialized
+      // this collection as an array (which Firebase stored as object with
+      // numeric keys). That collection is in mixed shape and per-record
+      // writes can silently fail (see v101.67 cleanup notes).
+      const keys = Object.keys(v);
+      const numericKeys = keys.filter(kk => /^\d+$/.test(kk));
+      if(numericKeys.length > 0){
+        console.warn('[v101.68 INTEGRITY] '+k+' cloud collection has '+numericKeys.length+' numeric keys (out of '+keys.length+' total). This is a corruption pattern that prevents per-record saves. See v101.67 cleanup procedure.');
+        // We dedupe: prefer records at string keys, fall back to numeric.
+        // Records at numeric keys whose record.id ALSO exists at a string
+        // key are dropped — those are the stale copies.
+        const byInternalId = new Map();
+        // First pass: string-keyed records win
+        keys.forEach(kk => {
+          if(!/^\d+$/.test(kk)){
+            const rec = v[kk];
+            if(rec && rec.id) byInternalId.set(rec.id, rec);
+          }
+        });
+        // Second pass: numeric-keyed records only if no string-keyed version exists
+        keys.forEach(kk => {
+          if(/^\d+$/.test(kk)){
+            const rec = v[kk];
+            if(rec && rec.id && !byInternalId.has(rec.id)){
+              byInternalId.set(rec.id, rec);
+            }
+          }
+        });
+        data[k] = Array.from(byInternalId.values());
+        console.log('[v101.68 INTEGRITY] '+k+' deduped to '+data[k].length+' records (was '+keys.length+' raw entries)');
+        healed = true;
+        return;  // skip the regular normalize path below
+      }
       data[k] = Object.values(v).filter(x => x && typeof x === 'object');
       console.log('[v101.44] normalized data.'+k+': object → array, len='+data[k].length);
       healed = true;
