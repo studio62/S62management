@@ -1902,6 +1902,48 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
     <div class="card" id="mw-kpi-strip" style="padding:10px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:8px;min-height:260px"></div>
   </div>
 
+  <!-- ══ v101.66 — LEADERSHIP-TIER SECTION ════════════════════════════
+       Only rendered for tier='firm' (Principal/AP) and tier='project'
+       (Lead/PA/Interior). Hidden for execution-tier users.
+       renderMyWork() sets lv-section's display style based on tier.
+       ──────────────────────────────────────────────────────────────── -->
+  <div id="lv-section" style="display:none">
+
+    <!-- Row 2b: Portfolio Health Matrix + KPI tiles (KPI strip is already above; this is the matrix on its own) -->
+    <div style="margin-bottom:12px">
+      <div class="sechd">
+        <div class="sectitle">📊 Portfolio Health <span id="lv-portfolio-scope" style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-left:6px"></span></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden"><div id="lv-portfolio-health"></div></div>
+    </div>
+
+    <!-- Row 2c: Decisions Pending + Risk Flags -->
+    <div class="dash-row-halves" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <div class="sechd"><div class="sectitle">⚖ Decisions Pending Me</div></div>
+        <div class="card" style="padding:0;overflow:hidden"><div id="lv-decisions-pending"></div></div>
+      </div>
+      <div>
+        <div class="sechd"><div class="sectitle">⚠ Risk Flags</div></div>
+        <div class="card" style="padding:0;overflow:hidden"><div id="lv-risk-flags"></div></div>
+      </div>
+    </div>
+
+    <!-- Row 2d: Delivery Targets + Team Capacity -->
+    <div class="dash-row-halves" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <div class="sechd"><div class="sectitle">🎯 Delivery Targets</div></div>
+        <div class="card" style="padding:0;overflow:hidden"><div id="lv-delivery-targets"></div></div>
+      </div>
+      <div>
+        <div class="sechd"><div class="sectitle">👥 Team Capacity (this week)</div></div>
+        <div class="card" style="padding:0;overflow:hidden;max-height:300px;overflow-y:auto"><div id="lv-team-capacity"></div></div>
+      </div>
+    </div>
+
+  </div>
+  <!-- ══ end v101.66 LEADERSHIP-TIER SECTION ══════════════════════════ -->
+
   <!-- Row 3: 2-Week Schedule — INTERACTIVE hero. Click any day to filter
        Drawings, Calendar, and CA Items below. -->
   <div style="margin-bottom:12px">
@@ -4510,7 +4552,16 @@ async function s62Poll(){
       return;
     }
     const remoteVersion = data.version || 0;
-    if (remoteVersion <= _fbLocalVersion){
+    const remoteSavedAt = data.savedAt || '';
+    // v101.67 — change detection now uses BOTH version and savedAt.
+    // version is stable in per-record/aggregate architecture (never bumps from
+    // those write paths), so relying on it alone made the poller skip every
+    // remote update made by other clients (Diya's new meeting was invisible to
+    // Mahendra's poller). Now we apply if EITHER changed since last apply.
+    if (!window._s62LastAppliedSavedAt) window._s62LastAppliedSavedAt = '';
+    const versionChanged = remoteVersion > _fbLocalVersion;
+    const savedAtChanged = remoteSavedAt && remoteSavedAt > window._s62LastAppliedSavedAt;
+    if (!versionChanged && !savedAtChanged){
       // Already current
       if (typeof updateSyncStatusBar === 'function') updateSyncStatusBar();
       return;
@@ -4528,6 +4579,9 @@ async function s62Poll(){
     try {
       unpackData(migrateData(data));
       _fbLocalVersion = remoteVersion;
+      // v101.67 — also track savedAt as a watermark so the EITHER-changed check
+      // (versionChanged || savedAtChanged) works on the next poll.
+      if (remoteSavedAt) window._s62LastAppliedSavedAt = remoteSavedAt;
       CURRENT_USER_ID = prevUserId;
       if (typeof s62SaveLocalSnapshot === 'function') s62SaveLocalSnapshot();
       // Re-render visible panel
@@ -4973,6 +5027,68 @@ async function s62CloudSaveViaRest(){
 
   const totalWritten = (perRecord.written || 0) + (aggregates.written || 0);
   const allErrors = [...(perRecord.errors || []), ...(aggregates.errors || [])];
+
+  // v101.67 — CRITICAL: write top-level change markers so other clients' pollers detect this save.
+  //
+  // The bug: poller (s62Poll) compares cloud `data.version` vs local `_fbLocalVersion`
+  // and skips apply when they match. But the per-record / aggregate save architecture
+  // never bumps `data.version` (or `savedAt`, or `lastSavedBy`, or `saveKey`) — those
+  // are top-level fields that only the legacy monolithic save touched. So they get
+  // frozen at whatever the last full save left them at (in this case, May 16 04:52 UTC
+  // when the cloud was last touched by a monolithic save). Every subsequent per-record
+  // write was invisible to the poller's change-detection.
+  //
+  // Symptom: Diya created a meeting → her write hit /s62data/meetings/MTG001.json fine,
+  // but Mahendra's poller fetched /s62data.json, saw version still 603, returned early
+  // on line 4555 without ever applying the merged data or re-rendering the UI.
+  //
+  // Fix: after every successful save, also PUT fresh values to /s62data/savedAt,
+  // /s62data/lastSavedBy, and /s62data/saveKey. These are 3 tiny top-level fields.
+  // Now the poller's existing version-compare can be augmented (in s62Poll) to also
+  // compare savedAt, and apply when EITHER changed.
+  //
+  // saveKey echo-prevention still works because we use the same _fbOwnSaveKeys set.
+  if (totalWritten > 0 && allErrors.length === 0){
+    try {
+      const token = await s62Cloud._getToken(false);
+      const dbUrl = _fbApp.options.databaseURL.replace(/\/+$/, '');
+      const saveKey = Date.now()+'-'+Math.random().toString(36).slice(2,6);
+      // Track our own saveKey so the poller-echo path can skip it
+      if (typeof _fbOwnSaveKeys !== 'undefined' && _fbOwnSaveKeys && _fbOwnSaveKeys.add){
+        _fbOwnSaveKeys.add(saveKey);
+        if (_fbOwnSaveKeys.size > 20) _fbOwnSaveKeys = new Set([..._fbOwnSaveKeys].slice(-10));
+      }
+      const me = (typeof currentUser === 'function') ? currentUser() : null;
+      const lastSavedBy = me ? (me.first+' '+me.last) : (_fbAuth.currentUser.email||'someone');
+      const markers = {
+        savedAt: new Date().toISOString(),
+        lastSavedBy: lastSavedBy,
+        saveKey: saveKey
+      };
+      // PATCH writes all three fields at the /s62data root in one request
+      const url = dbUrl + '/s62data.json?auth=' + encodeURIComponent(token);
+      let resp = await fetch(url, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(markers)
+      });
+      if (resp.status === 401){
+        const fresh = await s62Cloud._getToken(true);
+        const url2 = dbUrl + '/s62data.json?auth=' + encodeURIComponent(fresh);
+        resp = await fetch(url2, {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(markers)
+        });
+      }
+      if (!resp.ok){
+        console.warn('[v101.67] change-marker PATCH failed:', resp.status);
+      }
+    } catch(markerErr){
+      // Non-fatal: the real data made it; only change-detection is degraded
+      console.warn('[v101.67] change-marker write failed (non-fatal):', markerErr.message || markerErr);
+    }
+  }
 
   return {
     ok: allErrors.length === 0,
@@ -7700,7 +7816,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log("S62 v101.65 — CRITICAL fix: tombstones now sync to Firebase. They were stored only in localStorage and never written to cloud, so any new staff member logging in for the first time would see all previously-deleted records resurrected. Added tombstones to _S62_AGGREGATE_COLLECTIONS — they now write to /s62data/tombstones.json on every cloud save. RECOVERY: Mahendra must run \"cloudSave()\" once in his browser to push the existing localStorage tombstones (80 projs / 5691 drawings / etc.) up to Firebase. Then Diya reloads and the zombie records disappear. Includes all v101.61-v101.64 fixes (post-merge re-render, helper for Reviewing, Step 1 schema, save-hook refresh).");
+console.log('S62 v101.67 — CRITICAL real-time sync fix. Per-record and aggregate saves never bumped the top-level data.version or data.savedAt fields, so the REST poller compared frozen cloud version (603) vs frozen local version (603) and never applied. Cross-client changes were invisible. Symptom: Diya created a meeting, it reached cloud, but Mahendra never saw it. Fix: after every successful save, PATCH /s62data with fresh savedAt/lastSavedBy/saveKey markers. Poller now treats EITHER higher version OR newer savedAt as a real change. Plus all v101.66 Step 2 leadership view, v101.65 tombstone-to-cloud, v101.64 post-merge render, v101.63 Reviewing helper.');
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -11211,14 +11327,49 @@ function renderMyTodayHero(){
 function renderMyWork(){
   syncSchedTasks();
   if(typeof updateCloudSyncBtn==='function') updateCloudSyncBtn();
+
+  // v101.66 — Step 2 of 3: tier dispatch. Computes once at the top and reused
+  // by all render fns below. tier ∈ 'firm' | 'project' | 'execution'.
+  //   firm     → Principal Architect, Associate Principal (all active projects)
+  //   project  → Lead Architect, Project Architect, Interior Designer (scoped via isMyProject)
+  //   execution→ everyone else (Junior Architect, Architectural Assistant, Intern,
+  //              Site/Structural/BIM Engineer, Consultant) — keeps existing UI
+  //              until Step 3 rewrites it.
+  const me   = currentUser();
+  const tier = (me && typeof myWorkTier === 'function') ? myWorkTier(me.role) : 'execution';
+  const scope = (me && typeof myProjects === 'function') ? myProjects(me.id)  : [];
+
+  // Show/hide the leadership section based on tier
+  const lvSection = document.getElementById('lv-section');
+  if(lvSection){
+    lvSection.style.display = (tier === 'firm' || tier === 'project') ? '' : 'none';
+  }
+
   renderMyQuickActions();
-  renderMyTodayHero();  // v101.48 — Today hero (A+B layout)
+  renderMyTodayHero();
   renderMyKPIs();
-  renderMy2Week();       // v101.48 — 2-week schedule (clickable day filter)
-  // v101.53 — Unified Work Queue replaces the old three-panel split
-  // (renderMyDrawings + renderMyCalendar + renderMyCA). Those legacy
-  // functions still exist and are harmless — their target DOM nodes are
-  // gone, so they early-return.
+
+  // Leadership-tier cards — only render when section is visible
+  if(tier === 'firm' || tier === 'project'){
+    try {
+      // Scope label in the Portfolio Health header
+      const scopeLabelEl = document.getElementById('lv-portfolio-scope');
+      if(scopeLabelEl){
+        scopeLabelEl.textContent = tier === 'firm'
+          ? '· firm-wide ('+scope.length+' projects)'
+          : '· my projects ('+scope.length+')';
+      }
+      renderLvPortfolioHealth(scope);
+      renderLvDecisionsPending(me, scope);
+      renderLvRiskFlags(scope);
+      renderLvDeliveryTargets(scope);
+      renderLvTeamCapacity(scope);
+    } catch(e){
+      console.warn('[v101.66] leadership render error (non-fatal):', e);
+    }
+  }
+
+  renderMy2Week();
   renderMyQueue();
   renderMyHours();
   renderMine();
@@ -12048,6 +12199,522 @@ function _mwIsForMyReview(d, me){
 }
 if(typeof window !== 'undefined') window._mwIsForMyReview = _mwIsForMyReview;
 
+/* ═════════════════════════════════════════════════════════════════
+   v101.66 — My Work LEADERSHIP-TIER metric helpers
+   Pure functions: no DOM, no side effects. Used by the Portfolio
+   Health Matrix, Decisions Pending, Risk Flags, Delivery Targets,
+   and Team Capacity cards.
+
+   Scoping: every helper takes a `scopeProjects` array. Callers pass
+   `myProjects(me.id)` which is firm-wide for Principal/AP and
+   project-scoped for Lead/PA/Interior (using the leadArchitect/
+   projectArchitect/projectManager fields from v101.61).
+   ═════════════════════════════════════════════════════════════════ */
+
+// ── Date math ─────────────────────────────────────────────────
+function _lvToday(){
+  const t = new Date(); t.setHours(0,0,0,0); return t;
+}
+function _lvDaysBetween(a, b){
+  if(!a || !b) return 0;
+  return Math.round((b.getTime() - a.getTime()) / (24*60*60*1000));
+}
+function _lvIsOverdue(d, today){
+  if(!d || d.status === 'done' || !d.tgt) return false;
+  const dd = parseDue(d.tgt);
+  return !!(dd && dd < today);
+}
+
+// ── Project-scoped collections ────────────────────────────────
+function _lvDrawingsForProjects(scopeProjects){
+  if(!Array.isArray(DRAWINGS) || !Array.isArray(scopeProjects)) return [];
+  const ids = new Set(scopeProjects.map(p => p.id));
+  return DRAWINGS.filter(d => d && ids.has(d.proj));
+}
+function _lvCAItemsForProjects(scopeProjects, kind){
+  // kind ∈ 'rfi'|'snag'|'sub'|'ai'|'svr'
+  const map = {rfi:'CA_RFIS', snag:'CA_SNAGS', sub:'CA_SUBMITTALS', ai:'CA_AIS', svr:'CA_SVR'};
+  const arr = (typeof window !== 'undefined' && Array.isArray(window[map[kind]])) ? window[map[kind]] : [];
+  const ids = new Set(scopeProjects.map(p => p.id));
+  return arr.filter(r => r && ids.has(r.projId));
+}
+
+// ── Per-project health scoring (SCHED / FEE / QUALITY) ───────
+function _lvProjSchedHealth(p){
+  if(!p) return 'na';
+  const today = _lvToday();
+  const projDrawings = DRAWINGS.filter(d => d && d.proj === p.id && d.status !== 'done');
+  const overdueCount = projDrawings.filter(d => _lvIsOverdue(d, today)).length;
+
+  // Stage end date passed without phase advancing?
+  const stages = p.stages || {};
+  const currentStage = p.phase || '';
+  let stagePast = false;
+  if(currentStage && stages[currentStage] && stages[currentStage].end){
+    const stageEnd = parseDue(stages[currentStage].end);
+    if(stageEnd && stageEnd < today){
+      stagePast = true;
+    }
+  }
+
+  if(overdueCount >= 4 || stagePast) return 'red';
+  if(overdueCount >= 1) return 'amber';
+  return 'green';
+}
+function _lvProjFeeHealth(p){
+  // v101.61 — feeStructure schema added but values are 0 until populated.
+  // Computation deferred until phase budgets are entered. Returns 'na'.
+  if(!p || !p.feeStructure) return 'na';
+  const total = Object.values(p.feeStructure).reduce((s,v) => s + (typeof v==='number' ? v : 0), 0);
+  if(total === 0) return 'na';
+  // TODO when phase fees populated: compare hours-logged-per-phase vs budget
+  return 'na';
+}
+function _lvProjQualityHealth(p){
+  if(!p) return 'na';
+  const projDrawings = DRAWINGS.filter(d => d && d.proj === p.id);
+  if(projDrawings.length === 0) return 'na';
+  // Count drawings that were rejected at any point (via qaHistory or rejectedAt)
+  let returnedCount = 0;
+  let tripleReturned = false;
+  projDrawings.forEach(d => {
+    const rejections = Array.isArray(d.qaHistory)
+      ? d.qaHistory.filter(h => h && h.action === 'rejected').length
+      : (d.rejectedAt ? 1 : 0);
+    if(rejections > 0) returnedCount++;
+    if(rejections >= 3) tripleReturned = true;
+  });
+  if(tripleReturned) return 'red';
+  const pct = returnedCount / projDrawings.length;
+  if(pct > 0.15) return 'red';
+  if(pct >= 0.05) return 'amber';
+  return 'green';
+}
+
+// ── Risk flag aggregator ─────────────────────────────────────
+function _lvAgeInDays(isoOrYmd, today){
+  if(!isoOrYmd) return null;
+  const dd = parseDue(isoOrYmd);
+  if(!dd) return null;
+  return _lvDaysBetween(dd, today);
+}
+function _lvBuildRiskFlags(scopeProjects){
+  const today = _lvToday();
+  const flags = [];
+  const projIds = new Set(scopeProjects.map(p => p.id));
+  const projName = (pid) => {
+    const p = scopeProjects.find(x => x.id === pid) || (Array.isArray(PROJS) ? PROJS.find(x => x.id === pid) : null);
+    return p ? p.name : pid;
+  };
+
+  // RFIs aging
+  _lvCAItemsForProjects(scopeProjects, 'rfi').forEach(r => {
+    if(!r || r.status === 'closed' || r.status === 'resolved') return;
+    const age = _lvAgeInDays(r.raisedDate || r.createdAt, today);
+    if(age === null) return;
+    if(age > 10) flags.push({sev:'red',   label:'RFI '+(r.num||r.id)+' unanswered '+age+'d ('+projName(r.projId)+')', kind:'rfi', age, projId:r.projId, id:r.id});
+    else if(age >= 7) flags.push({sev:'amber', label:'RFI '+(r.num||r.id)+' unanswered '+age+'d ('+projName(r.projId)+')', kind:'rfi', age, projId:r.projId, id:r.id});
+  });
+
+  // Snags aging
+  _lvCAItemsForProjects(scopeProjects, 'snag').forEach(r => {
+    if(!r || r.status === 'resolved') return;
+    const age = _lvAgeInDays(r.createdAt, today);
+    if(age === null) return;
+    if(age > 14) flags.push({sev:'red', label:'Snag '+(r.num||r.id)+' open '+age+'d ('+projName(r.projId)+')', kind:'snag', age, projId:r.projId, id:r.id});
+    else if(age >= 7) flags.push({sev:'amber', label:'Snag '+(r.num||r.id)+' open '+age+'d ('+projName(r.projId)+')', kind:'snag', age, projId:r.projId, id:r.id});
+  });
+
+  // Submittals aging
+  _lvCAItemsForProjects(scopeProjects, 'sub').forEach(r => {
+    if(!r || r.status === 'approved' || r.status === 'rejected') return;
+    const age = _lvAgeInDays(r.createdAt, today);
+    if(age === null) return;
+    if(age > 10) flags.push({sev:'red', label:'Submittal '+(r.num||r.id)+' in review '+age+'d ('+projName(r.projId)+')', kind:'sub', age, projId:r.projId, id:r.id});
+    else if(age >= 5) flags.push({sev:'amber', label:'Submittal '+(r.num||r.id)+' in review '+age+'d ('+projName(r.projId)+')', kind:'sub', age, projId:r.projId, id:r.id});
+  });
+
+  // AIs aging
+  _lvCAItemsForProjects(scopeProjects, 'ai').forEach(r => {
+    if(!r || r.status === 'closed' || r.status === 'resolved') return;
+    const age = _lvAgeInDays(r.createdAt, today);
+    if(age === null) return;
+    if(age > 14) flags.push({sev:'red', label:'AI '+(r.num||r.id)+' open '+age+'d ('+projName(r.projId)+')', kind:'ai', age, projId:r.projId, id:r.id});
+    else if(age >= 7) flags.push({sev:'amber', label:'AI '+(r.num||r.id)+' open '+age+'d ('+projName(r.projId)+')', kind:'ai', age, projId:r.projId, id:r.id});
+  });
+
+  // SVRs without report — site visit > 48h ago, no issues recorded
+  _lvCAItemsForProjects(scopeProjects, 'svr').forEach(r => {
+    if(!r || !r.date) return;
+    const age = _lvAgeInDays(r.date, today);
+    if(age === null || age < 2) return;
+    const hasIssues = Array.isArray(r.issues) && r.issues.length > 0;
+    if(hasIssues) return;
+    if(age > 7) flags.push({sev:'red', label:'SVR '+(r.num||r.id)+' no report '+age+'d after visit ('+projName(r.projId)+')', kind:'svr', age, projId:r.projId, id:r.id});
+    else if(age >= 2) flags.push({sev:'amber', label:'SVR '+(r.num||r.id)+' no report '+age+'d after visit ('+projName(r.projId)+')', kind:'svr', age, projId:r.projId, id:r.id});
+  });
+
+  // Drawings repeatedly returned
+  _lvDrawingsForProjects(scopeProjects).forEach(d => {
+    const rejections = Array.isArray(d.qaHistory)
+      ? d.qaHistory.filter(h => h && h.action === 'rejected').length
+      : 0;
+    if(rejections >= 3) flags.push({sev:'red', label:'Drawing '+d.id+' returned '+rejections+'× ('+projName(d.proj)+')', kind:'drw-rej', rejections, projId:d.proj, id:d.id});
+    else if(rejections === 2) flags.push({sev:'amber', label:'Drawing '+d.id+' returned 2× ('+projName(d.proj)+')', kind:'drw-rej', rejections, projId:d.proj, id:d.id});
+  });
+
+  // Project stage past end date
+  scopeProjects.forEach(p => {
+    if(!p || !p.phase || !p.stages || !p.stages[p.phase] || !p.stages[p.phase].end) return;
+    const stageEnd = parseDue(p.stages[p.phase].end);
+    if(!stageEnd) return;
+    const overdueDays = _lvDaysBetween(stageEnd, today);
+    if(overdueDays > 7) flags.push({sev:'red', label:p.name+' in '+p.phase+' stage past end '+overdueDays+'d', kind:'stage-past', age:overdueDays, projId:p.id});
+  });
+
+  // Drawing stalled — no hours logged > 7d, still in progress
+  _lvDrawingsForProjects(scopeProjects).forEach(d => {
+    if(!d || d.status !== 'ip') return;
+    const lastUpdate = d.updatedAt ? new Date(d.updatedAt) : null;
+    if(!lastUpdate) return;
+    const ageDays = _lvDaysBetween(lastUpdate, today);
+    if(ageDays > 7) flags.push({sev:'amber', label:'Drawing '+d.id+' stalled '+ageDays+'d ('+projName(d.proj)+')', kind:'drw-stall', age:ageDays, projId:d.proj, id:d.id});
+  });
+
+  // Packages near target with <80% completion
+  if(typeof DRW_PACKAGES !== 'undefined' && Array.isArray(DRW_PACKAGES)){
+    DRW_PACKAGES.forEach(pkg => {
+      if(!pkg || !projIds.has(pkg.projId) || pkg.status === 'issued') return;
+      const tgt = parseDue(pkg.targetDate);
+      if(!tgt) return;
+      const daysToTarget = _lvDaysBetween(today, tgt);
+      if(daysToTarget < 0 || daysToTarget > 14) return;
+      const memberDrwgs = (pkg.drawings || []).map(id => DRAWINGS.find(d => d && d.id === id)).filter(Boolean);
+      if(memberDrwgs.length === 0) return;
+      const avgPct = memberDrwgs.reduce((s,d) => s + (d.pct||0), 0) / memberDrwgs.length;
+      if(avgPct < 80) flags.push({sev:'amber', label:'Package '+(pkg.label||pkg.id)+' due '+daysToTarget+'d, '+Math.round(avgPct)+'% ('+projName(pkg.projId)+')', kind:'pkg-risk', projId:pkg.projId, id:pkg.id});
+    });
+  }
+
+  // Project with zero activity in last 7 days
+  scopeProjects.forEach(p => {
+    if(!p || (p.status||'active') === 'archived') return;
+    const projD = _lvDrawingsForProjects([p]);
+    let lastTouch = 0;
+    projD.forEach(d => {
+      const u = d.updatedAt ? new Date(d.updatedAt).getTime() : 0;
+      if(u > lastTouch) lastTouch = u;
+    });
+    if(lastTouch === 0) return;
+    const daysSilent = _lvDaysBetween(new Date(lastTouch), today);
+    if(daysSilent > 7) flags.push({sev:'amber', label:p.name+' no activity '+daysSilent+'d', kind:'proj-quiet', age:daysSilent, projId:p.id});
+  });
+
+  // Invoices unpaid > 30 days
+  if(typeof INVOICES !== 'undefined' && Array.isArray(INVOICES)){
+    INVOICES.forEach(inv => {
+      if(!inv || !projIds.has(inv.projId)) return;
+      if(inv.status === 'paid') return;
+      const due = parseDue(inv.dueDate);
+      if(!due) return;
+      const overdueDays = _lvDaysBetween(due, today);
+      if(overdueDays > 60) flags.push({sev:'red', label:'Invoice '+inv.id+' unpaid '+overdueDays+'d ('+projName(inv.projId)+')', kind:'inv-late', age:overdueDays, projId:inv.projId, id:inv.id});
+      else if(overdueDays > 30) flags.push({sev:'amber', label:'Invoice '+inv.id+' unpaid '+overdueDays+'d ('+projName(inv.projId)+')', kind:'inv-late', age:overdueDays, projId:inv.projId, id:inv.id});
+    });
+  }
+
+  // Sort: red first, then amber; within same severity, oldest first
+  flags.sort((a,b) => {
+    if(a.sev !== b.sev) return a.sev === 'red' ? -1 : 1;
+    return (b.age || 0) - (a.age || 0);
+  });
+  return flags;
+}
+
+// ── Decisions pending for the current user ───────────────────
+function _lvDecisionsPending(me, scopeProjects){
+  const out = {drawingsToReview:0, packagesToSign:0, rfisToAnswer:0, invoicesToApprove:0};
+  if(!me) return out;
+  const projIds = new Set(scopeProjects.map(p => p.id));
+
+  // Drawings to QA review — chk status, in scope, and I can review
+  if(rd(me.role).canReview){
+    out.drawingsToReview = DRAWINGS.filter(d => d && d.status === 'chk' && projIds.has(d.proj)).length;
+  }
+
+  // Packages awaiting signoff — status pending and in scope
+  if(typeof DRW_PACKAGES !== 'undefined' && Array.isArray(DRW_PACKAGES)){
+    out.packagesToSign = DRW_PACKAGES.filter(pkg => pkg && projIds.has(pkg.projId) && pkg.status === 'pending').length;
+  }
+
+  // RFIs assigned to me (or unassigned on my projects if I'm leadership)
+  if(typeof CA_RFIS !== 'undefined' && Array.isArray(CA_RFIS)){
+    out.rfisToAnswer = CA_RFIS.filter(r => r && projIds.has(r.projId) && r.status !== 'closed' && r.status !== 'resolved' && (r.assignedTo === me.id || (!r.assignedTo && rd(me.role).canReview))).length;
+  }
+
+  // Invoices pending approval — only relevant to Principal/AP/PM
+  if(typeof INVOICES !== 'undefined' && Array.isArray(INVOICES)){
+    out.invoicesToApprove = INVOICES.filter(inv => inv && projIds.has(inv.projId) && (inv.status === 'pending' || inv.status === 'pending-approval' || inv.status === 'draft')).length;
+  }
+
+  return out;
+}
+
+// ── Delivery targets — drawings planned/issued/at-risk in a window ──
+function _lvDeliveryTargets(scopeProjects, daysAhead){
+  const today = _lvToday();
+  const windowEnd = new Date(today.getTime() + daysAhead*24*60*60*1000);
+  const scopeDrwgs = _lvDrawingsForProjects(scopeProjects);
+  const planned = scopeDrwgs.filter(d => {
+    if(!d.tgt) return false;
+    const dd = parseDue(d.tgt);
+    return dd && dd >= today && dd <= windowEnd;
+  });
+  const issued = planned.filter(d => d.status === 'done').length;
+  const atRisk = planned.filter(d => d.status !== 'done' && d.pct < 75).length;
+  return {planned: planned.length, issued, atRisk};
+}
+function _lvDeliveryTargetsPerProject(scopeProjects, daysAhead){
+  return scopeProjects.map(p => ({
+    proj: p,
+    counts: _lvDeliveryTargets([p], daysAhead)
+  })).filter(x => x.counts.planned > 0)
+     .sort((a,b) => b.counts.atRisk - a.counts.atRisk);
+}
+
+// ── Team capacity for the week ───────────────────────────────
+function _lvTeamCapacity(scopeProjects, weekStart){
+  // For 'firm' tier we show all active staff. For 'project' tier we show staff
+  // who appear in any of the scopeProjects' team rosters or as drawing assignees.
+  const today = _lvToday();
+  if(!weekStart) weekStart = today;
+
+  let staffIds = new Set();
+  if(scopeProjects.length === PROJS.length){
+    // Firm-wide — all active non-consultant staff
+    STAFF.filter(s => s && (s.type||'active') !== 'contractor').forEach(s => staffIds.add(s.id));
+  } else {
+    scopeProjects.forEach(p => {
+      if(p.leadArchitect)    staffIds.add(p.leadArchitect);
+      if(p.projectArchitect) staffIds.add(p.projectArchitect);
+      if(p.projectManager)   staffIds.add(p.projectManager);
+    });
+    // Also include anyone with drawings assigned on these projects
+    _lvDrawingsForProjects(scopeProjects).forEach(d => { if(d.sid) staffIds.add(d.sid); });
+  }
+
+  const rows = [];
+  staffIds.forEach(sid => {
+    const s = STAFF.find(x => x.id === sid);
+    if(!s) return;
+    const hoursLogged = (typeof _mwHoursLoggedThisWeek === 'function') ? _mwHoursLoggedThisWeek(sid) : 0;
+    const target = 40; // standard week — could be per-staff later
+    const utilPct = Math.round((hoursLogged / target) * 100);
+    let band, color;
+    if(utilPct <= 30){ band = 'underused'; color = 'var(--txd)'; }
+    else if(utilPct <= 70){ band = 'available'; color = 'var(--blu)'; }
+    else if(utilPct <= 90){ band = 'balanced'; color = 'var(--grn)'; }
+    else if(utilPct <= 105){ band = 'full'; color = 'var(--gold)'; }
+    else { band = 'overloaded'; color = 'var(--red)'; }
+    rows.push({staffId:sid, first:s.first, last:s.last, role:s.role, hoursLogged, target, utilPct, band, color});
+  });
+  // Sort overloaded first, then by utilization desc
+  rows.sort((a,b) => b.utilPct - a.utilPct);
+  return rows;
+}
+
+// Expose for console diagnostics
+if(typeof window !== 'undefined'){
+  window._lvProjSchedHealth      = _lvProjSchedHealth;
+  window._lvProjFeeHealth        = _lvProjFeeHealth;
+  window._lvProjQualityHealth    = _lvProjQualityHealth;
+  window._lvBuildRiskFlags       = _lvBuildRiskFlags;
+  window._lvDecisionsPending     = _lvDecisionsPending;
+  window._lvDeliveryTargets      = _lvDeliveryTargets;
+  window._lvDeliveryTargetsPerProject = _lvDeliveryTargetsPerProject;
+  window._lvTeamCapacity         = _lvTeamCapacity;
+}
+
+
+/* ═════════════════════════════════════════════════════════════════
+   v101.66 — My Work LEADERSHIP-TIER render functions
+   Render the new cards used by Principal/AP (firm-wide scope) and
+   Lead/PA/Interior (project-scoped via isMyProject).
+   ═════════════════════════════════════════════════════════════════ */
+
+function _lvDot(color){
+  return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+color+';margin-right:4px;vertical-align:middle"></span>';
+}
+function _lvRagDot(rag){
+  if(rag === 'green') return _lvDot('var(--grn)');
+  if(rag === 'amber') return _lvDot('var(--gold)');
+  if(rag === 'red')   return _lvDot('var(--red)');
+  return '<span style="display:inline-block;width:8px;text-align:center;color:var(--txd);font-size:11px;margin-right:2px">—</span>';
+}
+function _lvRagLabel(rag){
+  if(rag === 'green') return 'OK';
+  if(rag === 'amber') return 'AT RISK';
+  if(rag === 'red')   return 'CRITICAL';
+  return 'N/A';
+}
+
+// ── Portfolio Health Matrix ─────────────────────────────────
+function renderLvPortfolioHealth(scopeProjects){
+  const el = document.getElementById('lv-portfolio-health');
+  if(!el) return;
+  if(!Array.isArray(scopeProjects) || scopeProjects.length === 0){
+    el.innerHTML = '<div style="padding:18px 14px;font-family:var(--fm);font-size:10.5px;color:var(--txd);text-align:center">No projects in your scope. <span style="color:var(--gold)">Assign yourself</span> to a project via Edit Project → Project Team Assignment.</div>';
+    return;
+  }
+
+  let html = '<div style="padding:0">';
+  html += '<table style="width:100%;border-collapse:collapse;font-family:var(--fm);font-size:10.5px">';
+  html += '<thead><tr style="background:var(--sf2);border-bottom:1px solid var(--bd)">';
+  html += '<th style="text-align:left;padding:8px 10px;font-size:9.5px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;font-weight:600">Project</th>';
+  html += '<th style="text-align:center;padding:8px 6px;font-size:9.5px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;font-weight:600">Phase</th>';
+  html += '<th style="text-align:center;padding:8px 6px;font-size:9.5px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;font-weight:600">Sched</th>';
+  html += '<th style="text-align:center;padding:8px 6px;font-size:9.5px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;font-weight:600">Fee</th>';
+  html += '<th style="text-align:center;padding:8px 6px;font-size:9.5px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;font-weight:600">Quality</th>';
+  html += '<th style="text-align:right;padding:8px 10px;font-size:9.5px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;font-weight:600">Drawings</th>';
+  html += '</tr></thead><tbody>';
+
+  scopeProjects.forEach(p => {
+    const sched = _lvProjSchedHealth(p);
+    const fee   = _lvProjFeeHealth(p);
+    const qual  = _lvProjQualityHealth(p);
+    const projD = DRAWINGS.filter(d => d && d.proj === p.id);
+    const issued = projD.filter(d => d.status === 'done').length;
+    const safeName = (p.name||'').replace(/'/g, '&apos;').replace(/"/g,'&quot;');
+    html += '<tr style="border-bottom:1px solid var(--bd);cursor:pointer" onclick="go(\'drawings\',null);setTimeout(()=>{var pl=document.querySelector(\'[data-projid=&quot;'+p.id+'&quot;]\');if(pl)pl.click();},200)">';
+    html += '<td style="padding:7px 10px;font-family:var(--fm);font-size:10.5px;color:var(--tx)"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(p.color||'var(--gold)')+';margin-right:6px;vertical-align:middle"></span>'+safeName+'</td>';
+    html += '<td style="text-align:center;padding:7px 6px;font-family:var(--fm);font-size:9.5px;color:var(--txm)">'+(p.phase||'—')+'</td>';
+    html += '<td style="text-align:center;padding:7px 6px">'+_lvRagDot(sched)+'</td>';
+    html += '<td style="text-align:center;padding:7px 6px">'+_lvRagDot(fee)+'</td>';
+    html += '<td style="text-align:center;padding:7px 6px">'+_lvRagDot(qual)+'</td>';
+    html += '<td style="text-align:right;padding:7px 10px;font-family:var(--fm);font-size:10px;color:var(--txm)">'+issued+'/'+projD.length+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+// ── Decisions Pending Me ─────────────────────────────────────
+function renderLvDecisionsPending(me, scopeProjects){
+  const el = document.getElementById('lv-decisions-pending');
+  if(!el) return;
+  const d = _lvDecisionsPending(me, scopeProjects);
+
+  const row = (icon, label, count, color, onclick) => {
+    const dim = count === 0;
+    return '<div onclick="'+(onclick||'')+'" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--bd);cursor:'+(dim?'default':'pointer')+';opacity:'+(dim?0.45:1)+'">'
+      +'<div style="width:24px;font-size:14px;text-align:center;color:'+color+'">'+icon+'</div>'
+      +'<div style="flex:1;font-family:var(--fm);font-size:11px;color:'+(dim?'var(--txd)':'var(--tx)')+'">'+label+'</div>'
+      +'<div style="font-family:var(--fm);font-size:14px;font-weight:600;color:'+color+'">'+count+'</div>'
+      +'</div>';
+  };
+
+  let html = '<div style="display:flex;flex-direction:column">';
+  html += row('◈', 'Drawings to QA review',      d.drawingsToReview, 'var(--pur)',
+    "go('drawings',null);setTimeout(()=>setDrwView('qa',document.getElementById('sv-qa')),200)");
+  html += row('📦', 'Packages awaiting signoff', d.packagesToSign,  'var(--blu)', "go('drawings',null)");
+  html += row('📝', 'RFIs needing response',     d.rfisToAnswer,    'var(--gold)', "go('ca',null)");
+  html += row('💰', 'Invoices to approve',       d.invoicesToApprove,'var(--grn)', "go('financials',null)");
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ── Risk Flags (top 5) ───────────────────────────────────────
+function renderLvRiskFlags(scopeProjects){
+  const el = document.getElementById('lv-risk-flags');
+  if(!el) return;
+  const flags = _lvBuildRiskFlags(scopeProjects);
+  if(flags.length === 0){
+    el.innerHTML = '<div style="padding:24px 14px;font-family:var(--fm);font-size:11px;color:var(--grn);text-align:center">✓ No risk flags. All on track.</div>';
+    return;
+  }
+  const top5 = flags.slice(0, 5);
+  let html = '<div style="display:flex;flex-direction:column">';
+  top5.forEach(f => {
+    const color = f.sev === 'red' ? 'var(--red)' : 'var(--gold)';
+    const safeLabel = (f.label||'').replace(/'/g, '&apos;').replace(/"/g,'&quot;');
+    html += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bd)">'
+      +'<div style="font-size:11px;color:'+color+';margin-top:1px">●</div>'
+      +'<div style="flex:1;font-family:var(--fm);font-size:10.5px;color:var(--tx);line-height:1.4">'+safeLabel+'</div>'
+      +'</div>';
+  });
+  if(flags.length > 5){
+    html += '<div style="padding:6px 12px;font-family:var(--fm);font-size:9.5px;color:var(--txd);text-align:center">+ '+(flags.length - 5)+' more</div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ── Delivery Targets ─────────────────────────────────────────
+function renderLvDeliveryTargets(scopeProjects){
+  const el = document.getElementById('lv-delivery-targets');
+  if(!el) return;
+  const wk    = _lvDeliveryTargets(scopeProjects, 7);
+  const twoWk = _lvDeliveryTargets(scopeProjects, 14);
+  const month = _lvDeliveryTargets(scopeProjects, 30);
+
+  const summary = (lbl, t) => {
+    const pct = t.planned > 0 ? Math.round((t.issued / t.planned) * 100) : 0;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--bd)">'
+      +'<div style="font-family:var(--fm);font-size:10px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">'+lbl+'</div>'
+      +'<div style="font-family:var(--fm);font-size:11px;color:var(--tx)">'
+        +'<span style="color:var(--tx);font-weight:600">'+t.planned+'</span> planned'
+        +' · <span style="color:var(--grn)">'+t.issued+'</span> issued'
+        +' · <span style="color:'+(t.atRisk>0?'var(--gold)':'var(--txd)')+'">'+t.atRisk+'</span> at risk'
+        +' <span style="font-size:9px;color:var(--txd);margin-left:4px">('+pct+'%)</span>'
+      +'</div></div>';
+  };
+  let html = '<div style="display:flex;flex-direction:column">';
+  html += summary('This week',  wk);
+  html += summary('Next 2 wks', twoWk);
+  html += summary('This month', month);
+
+  // Per-project breakdown (top 5 by atRisk count) — week window
+  const perProj = _lvDeliveryTargetsPerProject(scopeProjects, 7).slice(0, 5);
+  if(perProj.length > 0){
+    html += '<div style="padding:8px 12px 4px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">Per project (this week)</div>';
+    perProj.forEach(({proj, counts}) => {
+      const color = counts.atRisk >= 2 ? 'var(--red)' : counts.atRisk >= 1 ? 'var(--gold)' : 'var(--grn)';
+      const safeName = (proj.name||'').replace(/'/g, '&apos;').replace(/"/g,'&quot;');
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px">'
+        +'<div style="font-family:var(--fm);font-size:10.5px;color:var(--tx)"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:'+(proj.color||'var(--gold)')+';margin-right:6px;vertical-align:middle"></span>'+safeName+'</div>'
+        +'<div style="font-family:var(--fm);font-size:10px;color:'+color+'">'+counts.issued+'/'+counts.planned+(counts.atRisk>0?' ⚠':'')+'</div>'
+        +'</div>';
+    });
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ── Team Capacity ────────────────────────────────────────────
+function renderLvTeamCapacity(scopeProjects){
+  const el = document.getElementById('lv-team-capacity');
+  if(!el) return;
+  const rows = _lvTeamCapacity(scopeProjects);
+  if(rows.length === 0){
+    el.innerHTML = '<div style="padding:18px 14px;font-family:var(--fm);font-size:10.5px;color:var(--txd);text-align:center">No team members on your projects.</div>';
+    return;
+  }
+  let html = '<div style="display:flex;flex-direction:column">';
+  rows.forEach(r => {
+    const safeName = (r.first+' '+r.last).replace(/'/g, '&apos;').replace(/"/g,'&quot;');
+    const widthPct = Math.min(150, r.utilPct);  // cap bar at 150%
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--bd)">'
+      +'<div style="flex:0 0 130px;font-family:var(--fm);font-size:10.5px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+safeName+'</div>'
+      +'<div style="flex:1;background:rgba(255,255,255,.05);height:7px;border-radius:4px;overflow:hidden;position:relative">'
+        +'<div style="height:100%;background:'+r.color+';width:'+(widthPct/1.5)+'%"></div>'
+      +'</div>'
+      +'<div style="flex:0 0 60px;text-align:right;font-family:var(--fm);font-size:10px;color:'+r.color+';font-weight:600">'+r.utilPct+'%</div>'
+      +'<div style="flex:0 0 40px;text-align:right;font-family:var(--fm);font-size:9.5px;color:var(--txd)">'+r.hoursLogged.toFixed(0)+'h</div>'
+      +'</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
 
 function renderMyHours(){
   const el = document.getElementById('mw-hours');
@@ -18927,7 +19594,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.65',
+        appVersion: 'S62-v101.67',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -19087,7 +19754,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.65',
+    appVersion: 'S62-v101.67',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
