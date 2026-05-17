@@ -4885,7 +4885,18 @@ const _S62_AGGREGATE_COLLECTIONS = [
   {name: 'drwCols',      get: () => typeof window !== 'undefined' && window.drwCols ? window.drwCols : null},
   {name: 'perfScores',   get: () => typeof PERF_SCORES    !== 'undefined' ? PERF_SCORES    : null},
   {name: 'reviews',      get: () => typeof REVIEWS        !== 'undefined' ? REVIEWS        : null},
-  {name: 'drwTemplates', get: () => typeof DRW_TEMPLATES  !== 'undefined' ? DRW_TEMPLATES  : null}
+  {name: 'drwTemplates', get: () => typeof DRW_TEMPLATES  !== 'undefined' ? DRW_TEMPLATES  : null},
+  // v101.65 — Tombstones must sync to cloud. Previously stored only in
+  // localStorage, so every new staff member logging in for the first time
+  // (e.g. Diya) would pull cloud data WITHOUT the tombstones that suppress
+  // already-deleted records — resulting in 5,000+ zombie drawings, 80
+  // zombie projects, etc. coming back into the new user's view.
+  // Adding here to _S62_AGGREGATE_COLLECTIONS makes s62WriteAggregates
+  // PUT the whole tombstones object to /s62data/tombstones.json on every
+  // cloud save. Read-side already handles data.tombstones via unpackData
+  // and the boot-time fetch reads /s62data.json which now will include
+  // tombstones under the top key.
+  {name: 'tombstones',   get: () => typeof S62_TOMBSTONES !== 'undefined' ? S62_TOMBSTONES : null}
 ];
 
 async function s62WriteAggregates(){
@@ -7689,7 +7700,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log("S62 v101.64 — fixes stale post-merge render. After waitForFirebasePull merges cloud data at boot, the currently-active panel was never re-rendered, so whatever was on screen from initial localStorage render stayed stale. Fix: after merge, look at .panel.active and call the matching render function. Specifically resolves the reported symptom: My Work's Reviewing tile showed 0 while DRAWINGS array contained 10 chk-status records. Includes v101.63 _mwIsForMyReview helper + v101.62 save-time refresh hook + v101.61 schema additions.");
+console.log("S62 v101.65 — CRITICAL fix: tombstones now sync to Firebase. They were stored only in localStorage and never written to cloud, so any new staff member logging in for the first time would see all previously-deleted records resurrected. Added tombstones to _S62_AGGREGATE_COLLECTIONS — they now write to /s62data/tombstones.json on every cloud save. RECOVERY: Mahendra must run \"cloudSave()\" once in his browser to push the existing localStorage tombstones (80 projs / 5691 drawings / etc.) up to Firebase. Then Diya reloads and the zombie records disappear. Includes all v101.61-v101.64 fixes (post-merge re-render, helper for Reviewing, Step 1 schema, save-hook refresh).");
 
 /* Helper: get the active version of a template by id */
 function getTemplate(tid){
@@ -18916,7 +18927,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.64',
+        appVersion: 'S62-v101.65',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -19076,7 +19087,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.64',
+    appVersion: 'S62-v101.65',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
