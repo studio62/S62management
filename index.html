@@ -7900,8 +7900,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.69 — My Work Step 3 of 3: execution-tier view. Adds Returned for Revision (conditional) and Todays Focus (1-3 priority cards) for Junior/Assistant/Intern/Engineer/Consultant. Pick logic: returned > overdue > due-today > due-tomorrow-not-started > due-3d-lowest-pct. Leadership tier hidden via display:none. Shared rows (2-week schedule, Work Queue, Hours) still appear for all tiers. Redesign complete.');
-/* Helper: get the active version of a template by id */
+console.log('S62 v101.70 — Fee/budget computation wired up. New Fee Structure section in Add/Edit Project modal (5 phases x 2 columns: Fee INR + Hour Budget). Computes burn rate per phase from billable timesheet entries. Portfolio Health Matrix Fee column shows real RAG (worst of in-progress and done phases) with tooltip showing per-phase utilization. Thresholds: green <80%, amber 80-100%, red >100%.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -12359,14 +12358,123 @@ function _lvProjSchedHealth(p){
   if(overdueCount >= 1) return 'amber';
   return 'green';
 }
+/* ─────────────────────────────────────────────────────────────
+   v101.70 — Fee/budget computation
+   ───────────────────────────────────────────────────────────── */
+
+// Get the budget object for a phase, normalising across schema versions.
+// Old schema: feeStructure.SD = 0 (scalar number, treated as feeINR)
+// New schema: feeStructure.SD = {feeINR, hourBudget}
+function _lvPhaseBudget(p, phase){
+  if(!p || !p.feeStructure) return {feeINR: 0, hourBudget: 0};
+  const v = p.feeStructure[phase];
+  if(v == null) return {feeINR: 0, hourBudget: 0};
+  if(typeof v === 'number') return {feeINR: v, hourBudget: 0};
+  return {feeINR: Number(v.feeINR)||0, hourBudget: Number(v.hourBudget)||0};
+}
+
+// Hours logged against a phase, summed across all billable timesheet entries
+// for this project. Uses the existing TS_ENTRIES.phase field.
+function _lvPhaseHoursLogged(p, phase){
+  if(!p || !Array.isArray(TS_ENTRIES)) return 0;
+  let total = 0;
+  TS_ENTRIES.forEach(e => {
+    if(!e || e.projId !== p.id || e.phase !== phase || e.billable === false) return;
+    (e.days||[]).forEach(h => { total += (typeof h === 'number' ? h : 0); });
+  });
+  return total;
+}
+
+// Compute burn metrics for a single phase. Returns {hours, hourBudget,
+// hourBurn, feeINR, spentINR, feeBurn, isActive, isDone, rag}.
+//   - hourBurn: hours / hourBudget (null if no budget)
+//   - feeBurn: spentINR / feeINR (null if no budget)
+//   - spentINR: hours * blended rate. Blended rate is derived if both
+//     feeINR and hourBudget are set (= feeINR/hourBudget). Otherwise null.
+//   - rag: 'green' < 80%, 'amber' 80-100%, 'red' >100%. Uses whichever
+//     burn% is available; if both, the worse one wins.
+function _lvPhaseBurn(p, phase){
+  const budget = _lvPhaseBudget(p, phase);
+  const hours = _lvPhaseHoursLogged(p, phase);
+
+  // Burn rates
+  let hourBurn = null;
+  if(budget.hourBudget > 0) hourBurn = hours / budget.hourBudget;
+
+  let derivedRate = null;
+  if(budget.feeINR > 0 && budget.hourBudget > 0) derivedRate = budget.feeINR / budget.hourBudget;
+  const spentINR = derivedRate != null ? hours * derivedRate : 0;
+  let feeBurn = null;
+  if(budget.feeINR > 0 && spentINR > 0) feeBurn = spentINR / budget.feeINR;
+
+  // Pick worst burn as the indicator
+  const burnUsed = (hourBurn != null && feeBurn != null)
+    ? Math.max(hourBurn, feeBurn)
+    : (hourBurn != null ? hourBurn : feeBurn);
+
+  // Phase status — is this phase in progress / done / not started?
+  const today = _lvToday();
+  const stages = p.stages || {};
+  const s = stages[phase] || {};
+  const start = parseDue(s.start);
+  const end   = parseDue(s.end);
+  const isCurrent = (p.phase === phase);
+  const isDone    = end && end < today && !isCurrent;          // past its end and not the current phase
+  const isFuture  = start && start > today;                     // hasn't started yet
+  const isActive  = !isFuture;                                  // for grading purposes: in progress or done
+
+  // RAG. Skip if no budget OR phase hasn't started.
+  let rag = 'na';
+  if(isActive && burnUsed != null){
+    if(burnUsed > 1.0) rag = 'red';
+    else if(burnUsed >= 0.8) rag = 'amber';
+    else rag = 'green';
+  }
+
+  return {
+    phase, hours,
+    hourBudget: budget.hourBudget,
+    hourBurn,
+    feeINR: budget.feeINR,
+    spentINR,
+    feeBurn,
+    burnUsed,
+    derivedRate,
+    isCurrent, isDone, isFuture, isActive,
+    rag
+  };
+}
+
+// All phases for a project, in display order. Includes burn metrics.
+function _lvProjPhases(p){
+  const order = ['SD','DD','CD','CA','Handover'];
+  return order.map(ph => _lvPhaseBurn(p, ph));
+}
+
+if(typeof window !== 'undefined'){
+  window._lvPhaseBudget      = _lvPhaseBudget;
+  window._lvPhaseHoursLogged = _lvPhaseHoursLogged;
+  window._lvPhaseBurn        = _lvPhaseBurn;
+  window._lvProjPhases       = _lvProjPhases;
+}
+
 function _lvProjFeeHealth(p){
-  // v101.61 — feeStructure schema added but values are 0 until populated.
-  // Computation deferred until phase budgets are entered. Returns 'na'.
+  // v101.70 — Real fee/budget RAG. Computes worst RAG among phases that
+  // are currently active (in progress) OR done. Phases not yet started
+  // are excluded from grading. Returns 'na' if no phase has any budget set.
   if(!p || !p.feeStructure) return 'na';
-  const total = Object.values(p.feeStructure).reduce((s,v) => s + (typeof v==='number' ? v : 0), 0);
-  if(total === 0) return 'na';
-  // TODO when phase fees populated: compare hours-logged-per-phase vs budget
-  return 'na';
+  const phases = _lvProjPhases(p);
+  let hasAnyBudget = false;
+  let worst = 'na';
+  const order = {na:0, green:1, amber:2, red:3};
+  phases.forEach(ph => {
+    if(ph.hourBudget > 0 || ph.feeINR > 0) hasAnyBudget = true;
+    if(!ph.isActive) return;
+    if(ph.rag === 'na') return;
+    if(order[ph.rag] > order[worst]) worst = ph.rag;
+  });
+  if(!hasAnyBudget) return 'na';
+  return worst === 'na' ? 'green' : worst;
 }
 function _lvProjQualityHealth(p){
   if(!p) return 'na';
@@ -12683,11 +12791,38 @@ function renderLvPortfolioHealth(scopeProjects){
     const projD = DRAWINGS.filter(d => d && d.proj === p.id);
     const issued = projD.filter(d => d.status === 'done').length;
     const safeName = (p.name||'').replace(/'/g, '&apos;').replace(/"/g,'&quot;');
+
+    // v101.70 — Build a per-phase fee tooltip so leaders can see the actual
+    // numbers behind the Fee dot without leaving the dashboard.
+    let feeTooltip = '';
+    if(fee !== 'na'){
+      const phases = _lvProjPhases(p);
+      const lines = ['Phase utilization (this project):'];
+      phases.forEach(ph => {
+        if(!ph.isActive && !ph.isCurrent) return;  // skip future-only phases
+        const parts = [ph.phase+':'];
+        if(ph.hourBudget > 0){
+          const pct = Math.round(ph.hourBurn*100);
+          parts.push(ph.hours.toFixed(0)+'/'+ph.hourBudget+'h ('+pct+'%)');
+        } else if(ph.hours > 0){
+          parts.push(ph.hours.toFixed(0)+'h logged (no budget set)');
+        }
+        if(ph.feeINR > 0){
+          parts.push('₹'+(ph.spentINR > 0 ? Math.round(ph.spentINR).toLocaleString('en-IN') : '0')+' / ₹'+ph.feeINR.toLocaleString('en-IN'));
+        }
+        lines.push('  '+parts.join(' '));
+      });
+      feeTooltip = lines.join('\n');
+    } else {
+      feeTooltip = 'No phase budgets set. Open Edit Project → Fee Structure to enter per-phase fee and hour budgets.';
+    }
+    const safeFeeTooltip = feeTooltip.replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+
     html += '<tr style="border-bottom:1px solid var(--bd);cursor:pointer" onclick="go(\'drawings\',null);setTimeout(()=>{var pl=document.querySelector(\'[data-projid=&quot;'+p.id+'&quot;]\');if(pl)pl.click();},200)">';
     html += '<td style="padding:7px 10px;font-family:var(--fm);font-size:10.5px;color:var(--tx)"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(p.color||'var(--gold)')+';margin-right:6px;vertical-align:middle"></span>'+safeName+'</td>';
     html += '<td style="text-align:center;padding:7px 6px;font-family:var(--fm);font-size:9.5px;color:var(--txm)">'+(p.phase||'—')+'</td>';
     html += '<td style="text-align:center;padding:7px 6px">'+_lvRagDot(sched)+'</td>';
-    html += '<td style="text-align:center;padding:7px 6px">'+_lvRagDot(fee)+'</td>';
+    html += '<td style="text-align:center;padding:7px 6px" title="'+safeFeeTooltip+'">'+_lvRagDot(fee)+'</td>';
     html += '<td style="text-align:center;padding:7px 6px">'+_lvRagDot(qual)+'</td>';
     html += '<td style="text-align:right;padding:7px 10px;font-family:var(--fm);font-size:10px;color:var(--txm)">'+issued+'/'+projD.length+'</td>';
     html += '</tr>';
@@ -15925,6 +16060,127 @@ if(typeof window !== 'undefined'){
   window.toggleApTeam            = toggleApTeam;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   v101.70 — Fee Structure helpers (Add/Edit Project modal)
+   ───────────────────────────────────────────────────────────── */
+
+const _AP_FEE_PHASES = ['SD','DD','CD','CA','Handover'];
+
+// Render the 5 phase rows into #ap-fee-rows. Pre-fills from feeStructure object.
+function populateApFeeRows(feeStructure){
+  const wrap = document.getElementById('ap-fee-rows');
+  if(!wrap) return;
+  const fs = feeStructure || {};
+  let html = '';
+  _AP_FEE_PHASES.forEach(ph => {
+    let feeINR = 0, hourBudget = 0;
+    const v = fs[ph];
+    if(typeof v === 'number') feeINR = v;
+    else if(v && typeof v === 'object'){
+      feeINR = Number(v.feeINR) || 0;
+      hourBudget = Number(v.hourBudget) || 0;
+    }
+    html += '<div style="display:grid;grid-template-columns:80px 1fr 1fr 90px;gap:8px;align-items:center">'
+      + '<div style="font-family:var(--fm);font-size:10.5px;color:var(--tx);font-weight:600">'+ph+'</div>'
+      + '<input class="finp ap-fee-inr"  data-phase="'+ph+'" type="text" inputmode="numeric" placeholder="0" value="'+(feeINR||'')+'" oninput="updateApFeeSummary()" style="font-family:var(--fm);font-size:11px;padding:5px 8px">'
+      + '<input class="finp ap-fee-hrs"  data-phase="'+ph+'" type="number" min="0" step="1" placeholder="0" value="'+(hourBudget||'')+'" oninput="updateApFeeSummary()" style="font-family:var(--fm);font-size:11px;padding:5px 8px">'
+      + '<div class="ap-fee-rate" data-phase="'+ph+'" style="text-align:right;font-family:var(--fm);font-size:10px;color:var(--txd)">—</div>'
+      + '</div>';
+  });
+  wrap.innerHTML = html;
+}
+
+// Parse an INR string like "1500000" or "15,00,000" or "15L" or "1.2Cr" → number
+function parseFeeINRLike(s){
+  if(s == null) return 0;
+  const t = String(s).trim();
+  if(t === '') return 0;
+  // Try the existing parseFeeINR helper first (handles ₹/L/Cr formats)
+  if(typeof parseFeeINR === 'function'){
+    try {
+      const n = parseFeeINR(t);
+      if(typeof n === 'number' && !isNaN(n)) return n;
+    } catch(_){}
+  }
+  // Fallback: strip non-digits and parse
+  const cleaned = t.replace(/[^\d.]/g, '');
+  const n = Number(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
+// Read the modal's fee inputs into the {SD:{feeINR,hourBudget}, DD:..., ...} shape.
+function readApFeeStructure(){
+  const out = {};
+  _AP_FEE_PHASES.forEach(ph => {
+    const inrEl = document.querySelector('.ap-fee-inr[data-phase="'+ph+'"]');
+    const hrsEl = document.querySelector('.ap-fee-hrs[data-phase="'+ph+'"]');
+    out[ph] = {
+      feeINR:     inrEl ? parseFeeINRLike(inrEl.value) : 0,
+      hourBudget: hrsEl ? (Number(hrsEl.value) || 0)   : 0
+    };
+  });
+  return out;
+}
+
+// Format INR for display: 1500000 → ₹15L, 12000000 → ₹1.2Cr
+function _formatINRCompact(n){
+  if(!n || isNaN(n)) return '₹0';
+  if(n >= 1e7) return '₹' + (n/1e7).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1') + 'Cr';
+  if(n >= 1e5) return '₹' + (n/1e5).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1') + 'L';
+  return '₹' + n.toLocaleString('en-IN');
+}
+
+// Update summary, total, and derived-rate per phase
+function updateApFeeSummary(){
+  const cur = readApFeeStructure();
+  let totalFee = 0, totalHrs = 0, phasesWithBudget = 0;
+  _AP_FEE_PHASES.forEach(ph => {
+    const r = cur[ph];
+    totalFee += r.feeINR;
+    totalHrs += r.hourBudget;
+    if(r.feeINR > 0 || r.hourBudget > 0) phasesWithBudget++;
+    const rateEl = document.querySelector('.ap-fee-rate[data-phase="'+ph+'"]');
+    if(rateEl){
+      if(r.feeINR > 0 && r.hourBudget > 0){
+        const rate = r.feeINR / r.hourBudget;
+        rateEl.textContent = '₹' + Math.round(rate).toLocaleString('en-IN') + '/h';
+        rateEl.style.color = 'var(--txm)';
+      } else {
+        rateEl.textContent = '—';
+        rateEl.style.color = 'var(--txd)';
+      }
+    }
+  });
+  const totEl = document.getElementById('ap-fee-total');     if(totEl) totEl.textContent = _formatINRCompact(totalFee);
+  const totHEl = document.getElementById('ap-fee-total-hrs'); if(totHEl) totHEl.textContent = totalHrs.toLocaleString('en-IN') + 'h';
+  const sumEl = document.getElementById('ap-fee-summary');
+  if(sumEl){
+    if(phasesWithBudget === 0){
+      sumEl.textContent = '— optional';
+      sumEl.style.color = 'var(--txd)';
+    } else {
+      sumEl.textContent = '· '+phasesWithBudget+' phase'+(phasesWithBudget===1?'':'s')+' · '+_formatINRCompact(totalFee);
+      sumEl.style.color = 'var(--tx)';
+    }
+  }
+}
+
+function toggleApFee(){
+  const body = document.getElementById('ap-fee-body');
+  const chev = document.getElementById('ap-fee-chevron');
+  if(!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if(chev) chev.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+if(typeof window !== 'undefined'){
+  window.populateApFeeRows  = populateApFeeRows;
+  window.readApFeeStructure = readApFeeStructure;
+  window.updateApFeeSummary = updateApFeeSummary;
+  window.toggleApFee        = toggleApFee;
+}
+
 function openAddProjectModal(){
   apColor=PROJ_COLORS[PROJS.length%PROJ_COLORS.length];
   document.getElementById('ap-title').textContent='Add New Project';
@@ -15938,6 +16194,9 @@ function openAddProjectModal(){
   // v101.61 — populate team dropdowns + clear selections
   populateApTeamDropdowns(null, null, null);
   updateApTeamSummary();
+  // v101.70 — render empty fee rows
+  populateApFeeRows(null);
+  updateApFeeSummary();
   document.getElementById('ap-fee').value='';
   document.getElementById('ap-start').value='';
   document.getElementById('ap-end').value='';
@@ -15977,6 +16236,21 @@ function openEditProjectModal(projId){
     const teamChev = document.getElementById('ap-team-chevron');
     if(teamBody) teamBody.style.display = '';
     if(teamChev) teamChev.style.transform = 'rotate(180deg)';
+  }
+  // v101.70 — populate fee rows from existing project; auto-open if any phase has budget
+  populateApFeeRows(p.feeStructure || null);
+  updateApFeeSummary();
+  if(p.feeStructure){
+    const hasAny = Object.values(p.feeStructure).some(v => {
+      if(typeof v === 'number') return v > 0;
+      return v && ((Number(v.feeINR)||0) > 0 || (Number(v.hourBudget)||0) > 0);
+    });
+    if(hasAny){
+      const feeBody = document.getElementById('ap-fee-body');
+      const feeChev = document.getElementById('ap-fee-chevron');
+      if(feeBody) feeBody.style.display = '';
+      if(feeChev) feeChev.style.transform = 'rotate(180deg)';
+    }
   }
   document.getElementById('ap-fee').value=parseFeeINR(p.fee||'0')||'';
   const _revMap={'pre':'0','briefing':'1','SD':'2','DD':'3','CD':'4','CA':'5','Handover':'6','use':'7'};
@@ -16173,10 +16447,12 @@ function submitProject(){
     const _leadArchitect    = document.getElementById('ap-lead-arch')?.value || '';
     const _projectArchitect = document.getElementById('ap-proj-arch')?.value || '';
     const _projectManager   = document.getElementById('ap-proj-mgr')?.value  || '';
+    // v101.70 — capture per-phase fee structure
+    const _feeStructure = (typeof readApFeeStructure === 'function') ? readApFeeStructure() : null;
     if(idx>=0){
       PROJS[idx]={...PROJS[idx],name,client,clientPhone,clientEmail,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg,
         leadArchitect:_leadArchitect, projectArchitect:_projectArchitect, projectManager:_projectManager,   // v101.61
-        feeStructure: PROJS[idx].feeStructure || {SD:0,DD:0,CD:0,CA:0,Handover:0}                            // v101.61 — skeleton
+        feeStructure: _feeStructure || PROJS[idx].feeStructure || {SD:0,DD:0,CD:0,CA:0,Handover:0}            // v101.70
       };
       PROJS[idx].updatedAt = new Date().toISOString();   // v101.55 — dirty-tracking
       // v101.61 — auto-add the assigned team members to their STAFF.projects
@@ -16204,9 +16480,13 @@ function submitProject(){
     const _newLead = document.getElementById('ap-lead-arch')?.value || '';
     const _newArch = document.getElementById('ap-proj-arch')?.value || '';
     const _newMgr  = document.getElementById('ap-proj-mgr')?.value  || '';
+    // v101.70 — read per-phase fee structure (optional)
+    const _newFeeStructure = (typeof readApFeeStructure === 'function')
+      ? readApFeeStructure()
+      : {SD:{feeINR:0,hourBudget:0},DD:{feeINR:0,hourBudget:0},CD:{feeINR:0,hourBudget:0},CA:{feeINR:0,hourBudget:0},Handover:{feeINR:0,hourBudget:0}};
     PROJS.push({id:pid,name,client,clientPhone,clientEmail,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages,bldgConfig:_bldgCfg,
       leadArchitect:_newLead, projectArchitect:_newArch, projectManager:_newMgr,   // v101.61
-      feeStructure:{SD:0,DD:0,CD:0,CA:0,Handover:0},                                // v101.61 — skeleton, fill later
+      feeStructure: _newFeeStructure,                                                // v101.70
       createdAt:_nowISO,updatedAt:_nowISO            // v101.55
     });
     // v101.61 — auto-add the assigned team members to their STAFF.projects
@@ -19907,7 +20187,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.69',
+        appVersion: 'S62-v101.70',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -20067,7 +20347,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.69',
+    appVersion: 'S62-v101.70',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -33833,6 +34113,39 @@ function updateVisBadge(){
             <select class="fsel" id="ap-proj-mgr"></select>
             <div style="font-family:var(--fm);font-size:8.5px;color:var(--txd);margin-top:3px">Commercial / schedule oversight</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- v101.70 — Fee Structure (per-phase budgets in ₹ and hours). Optional.
+         When populated, the Portfolio Health Matrix Fee column becomes a real
+         RAG indicator. Empty values are fine — that column stays N/A. -->
+    <div class="frow" style="margin-top:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:8px 12px;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;user-select:none"
+           onclick="toggleApFee()">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg style="width:13px;height:13px;stroke:var(--gold);fill:none;stroke-width:1.5" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span style="font-family:var(--fm);font-size:10.5px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">Fee Structure</span>
+          <span id="ap-fee-summary" style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-left:4px">— optional</span>
+        </div>
+        <svg id="ap-fee-chevron" style="width:11px;height:11px;stroke:var(--txd);fill:none;stroke-width:2;transition:transform .15s" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div id="ap-fee-body" style="display:none;padding:12px 4px 4px">
+        <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);line-height:1.6;margin-bottom:10px">
+          Per-phase budgets. Filling both fee and hours lets the system show ₹ burn AND hour burn. Filling just one is fine. Hours come from billable timesheet entries tagged with the project + phase.
+        </div>
+        <div style="display:grid;grid-template-columns:80px 1fr 1fr 90px;gap:8px;align-items:center;margin-bottom:6px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">
+          <div>Phase</div>
+          <div>Fee (₹)</div>
+          <div>Hour Budget</div>
+          <div style="text-align:right">Derived Rate</div>
+        </div>
+        <div id="ap-fee-rows" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="margin-top:10px;padding:8px 10px;background:var(--sf2);border-radius:6px;display:flex;justify-content:space-between;font-family:var(--fm);font-size:10px;color:var(--txm)">
+          <span>Total fee:</span><span id="ap-fee-total" style="color:var(--tx);font-weight:600">₹0</span>
+        </div>
+        <div style="margin-top:4px;padding:8px 10px;background:var(--sf2);border-radius:6px;display:flex;justify-content:space-between;font-family:var(--fm);font-size:10px;color:var(--txm)">
+          <span>Total hour budget:</span><span id="ap-fee-total-hrs" style="color:var(--tx);font-weight:600">0h</span>
         </div>
       </div>
     </div>
