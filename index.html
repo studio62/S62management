@@ -2426,7 +2426,9 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       <label class="col-toggle-lbl"><input type="checkbox" data-col="checkedBy" checked onchange="toggleCol(this)"> Checked By</label>
       <label class="col-toggle-lbl"><input type="checkbox" data-col="revSource"   onchange="toggleCol(this)"> Rev Source</label>
       <label class="col-toggle-lbl"><input type="checkbox" data-col="latestNote"  onchange="toggleCol(this)"> Latest Note</label>
-      <label class="col-toggle-lbl"><input type="checkbox" data-col="hours"    checked onchange="toggleCol(this)"> Hours</label>
+      <!-- v101.73 — Hours column locked on; toggle removed.
+           It carries the budget display + inline log-hours input. -->
+      <label class="col-toggle-lbl" style="opacity:.55;cursor:not-allowed" title="Hours is locked on — required for budget tracking"><input type="checkbox" checked disabled> Hours <span style="font-size:8px;color:var(--txd);margin-left:3px">(locked)</span></label>
       <label class="col-toggle-lbl"><input type="checkbox" data-col="pkg"             onchange="toggleCol(this)"> Package</label>
     </div>
   </div>
@@ -7901,7 +7903,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.72 — Inline hour logging + critical priority + priority notifications. Drawing register row now shows target hours, plus an inline +hrs input visible only to the row assignee. Press Enter to log time to TS_ENTRIES. Priority schema gains critical tier (above high), with deep-red row border and CRIT chip. Critical/high notifications fire to assignee + project lead (+ Principal for critical) on assignment, reassignment, and escalation. Over-budget log fires a budget-exceeded notification to leadership.');
+console.log('S62 v101.73 — Hours column locked on. The Hours column carries target/logged display and the inline +hrs input — both essential. Three layers force it on: cloud-merge override, boot-time check, and renderDrawings entry guard. Column-config UI shows Hours as locked (greyed-out checked checkbox). No data migration needed; existing users with hours=false get auto-flipped on next load.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -7953,6 +7955,13 @@ setTimeout(() => {
     if (typeof s62SnapshotAll === 'function'){
       s62SnapshotAll();
       console.log('[v101.42a] initial dirty-tracking snapshot captured');
+    }
+    // v101.73 — defensive: ensure Hours column is locked on at boot too,
+    // covering any path where drwCols was restored from saved state with
+    // hours=false.
+    if (typeof drwCols !== 'undefined' && drwCols && drwCols.hours !== true){
+      drwCols.hours = true;
+      console.log('[v101.73] Hours column re-enabled (was hidden in saved state)');
     }
   } catch(e){ console.warn('[v101.42a] snapshot error:', e.message); }
 }, 100);
@@ -15221,6 +15230,11 @@ function renderDrwSidebar(){
 }
 
 function renderDrawings(){
+  // v101.73 — Hours column is locked on. If it got hidden somehow (legacy
+  // saved state, manual edit, etc.), force it back on before rendering.
+  if(typeof drwCols !== 'undefined' && drwCols && drwCols.hours !== true){
+    drwCols.hours = true;
+  }
   renderDrwSidebar();
   if(activeProjId){
     try{renderProjectSummary(activeProjId);}catch(e){console.warn('S62 renderProjectSummary:',e);}
@@ -20597,7 +20611,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.72',
+        appVersion: 'S62-v101.73',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -20757,7 +20771,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.72',
+    appVersion: 'S62-v101.73',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -21583,7 +21597,13 @@ function unpackData(data) {
   if(data.visuals!==undefined){ VISUALS = _mergeOn ? s62MergeById(VISUALS, data.visuals, 'visuals') : data.visuals; }
   if(data.firmConfig&&data.firmConfig.name){ Object.assign(FIRM_CONFIG,data.firmConfig); applyFirmTheme(); }
   if(data.auditLog!==undefined){ AUDIT_LOG = _mergeOn ? s62MergeById(AUDIT_LOG, data.auditLog, 'auditLog') : data.auditLog; }
-  if(data.drwCols      !== undefined) { Object.assign(drwCols, data.drwCols); }
+  if(data.drwCols      !== undefined) {
+    Object.assign(drwCols, data.drwCols);
+    // v101.73 — Hours column is now LOCKED ON. It carries the budget display
+    // and the inline log-hours input. Hiding it removes core functionality,
+    // so any persisted false value gets forced back to true on load.
+    drwCols.hours = true;
+  }
   // Don't overwrite CURRENT_USER_ID from Firebase — each browser/staff member
   // has their own identity from Google sign-in or local session.
   // Only restore from sync if no auth has resolved yet AND no local user is set.
