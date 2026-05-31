@@ -7900,7 +7900,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.70 — Fee/budget computation wired up. New Fee Structure section in Add/Edit Project modal (5 phases x 2 columns: Fee INR + Hour Budget). Computes burn rate per phase from billable timesheet entries. Portfolio Health Matrix Fee column shows real RAG (worst of in-progress and done phases) with tooltip showing per-phase utilization. Thresholds: green <80%, amber 80-100%, red >100%.');
+console.log('S62 v101.71 — Rec 1: target hours visible end-to-end. d.targetHrs is now a first-class field on the drawing record (was silently dropped by Edit Drawing). Helper _drwTargetHrs falls back to SCHED_TASK.estHrs for backward compat. Drawing register Hours cell shows logged/target with RAG (green <80%, amber 80-100%, red >=100%). Drawing detail Hours tile renamed Hours-budget, plus a burn-down bar above the Log hours section. Log hours toast now reports % of budget.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -14998,7 +14998,18 @@ function logHrsFromDetail(drawingId){
   const tot=document.getElementById('dd-hrs-total');
   if(tot) tot.textContent=d.hrs+'h';
   if(inp) inp.value='';
-  showNotif('Hours logged',hrs+'h added to '+d.title+' · Total: '+d.hrs+'h');
+
+  // v101.71 — Budget-aware toast. Tell the user where they are vs target.
+  const _tgt = _drwTargetHrs(d);
+  let _msg = hrs+'h added to '+d.title+' · Total: '+d.hrs+'h';
+  if(_tgt > 0){
+    const _burn = Math.round((d.hrs/_tgt)*100);
+    if(_burn >= 100) _msg += ' · ⚠ OVER budget ('+d.hrs+'/'+_tgt+'h, '+_burn+'%)';
+    else if(_burn >= 80) _msg += ' · '+_burn+'% of '+_tgt+'h budget';
+    else _msg += ' · '+_burn+'% of '+_tgt+'h budget';
+  }
+  showNotif('Hours logged', _msg);
+
   syncHoursFromTimesheets();
   // If drawing is already at 100% (could be after previous update), auto-submit
   maybeAutoSubmitForCheck(drawingId);
@@ -15060,7 +15071,21 @@ function openDrwDetail(id){
   +[['Assigned to', s?s.first+' '+s.last:'Unassigned', 'var(--tx)'],
     ['Target date', tgtDisp, tgtColor],
     ['Progress', d.pct+'%', 'var(--tx)'],
-    ['Hours logged', d.hrs+'h', d.hrs>0?'var(--gold)':'var(--txd)'],
+    // v101.71 — Hours tile now shows logged/target with RAG colour
+    (function(){
+      const tgtH = _drwTargetHrs(d);
+      const burn = _drwBurnPct(d);
+      const rag  = _drwBudgetRag(d);
+      let value, col;
+      if(tgtH > 0){
+        value = (d.hrs||0)+'h / '+tgtH+'h';
+        col = rag==='red'?'var(--red)':rag==='amber'?'var(--gold)':'var(--grn)';
+      } else {
+        value = (d.hrs||0)+'h';
+        col = (d.hrs>0)?'var(--gold)':'var(--txd)';
+      }
+      return ['Hours · budget', value, col];
+    })(),
   ].map(([k,v,col])=>'<div style="background:var(--sf2);border-radius:6px;padding:8px 10px">'
     +'<div style="font-family:var(--fm);font-size:8px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">'+k+'</div>'
     +'<div style="font-size:12px;font-weight:600;color:'+col+'">'+v+'</div>'
@@ -15120,6 +15145,26 @@ function openDrwDetail(id){
   // ── Log hours ──
   +'<div class="drw-dp-section">'
   +'<div class="drw-dp-lbl">Log hours today</div>'
+  +(function(){
+    // v101.71 — Show a small budget bar above the logger so the assignee
+    // sees exactly how much budget remains before they enter today's hours.
+    const tgtH = _drwTargetHrs(d);
+    if(tgtH <= 0) return '';  // no budget set, skip the bar
+    const logged = d.hrs||0;
+    const pct = Math.min(120, Math.round((logged/tgtH)*100));
+    const rag = _drwBudgetRag(d);
+    const col = rag==='red'?'var(--red)':rag==='amber'?'var(--gold)':'var(--grn)';
+    return '<div style="margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;font-family:var(--fm);font-size:9px;margin-bottom:3px">'
+        +'<span style="color:var(--txd)">Budget burn</span>'
+        +'<span style="color:'+col+';font-weight:600">'+logged.toFixed(1)+'h / '+tgtH+'h · '+pct+'%</span>'
+      +'</div>'
+      +'<div style="background:var(--sf3);border-radius:3px;height:5px;overflow:hidden;position:relative">'
+        +'<div style="position:absolute;top:0;left:0;height:100%;width:'+Math.min(100,pct)+'%;background:'+col+';transition:width .3s"></div>'
+        +(pct > 100 ? '<div style="position:absolute;top:0;left:100%;height:100%;width:'+Math.min(20,pct-100)+'%;background:var(--red);opacity:0.5"></div>' : '')
+      +'</div>'
+    +'</div>';
+  })()
   +'<div style="display:flex;align-items:center;gap:8px">'
     +'<input id="dd-hrs-input" type="number" min="0" max="24" step="0.5" placeholder="e.g. 3.5" '
       +'style="background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:5px 8px;color:var(--tx);font-family:var(--fm);font-size:11px;width:80px;outline:none">'
@@ -15746,7 +15791,16 @@ function buildDrwTable(proj, rows, disc){
     +'</div></td>':'')
 
     // Hours
-    +(c.hours?'<td><span style="font-family:var(--fm);font-size:10px;color:'+(r.hrs>0?'var(--gold)':'var(--txd)')+'">'+r.hrs+'h</span></td>':'')
+    +(c.hours?(function(){
+      // v101.71 — show logged/target with RAG colour when budget set.
+      const tgt = _drwTargetHrs(r);
+      if(tgt > 0){
+        const rag = _drwBudgetRag(r);
+        const col = rag==='red'?'var(--red)':rag==='amber'?'var(--gold)':'var(--grn)';
+        return '<td><span style="font-family:var(--fm);font-size:10px;color:'+col+'" title="'+(r.hrs||0)+'h logged of '+tgt+'h target ('+_drwBurnPct(r)+'%)">'+(r.hrs||0)+'h / '+tgt+'h</span></td>';
+      }
+      return '<td><span style="font-family:var(--fm);font-size:10px;color:'+((r.hrs||0)>0?'var(--gold)':'var(--txd)')+'" title="No target hours set — Edit Drawing to assign a budget">'+(r.hrs||0)+'h</span></td>';
+    })():'')
     +(c.revSource?(function(){var lr=r.revHistory&&r.revHistory.length?r.revHistory[r.revHistory.length-1]:null;var src=lr?lr.source:'internal';var lbl=src==='client'?'Client':'In-House';var col=src==='client'?'var(--gold)':'var(--blu)';var bg=src==='client'?'rgba(240,201,122,.15)':'rgba(82,133,224,.15)';return '<td><span style="font-family:var(--fm);font-size:8px;font-weight:600;padding:2px 6px;border-radius:4px;background:'+bg+';color:'+col+'">'+lbl+'</span></td>';})():'')
     +(c.latestNote?(function(){var lr2=r.revHistory&&r.revHistory.length?r.revHistory[r.revHistory.length-1]:null;var n=lr2?lr2.note:'';var t=n.length>32?n.slice(0,30)+'…':n;return '<td title="'+n.replace(/"/g,'')+'">'+(n?'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+t+'</span>':'—')+'</td>';})():'')+(c.checkedBy?('<td>'+(r.checkedBy  ?(()=>{    const ck=STAFF.find(x=>x.id===r.checkedBy);    return ck      ?'<div class="setby-cell">'        +'<div class="setby-av" style="background:'+ck.color+'">'+ck.first[0]+ck.last[0]+'</div>'        +'<span>'+ck.first+'</span>'        +(r.checkDate?'<span style="font-family:var(--fm);font-size:7px;color:var(--txd)">'+fmtDate(parseDue(r.checkDate))+'</span>':'')      +'</div>'      :'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">—</span>';  })()  :'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">—</span>'))+'</td>':'')
 
@@ -19502,12 +19556,19 @@ function openEditDrawingModal(drawingId){
   document.getElementById('adm-due').value=d.tgt||'';
   document.getElementById('adm-pkg').value=d.pkg||'';
   // Gap 1 — pull priority + est hours from existing SCHED_TASK (v94)
+  // v101.71 — prefer d.targetHrs (new canonical field) if set, fall back
+  // to SCHED_TASK.estHrs for backward compatibility.
   const _existingTask = SCHED_TASKS.find(t => t.drawingId === d.id);
   if(_existingTask){
     const _priEl = document.getElementById('adm-priority');
     if(_priEl) _priEl.value = _existingTask.priority || 'normal';
-    const _ehEl = document.getElementById('adm-est-hours');
-    if(_ehEl) _ehEl.value = _existingTask.estHrs || '';
+  }
+  const _ehEl = document.getElementById('adm-est-hours');
+  if(_ehEl){
+    const tgtH = (typeof d.targetHrs === 'number' && d.targetHrs > 0)
+      ? d.targetHrs
+      : (_existingTask ? (_existingTask.estHrs || '') : '');
+    _ehEl.value = tgtH || '';
   }
   // v98 Option C — Metadata-only mode for issued drawings.
   // When status='done', the drawing is under controlled change management.
@@ -19645,6 +19706,25 @@ function submitAddDrawing(){
 
     d.title=title;d.disc=disc;d.drwType=drwType;d.stage=stage;
     d.sid=sid;d.tgt=tgt;d.due=tgt;d.pkg=pkg;
+    // v101.71 — persist target hours on drawing record (was being read from
+    // the form but silently dropped). Mirror to SCHED_TASK.estHrs so the
+    // existing workload/gantt views stay in sync.
+    if(estHrsInput > 0){
+      d.targetHrs = estHrsInput;
+      const _t = SCHED_TASKS.find(t => t.drawingId === d.id);
+      if(_t) _t.estHrs = estHrsInput;
+    } else if(estHrsInput === 0 && document.getElementById('adm-est-hours')){
+      // Treat blank/0 as "clear the budget" only if the field is empty.
+      // (If user typed 0 explicitly, same outcome — they meant no budget.)
+      const raw = (document.getElementById('adm-est-hours').value || '').trim();
+      if(raw === ''){
+        delete d.targetHrs;
+      } else {
+        d.targetHrs = 0;
+        const _t = SCHED_TASKS.find(t => t.drawingId === d.id);
+        if(_t) _t.estHrs = 0;
+      }
+    }
     if(sid){const s=STAFF.find(x=>x.id===sid);if(s&&!s.projects?.includes(pid)){(s.projects=s.projects||[]).push(pid);}}
 
     // Gap 6 — assignment log for accountability
@@ -19728,6 +19808,10 @@ function submitAddDrawing(){
       id:finalId,proj:pid,title,drwType,disc,stage,status:'nst',rev:'-',
       tgt,due:tgt,setby:canSchedule()?me.id:'',pct:0,hrs:0,sid,pkg,
       revHistory:[],qaHistory:[],
+      // v101.71 — persist target hours as a first-class field on the drawing
+      // record (was only stored on parallel SCHED_TASK). Optional — 0/absent
+      // means "no budget set".
+      targetHrs: estHrsInput > 0 ? estHrsInput : 0,
       // v99 — drawings added directly by user (not from template) are flagged
       // as project-specific. They survive template re-syncs untouched and show
       // a "Custom" badge in the register. Principal/Associate/PA can add these.
@@ -19839,6 +19923,38 @@ function doRemoveDrawing(drawingId){
    Aggregates all APPROVED entries per drawing → d.hrs
    Also updates SCHED_TASKS.actHrs and EVM for the Gantt.
    ─────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────
+   v101.71 — Drawing target-hours helper.
+
+   Reads d.targetHrs (new canonical field on drawing record). Falls back
+   to the parallel SCHED_TASKS.estHrs that was set at create-time. Returns
+   0 when nothing is set — UI then shows "—" rather than "0h".
+   ───────────────────────────────────────────────────────────── */
+function _drwTargetHrs(d){
+  if(!d) return 0;
+  if(typeof d.targetHrs === 'number' && d.targetHrs > 0) return d.targetHrs;
+  const t = (typeof SCHED_TASKS !== 'undefined') ? SCHED_TASKS.find(x => x.drawingId === d.id) : null;
+  if(t && typeof t.estHrs === 'number' && t.estHrs > 0) return t.estHrs;
+  return 0;
+}
+function _drwBurnPct(d){
+  const target = _drwTargetHrs(d);
+  if(!target) return null;
+  return Math.round(((d.hrs||0) / target) * 100);
+}
+function _drwBudgetRag(d){
+  const burn = _drwBurnPct(d);
+  if(burn == null) return 'na';
+  if(burn >= 100) return 'red';
+  if(burn >= 80)  return 'amber';
+  return 'green';
+}
+if(typeof window !== 'undefined'){
+  window._drwTargetHrs  = _drwTargetHrs;
+  window._drwBurnPct    = _drwBurnPct;
+  window._drwBudgetRag  = _drwBudgetRag;
+}
+
 function syncHoursFromTimesheets(){
   // Build a map: drawingId → total approved hours
   const hrsMap={};
@@ -20187,7 +20303,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.70',
+        appVersion: 'S62-v101.71',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -20347,7 +20463,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.70',
+    appVersion: 'S62-v101.71',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
