@@ -2495,6 +2495,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
              drawings when you need to triage. -->
         <select class="fsel" id="drw-priority-filter" style="width:auto" onchange="renderDrawings()" title="Filter by priority">
           <option value="ALL">All Priority</option>
+          <option value="critical">⚠ Critical only</option>
           <option value="high">🔴 High only</option>
           <option value="normal">Normal only</option>
           <option value="low">↓ Low only</option>
@@ -7900,7 +7901,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.71 — Rec 1: target hours visible end-to-end. d.targetHrs is now a first-class field on the drawing record (was silently dropped by Edit Drawing). Helper _drwTargetHrs falls back to SCHED_TASK.estHrs for backward compat. Drawing register Hours cell shows logged/target with RAG (green <80%, amber 80-100%, red >=100%). Drawing detail Hours tile renamed Hours-budget, plus a burn-down bar above the Log hours section. Log hours toast now reports % of budget.');
+console.log('S62 v101.72 — Inline hour logging + critical priority + priority notifications. Drawing register row now shows target hours, plus an inline +hrs input visible only to the row assignee. Press Enter to log time to TS_ENTRIES. Priority schema gains critical tier (above high), with deep-red row border and CRIT chip. Critical/high notifications fire to assignee + project lead (+ Principal for critical) on assignment, reassignment, and escalation. Over-budget log fires a budget-exceeded notification to leadership.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -15101,23 +15102,25 @@ function openDrwDetail(id){
   // register row left-bar: red for high, default for normal, grey for low.
   +(function(){
     const pri = d.priority || 'normal';
-    const colMap = { high:'var(--red)', normal:'var(--tx)', low:'var(--txd)' };
-    const lblMap = { high:'🔴 High', normal:'● Normal', low:'↓ Low' };
+    // v101.72 — uses V72_PRIORITY_COL/LBL maps (includes critical tier)
+    const colMap = (typeof V72_PRIORITY_COL !== 'undefined') ? V72_PRIORITY_COL : { high:'var(--red)', normal:'var(--tx)', low:'var(--txd)' };
+    const lblMap = (typeof V72_PRIORITY_LBL !== 'undefined') ? V72_PRIORITY_LBL : { high:'🔴 High', normal:'● Normal', low:'↓ Low' };
     const editable = (typeof canSchedule==='function' && canSchedule());
     if(!editable){
       return '<div class="drw-dp-section" style="display:flex;align-items:center;gap:8px">'
         +'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em">Priority</span>'
-        +'<span style="font-family:var(--fm);font-size:10px;font-weight:600;color:'+colMap[pri]+'">'+lblMap[pri]+'</span>'
+        +'<span style="font-family:var(--fm);font-size:10px;font-weight:600;color:'+(colMap[pri]||'var(--tx)')+'">'+(lblMap[pri]||pri)+'</span>'
       +'</div>';
     }
     return '<div class="drw-dp-section" style="display:flex;align-items:center;gap:8px">'
       +'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;min-width:60px">Priority</span>'
       +'<select id="ddp-priority-'+d.id+'" onchange="setDrwPriority(\''+d.id+'\',this.value)" '
-        +'style="background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;color:'+colMap[pri]+';'
+        +'style="background:var(--sf);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;color:'+(colMap[pri]||'var(--tx)')+';'
         +'font-family:var(--fm);font-size:10px;font-weight:600;outline:none;cursor:pointer">'
-        +'<option value="high"   '+(pri==='high'?'selected':'')+'>🔴 High</option>'
-        +'<option value="normal" '+(pri==='normal'?'selected':'')+'>● Normal</option>'
-        +'<option value="low"    '+(pri==='low'?'selected':'')+'>↓ Low</option>'
+        +'<option value="critical" '+(pri==='critical'?'selected':'')+'>⚠ Critical</option>'
+        +'<option value="high"     '+(pri==='high'?'selected':'')+'>🔴 High</option>'
+        +'<option value="normal"   '+(pri==='normal'?'selected':'')+'>● Normal</option>'
+        +'<option value="low"      '+(pri==='low'?'selected':'')+'>↓ Low</option>'
       +'</select>'
     +'</div>';
   })()
@@ -15666,15 +15669,17 @@ function buildDrwTable(proj, rows, disc){
 
     // v101.53 — Priority left-bar. The row already has a 3px left-border
     // for the "done" state (green). For active drawings, encode priority:
-    //   high   → red bar (3px)
-    //   normal → no bar (default — no visual noise)
-    //   low    → grey bar (3px, lighter)
+    //   critical → bright red bar + bg tint (4px, v101.72)
+    //   high     → red bar (3px)
+    //   normal   → no bar (default — no visual noise)
+    //   low      → grey bar (3px, lighter)
     // Done state still wins so completed work always reads as green.
     const pri = r.priority || 'normal';
     let priBar = '';
     if(!isDone){
-      if(pri === 'high')      priBar = 'border-left:3px solid var(--red);';
-      else if(pri === 'low')  priBar = 'border-left:3px solid rgba(255,255,255,.12);';
+      if(pri === 'critical')   priBar = 'border-left:4px solid #ff1744;background:rgba(255,23,68,.06);';  // v101.72
+      else if(pri === 'high')  priBar = 'border-left:3px solid var(--red);';
+      else if(pri === 'low')   priBar = 'border-left:3px solid rgba(255,255,255,.12);';
     }
 
     // Staff dropdown (admin only) vs read-only name
@@ -15689,6 +15694,8 @@ function buildDrwTable(proj, rows, disc){
     +(c.id?'<td class="col-id"><span style="font-family:var(--fm);font-size:10px;font-weight:600;color:'+discForRow.color+'">'+r.id+'</span>'
       // v101.53 — tiny priority tag, only shown when non-default. Compact so
       // it doesn't bloat the column. Tooltips explain the field.
+      // v101.72 — added critical (top tier).
+      +(pri==='critical'?'<span title="Critical priority" style="display:inline-block;margin-left:5px;padding:1px 5px;border-radius:3px;background:rgba(255,23,68,.22);color:#ff1744;font-family:var(--fm);font-size:8px;font-weight:700;letter-spacing:.05em;vertical-align:1px">⚠ CRIT</span>':'')
       +(pri==='high'?'<span title="High priority" style="display:inline-block;margin-left:5px;padding:1px 5px;border-radius:3px;background:rgba(224,82,82,.18);color:var(--red);font-family:var(--fm);font-size:8px;font-weight:700;letter-spacing:.04em;vertical-align:1px">HIGH</span>':'')
       +(pri==='low' ?'<span title="Low priority"  style="display:inline-block;margin-left:5px;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.06);color:var(--txd);font-family:var(--fm);font-size:8px;font-weight:600;letter-spacing:.04em;vertical-align:1px">LOW</span>':'')
       +'</td>':'')
@@ -15793,13 +15800,28 @@ function buildDrwTable(proj, rows, disc){
     // Hours
     +(c.hours?(function(){
       // v101.71 — show logged/target with RAG colour when budget set.
+      // v101.72 — append an inline log-hours input visible only to the
+      // assignee (d.sid === me.id). Press Enter to log today's hours.
       const tgt = _drwTargetHrs(r);
+      let display;
       if(tgt > 0){
         const rag = _drwBudgetRag(r);
         const col = rag==='red'?'var(--red)':rag==='amber'?'var(--gold)':'var(--grn)';
-        return '<td><span style="font-family:var(--fm);font-size:10px;color:'+col+'" title="'+(r.hrs||0)+'h logged of '+tgt+'h target ('+_drwBurnPct(r)+'%)">'+(r.hrs||0)+'h / '+tgt+'h</span></td>';
+        display = '<span style="font-family:var(--fm);font-size:10px;color:'+col+'" title="'+(r.hrs||0)+'h logged of '+tgt+'h target ('+_drwBurnPct(r)+'%)">'+(r.hrs||0)+'h / '+tgt+'h</span>';
+      } else {
+        display = '<span style="font-family:var(--fm);font-size:10px;color:'+((r.hrs||0)>0?'var(--gold)':'var(--txd)')+'" title="No target hours set — Edit Drawing to assign a budget">'+(r.hrs||0)+'h</span>';
       }
-      return '<td><span style="font-family:var(--fm);font-size:10px;color:'+((r.hrs||0)>0?'var(--gold)':'var(--txd)')+'" title="No target hours set — Edit Drawing to assign a budget">'+(r.hrs||0)+'h</span></td>';
+      const me = (typeof currentUser==='function') ? currentUser() : null;
+      const canLog = me && r.sid === me.id && !isDone;  // only assignee, and not for issued drawings
+      const inputHTML = canLog
+        ? '<div style="margin-top:3px"><input id="drw-row-hrs-'+r.id+'" type="number" min="0" max="24" step="0.5" placeholder="+ hrs" '
+            +'onkeydown="_v72HrsInputKeydown(event,\''+r.id+'\')" '
+            +'onclick="event.stopPropagation()" '
+            +'title="Type hours and press Enter to log time today" '
+            +'style="width:54px;background:var(--sf);border:1px solid var(--bd);border-radius:4px;padding:2px 5px;color:var(--tx);font-family:var(--fm);font-size:10px;outline:none">'
+          +'</div>'
+        : '';
+      return '<td>'+display+inputHTML+'</td>';
     })():'')
     +(c.revSource?(function(){var lr=r.revHistory&&r.revHistory.length?r.revHistory[r.revHistory.length-1]:null;var src=lr?lr.source:'internal';var lbl=src==='client'?'Client':'In-House';var col=src==='client'?'var(--gold)':'var(--blu)';var bg=src==='client'?'rgba(240,201,122,.15)':'rgba(82,133,224,.15)';return '<td><span style="font-family:var(--fm);font-size:8px;font-weight:600;padding:2px 6px;border-radius:4px;background:'+bg+';color:'+col+'">'+lbl+'</span></td>';})():'')
     +(c.latestNote?(function(){var lr2=r.revHistory&&r.revHistory.length?r.revHistory[r.revHistory.length-1]:null;var n=lr2?lr2.note:'';var t=n.length>32?n.slice(0,30)+'…':n;return '<td title="'+n.replace(/"/g,'')+'">'+(n?'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+t+'</span>':'—')+'</td>';})():'')+(c.checkedBy?('<td>'+(r.checkedBy  ?(()=>{    const ck=STAFF.find(x=>x.id===r.checkedBy);    return ck      ?'<div class="setby-cell">'        +'<div class="setby-av" style="background:'+ck.color+'">'+ck.first[0]+ck.last[0]+'</div>'        +'<span>'+ck.first+'</span>'        +(r.checkDate?'<span style="font-family:var(--fm);font-size:7px;color:var(--txd)">'+fmtDate(parseDue(r.checkDate))+'</span>':'')      +'</div>'      :'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">—</span>';  })()  :'<span style="font-family:var(--fm);font-size:9px;color:var(--txd)">—</span>'))+'</td>':'')
@@ -15909,13 +15931,242 @@ function cycleDrw(id){
 // v101.53 — Set a drawing's priority (high / normal / low) from the detail
 // panel. Forces immediate-save to bypass the 2.8s debounce — priority is a
 // triage signal and silent loss would defeat the purpose of marking urgency.
+/* ═════════════════════════════════════════════════════════════════════
+   v101.72 — Priority/critical + inline hour logging from drawing register
+
+   Two related features bundled because they share row-rendering changes:
+
+   1. PRIORITY TIERS — adds 'critical' as 4th level above 'high'. The
+      schema becomes: critical | high | normal | low. Critical and high
+      now fire targeted notifications on assignment, priority escalation,
+      and going overdue.
+      • Critical → assignee + project lead + Principal
+      • High     → assignee + project lead
+
+   2. INLINE HOUR INPUT — a small input cell in the drawing register row.
+      Only rendered for the row's assignee (d.sid === me.id). Press Enter
+      to write to TS_ENTRIES (today) and bump d.hrs + SCHED_TASKS.actHrs.
+      Same machinery as logHrsFromDetail just triggered from the row.
+   ═════════════════════════════════════════════════════════════════════ */
+
+// Color and label maps for priorities, including new 'critical' tier.
+// Used by the row renderer, detail panel, and chip rendering.
+const V72_PRIORITY_COL = {
+  critical: '#ff1744',     // deep neon red — distinct from regular red
+  high:     'var(--red)',
+  normal:   'var(--tx)',
+  low:      'var(--txd)'
+};
+const V72_PRIORITY_LBL = {
+  critical: '⚠ Critical',
+  high:     '🔴 High',
+  normal:   '● Normal',
+  low:      '↓ Low'
+};
+const V72_PRIORITY_BG = {
+  critical: 'rgba(255,23,68,.18)',
+  high:     'rgba(224,82,82,.15)',
+  normal:   'transparent',
+  low:      'transparent'
+};
+
+// Find the project's lead architect ID (falls back to projectArchitect).
+function _v72ProjectLeadSid(projId){
+  const p = (typeof PROJS !== 'undefined') ? PROJS.find(x => x.id === projId) : null;
+  if(!p) return null;
+  return p.leadArchitect || p.projectArchitect || null;
+}
+
+// Find the Principal Architect's staff ID (singular role).
+function _v72PrincipalSid(){
+  if(typeof STAFF === 'undefined') return null;
+  const principal = STAFF.find(s => s && s.role === 'Principal Architect');
+  return principal ? principal.id : null;
+}
+
+// Fire a notification to multiple recipients (deduped), one notification per
+// recipient. addNotif already handles the per-staff fan-out via forStaff.
+function _v72NotifyMany(recipients, payload){
+  if(typeof addNotif !== 'function') return;
+  const seen = new Set();
+  (recipients || []).forEach(sid => {
+    if(!sid || seen.has(sid)) return;
+    seen.add(sid);
+    try {
+      addNotif(Object.assign({}, payload, {forStaff: sid}));
+    } catch(e){ console.warn('[v101.72] addNotif:', e); }
+  });
+}
+
+// Notify on assignment to a critical/high priority drawing.
+// Called from submitAddDrawing for both create and reassign flows.
+function _v72NotifyPriorityAssign(d){
+  if(!d || !d.priority) return;
+  if(d.priority !== 'critical' && d.priority !== 'high') return;
+  const lead = _v72ProjectLeadSid(d.proj);
+  const principal = _v72PrincipalSid();
+  const recipients = [d.sid, lead];
+  if(d.priority === 'critical') recipients.push(principal);
+
+  const proj = (typeof PROJS !== 'undefined') ? PROJS.find(p => p.id === d.proj) : null;
+  const projName = proj ? proj.name : d.proj;
+  const isCrit = d.priority === 'critical';
+
+  _v72NotifyMany(recipients, {
+    type: 'priority-assignment',
+    icon: isCrit ? '⚠' : '🔴',
+    iconBg: isCrit ? 'rgba(255,23,68,.2)' : 'rgba(224,82,82,.2)',
+    title: (isCrit ? 'CRITICAL · ' : 'HIGH · ') + d.id + ' assigned',
+    detail: d.title + ' · ' + projName + ' · due ' + (d.tgt || 'TBD'),
+    projId: d.proj,
+    drawingId: d.id
+  });
+}
+
+// Notify on priority escalation (e.g. normal → critical).
+function _v72NotifyPriorityChange(d, prev, next){
+  if(!d) return;
+  // Only notify on upgrade to critical/high (downgrades are silent)
+  if(next !== 'critical' && next !== 'high') return;
+  const order = { low:0, normal:1, high:2, critical:3 };
+  if((order[next]||0) <= (order[prev]||0)) return;  // no escalation
+
+  const me = (typeof currentUser === 'function') ? currentUser() : null;
+  const lead = _v72ProjectLeadSid(d.proj);
+  const principal = _v72PrincipalSid();
+  const recipients = [d.sid, lead];
+  if(next === 'critical') recipients.push(principal);
+
+  const proj = (typeof PROJS !== 'undefined') ? PROJS.find(p => p.id === d.proj) : null;
+  const projName = proj ? proj.name : d.proj;
+  const isCrit = next === 'critical';
+
+  _v72NotifyMany(recipients, {
+    type: 'priority-escalation',
+    icon: isCrit ? '⚠' : '🔴',
+    iconBg: isCrit ? 'rgba(255,23,68,.2)' : 'rgba(224,82,82,.2)',
+    title: (isCrit ? 'CRITICAL · ' : 'HIGH · ') + d.id + ' escalated',
+    detail: d.title + ' · ' + projName + ' · by ' + (me ? (me.first+' '+me.last) : 'someone'),
+    projId: d.proj,
+    drawingId: d.id
+  });
+}
+
+// Inline hour-log from drawing register row.
+// Mirrors logHrsFromDetail but reads hours from the row's input field.
+function quickLogHrsFromRow(drawingId){
+  const d = DRAWINGS.find(x => x.id === drawingId);
+  if(!d){ showNotif('Error','Drawing not found.'); return; }
+  const inp = document.getElementById('drw-row-hrs-'+drawingId);
+  if(!inp) return;
+  const hrs = parseFloat(inp.value) || 0;
+  if(hrs <= 0){ showNotif('Enter hours','Type a number of hours and press Enter.'); return; }
+  if(hrs > 24){ showNotif('Too many hours','Cannot log more than 24 hours in a single entry.'); return; }
+
+  const me = currentUser();
+  if(!me){ showNotif('Sign in required','You must be signed in to log hours.'); return; }
+  if(d.sid !== me.id){
+    showNotif('Not assigned','This drawing is not assigned to you. Open the drawing detail to log on behalf of someone else.');
+    return;
+  }
+
+  // Update drawing record
+  d.hrs = Math.round((d.hrs + hrs) * 10) / 10;
+  d.updatedAt = new Date().toISOString();
+
+  // Add to TS_ENTRIES (today, billable, this drawing)
+  const wkKey = tsWeekKey(0);
+  const today = new Date();
+  const dayIdx = Math.max(0, Math.min(4, today.getDay() === 0 ? 4 : today.getDay() - 1));
+  let entry = TS_ENTRIES.find(e => e.sid === me.id && e.drawingId === drawingId && e.weekKey === wkKey);
+  if(entry){
+    if(!entry.days) entry.days = [0,0,0,0,0];
+    entry.days[dayIdx] = (entry.days[dayIdx] || 0) + hrs;
+  } else {
+    const days = [0,0,0,0,0]; days[dayIdx] = hrs;
+    TS_ENTRIES.push({
+      id: 'TSE-DR-' + Date.now(),
+      sid: me.id,
+      projId: d.proj,
+      drawingId,
+      phase: d.stage || '',
+      task: d.title,
+      billable: true,
+      entryType: 'drawing',
+      weekKey: wkKey,
+      days,
+      status: 'draft',
+      note: 'Logged inline from drawing register'
+    });
+  }
+
+  // Mirror to SCHED_TASKS
+  const task = SCHED_TASKS.find(t => t.drawingId === drawingId);
+  if(task) task.actHrs = d.hrs;
+
+  // Budget warning logic
+  const tgt = (typeof _drwTargetHrs === 'function') ? _drwTargetHrs(d) : 0;
+  let msg = hrs + 'h added to ' + d.id + ' · Total: ' + d.hrs + 'h';
+  if(tgt > 0){
+    const burn = Math.round((d.hrs / tgt) * 100);
+    if(burn >= 100){
+      msg += ' · ⚠ OVER budget (' + d.hrs + '/' + tgt + 'h, ' + burn + '%)';
+      // Notify project lead + Principal that someone's drawing exceeded budget
+      const lead = _v72ProjectLeadSid(d.proj);
+      const principal = _v72PrincipalSid();
+      _v72NotifyMany([lead, principal], {
+        type: 'budget-exceeded',
+        icon: '⚠',
+        iconBg: 'rgba(255,23,68,.18)',
+        title: d.id + ' OVER budget',
+        detail: d.hrs + 'h logged of ' + tgt + 'h target (' + burn + '%) by ' + me.first,
+        projId: d.proj,
+        drawingId: d.id
+      });
+    } else if(burn >= 80){
+      msg += ' · ' + burn + '% of ' + tgt + 'h budget';
+    } else {
+      msg += ' · ' + burn + '% of ' + tgt + 'h budget';
+    }
+  }
+  showNotif('Hours logged', msg);
+
+  if(typeof syncHoursFromTimesheets === 'function') syncHoursFromTimesheets();
+  if(typeof maybeAutoSubmitForCheck === 'function') maybeAutoSubmitForCheck(drawingId);
+  inp.value = '';
+  renderDrawings();
+  scheduleSave({immediate: true});
+}
+
+// Catch Enter key in the inline input.
+function _v72HrsInputKeydown(ev, drawingId){
+  if(ev.key === 'Enter' || ev.keyCode === 13){
+    ev.preventDefault();
+    quickLogHrsFromRow(drawingId);
+  }
+}
+
+if(typeof window !== 'undefined'){
+  window.V72_PRIORITY_COL          = V72_PRIORITY_COL;
+  window.V72_PRIORITY_LBL          = V72_PRIORITY_LBL;
+  window.V72_PRIORITY_BG           = V72_PRIORITY_BG;
+  window._v72ProjectLeadSid        = _v72ProjectLeadSid;
+  window._v72PrincipalSid          = _v72PrincipalSid;
+  window._v72NotifyMany            = _v72NotifyMany;
+  window._v72NotifyPriorityAssign  = _v72NotifyPriorityAssign;
+  window._v72NotifyPriorityChange  = _v72NotifyPriorityChange;
+  window.quickLogHrsFromRow        = quickLogHrsFromRow;
+  window._v72HrsInputKeydown       = _v72HrsInputKeydown;
+}
+
 function setDrwPriority(id, pri){
   const d = DRAWINGS.find(x=>x.id===id);
   if(!d){
     console.warn('[v101.53] setDrwPriority — drawing not found:', id);
     return;
   }
-  if(!['high','normal','low'].includes(pri)) pri = 'normal';
+  // v101.72 — added 'critical' as 4th tier above 'high'
+  if(!['critical','high','normal','low'].includes(pri)) pri = 'normal';
   const prev = d.priority || 'normal';
   if(prev === pri) return;
   d.priority = pri;
@@ -15932,10 +16183,20 @@ function setDrwPriority(id, pri){
   try {
     const sel = document.getElementById('ddp-priority-'+id);
     if(sel){
-      const colMap = { high:'var(--red)', normal:'var(--tx)', low:'var(--txd)' };
+      // v101.72 — added critical (deep red, distinct from regular high red)
+      const colMap = { critical:'#ff1744', high:'var(--red)', normal:'var(--tx)', low:'var(--txd)' };
       sel.style.color = colMap[pri];
     }
   } catch(_){}
+
+  // v101.72 — Critical or high priority change → notify assignee, project
+  // lead, and (for critical only) Principal. So when a Principal escalates
+  // a drawing to critical, the right people see it immediately.
+  if(pri === 'critical' || pri === 'high'){
+    try {
+      _v72NotifyPriorityChange(d, prev, pri);
+    } catch(e){ console.warn('[v101.72] notifyPriorityChange:', e); }
+  }
 
   showNotif('Priority updated', d.id+' → '+pri);
 
@@ -19706,6 +19967,18 @@ function submitAddDrawing(){
 
     d.title=title;d.disc=disc;d.drwType=drwType;d.stage=stage;
     d.sid=sid;d.tgt=tgt;d.due=tgt;d.pkg=pkg;
+    // v101.72 — also persist priority on the drawing record (was only on
+    // SCHED_TASK before). Validate against the 4-tier schema. Fire escalation
+    // notification when going up to critical/high.
+    if(priorityInput && ['critical','high','normal','low'].includes(priorityInput)){
+      const prevPri = d.priority || 'normal';
+      if(prevPri !== priorityInput){
+        try {
+          _v72NotifyPriorityChange(d, prevPri, priorityInput);
+        } catch(e){ console.warn('[v101.72] priority change notify (edit):', e); }
+      }
+      d.priority = priorityInput;
+    }
     // v101.71 — persist target hours on drawing record (was being read from
     // the form but silently dropped). Mirror to SCHED_TASK.estHrs so the
     // existing workload/gantt views stay in sync.
@@ -19778,12 +20051,22 @@ function submitAddDrawing(){
           });
         }
       }
+
+      // v101.72 — Fire critical/high priority notification on reassignment
+      // (lead + Principal). The assignee gets the standard notif above.
+      try {
+        _v72NotifyPriorityAssign(d);
+      } catch(e){ console.warn('[v101.72] priority assign notify (reassign):', e); }
     }
     // Sync edits to priority + estHrs into existing SCHED_TASK (v94)
     {
       const _t = SCHED_TASKS.find(t => t.drawingId === d.id);
       if(_t){
         if(priorityInput && _t.priority !== priorityInput){
+          // v101.72 — priority changed via Edit Drawing → fire escalation notif
+          try {
+            _v72NotifyPriorityChange(d, _t.priority || 'normal', priorityInput);
+          } catch(e){ console.warn('[v101.72] priority change notify:', e); }
           _t.priority = priorityInput;
           if(!Array.isArray(_t.changeLog)) _t.changeLog = [];
           _t.changeLog.push({date: todayStr, by: me.first+' '+me.last, note: 'Priority → '+priorityInput});
@@ -19812,6 +20095,9 @@ function submitAddDrawing(){
       // record (was only stored on parallel SCHED_TASK). Optional — 0/absent
       // means "no budget set".
       targetHrs: estHrsInput > 0 ? estHrsInput : 0,
+      // v101.72 — persist priority on drawing record so row renderer can
+      // colour rows + chips correctly. Valid: critical/high/normal/low.
+      priority: (priorityInput && ['critical','high','normal','low'].includes(priorityInput)) ? priorityInput : 'normal',
       // v99 — drawings added directly by user (not from template) are flagged
       // as project-specific. They survive template re-syncs untouched and show
       // a "Custom" badge in the register. Principal/Associate/PA can add these.
@@ -19878,6 +20164,14 @@ function submitAddDrawing(){
         });
       }
     }
+
+    // v101.72 — Fire critical/high priority notification to project lead
+    // (+ Principal for critical). The assignee notif above fires regardless;
+    // these add the leadership-level alerts.
+    try {
+      const _newD = DRAWINGS.find(x => x.id === finalId);
+      if(_newD) _v72NotifyPriorityAssign(_newD);
+    } catch(e){ console.warn('[v101.72] priority assign notify (create):', e); }
 
     showNotif('Drawing added', finalId + ' — ' + title + (sid ? ' · assigned to ' + (STAFF.find(x=>x.id===sid)?.first || sid) : ''));
   }
@@ -20303,7 +20597,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.71',
+        appVersion: 'S62-v101.72',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -20463,7 +20757,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.71',
+    appVersion: 'S62-v101.72',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
