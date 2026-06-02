@@ -7903,7 +7903,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.73 — Two cleanups: (1) Hours column locked on. Three layers force it on: cloud-merge override, boot-time check, render-time guard. Column-config UI shows it locked. (2) Drawing templates no longer auto-selected on project create/edit. Matching templates still sorted to top with a MATCHES TYPE badge as soft recommendation, but user must explicitly check what they want to apply.');
+console.log('S62 v101.74 — Hybrid Rec 3: TS_ENTRIES is now the source of truth for hours. d.hrs is always derived via recomputeDrwHoursFromTS(), never incremented in-place. Log functions write to TS_ENTRIES first, then recompute. Triggered automatically: after every log, after TS cell edit, after TS entry delete, after cloud merge, at boot. Eliminates drift between DRAWINGS[].hrs, SCHED_TASKS[].actHrs, and sum(TS_ENTRIES). New diagnostic: _v74DiagnoseHoursDrift() in console shows any remaining drift.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -7962,6 +7962,16 @@ setTimeout(() => {
     if (typeof drwCols !== 'undefined' && drwCols && drwCols.hours !== true){
       drwCols.hours = true;
       console.log('[v101.73] Hours column re-enabled (was hidden in saved state)');
+    }
+    // v101.74 — recompute d.hrs from TS_ENTRIES at boot so any drift from
+    // older sessions or browser tabs gets corrected immediately.
+    if (typeof recomputeDrwHoursFromTS === 'function'){
+      const res = recomputeDrwHoursFromTS();
+      if(res.changed > 0){
+        console.log('[v101.74] boot hours recompute — corrected drift on '+res.changed+' drawing(s)');
+      } else {
+        console.log('[v101.74] boot hours recompute — no drift detected');
+      }
     }
   } catch(e){ console.warn('[v101.42a] snapshot error:', e.message); }
 }, 100);
@@ -14984,8 +14994,9 @@ function logHrsFromDetail(drawingId){
   const inp=document.getElementById('dd-hrs-input');
   const hrs=parseFloat(inp?.value)||0;
   if(hrs<=0){showNotif('Enter hours','Please enter hours worked today.');return;}
-  d.hrs=Math.round((d.hrs+hrs)*10)/10;
-  // Add to TS_ENTRIES
+
+  // v101.74 — TS_ENTRIES is the source of truth. Write to TS first, then
+  // derive d.hrs via recompute. Don't increment d.hrs in-place anymore.
   const me=currentUser();
   const wkKey=tsWeekKey(0);
   const today=new Date();
@@ -15000,10 +15011,11 @@ function logHrsFromDetail(drawingId){
       phase:d.stage||'',task:d.title,billable:true,entryType:'drawing',
       weekKey:wkKey,days,status:'draft',note:'Logged via drawing detail'});
   }
-  // Update SCHED_TASKS actHrs
-  const task=SCHED_TASKS.find(t=>t.drawingId===drawingId);
-  if(task) task.actHrs=d.hrs;
+
+  // v101.74 — recompute d.hrs (and SCHED_TASKS.actHrs + EVM) from TS sum
+  recomputeDrwHoursFromTS();
   d.updatedAt = new Date().toISOString();    // v101.59 — dirty-tracking
+
   // Update UI
   const tot=document.getElementById('dd-hrs-total');
   if(tot) tot.textContent=d.hrs+'h';
@@ -15020,7 +15032,6 @@ function logHrsFromDetail(drawingId){
   }
   showNotif('Hours logged', _msg);
 
-  syncHoursFromTimesheets();
   // If drawing is already at 100% (could be after previous update), auto-submit
   maybeAutoSubmitForCheck(drawingId);
   renderDrawings();
@@ -16084,11 +16095,8 @@ function quickLogHrsFromRow(drawingId){
     return;
   }
 
-  // Update drawing record
-  d.hrs = Math.round((d.hrs + hrs) * 10) / 10;
-  d.updatedAt = new Date().toISOString();
-
-  // Add to TS_ENTRIES (today, billable, this drawing)
+  // v101.74 — Write to TS_ENTRIES first, then derive d.hrs via recompute.
+  // Don't increment d.hrs in-place anymore.
   const wkKey = tsWeekKey(0);
   const today = new Date();
   const dayIdx = Math.max(0, Math.min(4, today.getDay() === 0 ? 4 : today.getDay() - 1));
@@ -16114,9 +16122,9 @@ function quickLogHrsFromRow(drawingId){
     });
   }
 
-  // Mirror to SCHED_TASKS
-  const task = SCHED_TASKS.find(t => t.drawingId === drawingId);
-  if(task) task.actHrs = d.hrs;
+  // v101.74 — recompute d.hrs (and SCHED_TASKS.actHrs + EVM) from TS sum
+  recomputeDrwHoursFromTS();
+  d.updatedAt = new Date().toISOString();
 
   // Budget warning logic
   const tgt = (typeof _drwTargetHrs === 'function') ? _drwTargetHrs(d) : 0;
@@ -16145,7 +16153,6 @@ function quickLogHrsFromRow(drawingId){
   }
   showNotif('Hours logged', msg);
 
-  if(typeof syncHoursFromTimesheets === 'function') syncHoursFromTimesheets();
   if(typeof maybeAutoSubmitForCheck === 'function') maybeAutoSubmitForCheck(drawingId);
   inp.value = '';
   renderDrawings();
@@ -20263,50 +20270,120 @@ if(typeof window !== 'undefined'){
   window._drwBudgetRag  = _drwBudgetRag;
 }
 
-function syncHoursFromTimesheets(){
-  // Build a map: drawingId → total approved hours
-  const hrsMap={};
-  TS_ENTRIES.forEach(e=>{
-    if(!e.drawingId) return;                    // skip admin/leave/project-only rows
-    // Only count submitted or approved entries — approved is definitive,
-    // submitted shows accruing hours before approval
-    if(e.status==='draft') return;
-    const h=tsEntryTotal(e);
-    if(h<=0) return;
-    hrsMap[e.drawingId]=(hrsMap[e.drawingId]||0)+h;
+/* ═════════════════════════════════════════════════════════════════════
+   v101.74 — Hybrid Rec 3: TS_ENTRIES is the source of truth for hours.
+
+   The drawing's d.hrs field is now ALWAYS recomputed from the sum of
+   matching TS_ENTRIES rather than incremented in-place by log functions.
+   This eliminates drift between:
+     - DRAWINGS[].hrs (was incremented by log functions)
+     - SCHED_TASKS[].actHrs (mirrored)
+     - sum(TS_ENTRIES where drawingId=X) (canonical)
+
+   d.hrs stays as a stored field for backward compat (49 read sites in
+   the codebase). It's just always derived now.
+
+   Counted entries: all entries with a drawingId and at least one hour,
+   regardless of status (draft/submitted/approved). Even draft entries
+   should count toward burn — the work was done.
+
+   Call sites: triggered automatically after every TS write (log,
+   timesheet save, delete), after cloud merge, and on boot. Manual
+   manualSyncHours() still available.
+   ═════════════════════════════════════════════════════════════════════ */
+
+function recomputeDrwHoursFromTS(){
+  // Returns {changed: <count>, beforeMap: {id:hrs}, afterMap: {id:hrs}}
+  // Idempotent — calling multiple times in a row yields the same result.
+  if(!Array.isArray(TS_ENTRIES) || !Array.isArray(DRAWINGS)){
+    return {changed: 0, beforeMap: {}, afterMap: {}};
+  }
+  // Build sum map: drawingId → total hours across ALL entries (any status)
+  const hrsMap = {};
+  TS_ENTRIES.forEach(e => {
+    if(!e || !e.drawingId) return;       // skip admin/leave/project-only rows
+    const h = (typeof tsEntryTotal === 'function') ? tsEntryTotal(e) : 0;
+    if(h <= 0) return;
+    hrsMap[e.drawingId] = (hrsMap[e.drawingId] || 0) + h;
   });
 
-  // Apply to DRAWINGS
-  let synced=0;
-  DRAWINGS.forEach(d=>{
-    const tsHrs=hrsMap[d.id]||0;
-    if(tsHrs>0&&tsHrs!==d.hrs){
-      d.hrs=Math.round(tsHrs*10)/10;
-      synced++;
-      // Sync SCHED_TASKS.actHrs and EVM
-      const task=SCHED_TASKS.find(t=>t.drawingId===d.id);
+  // Apply to DRAWINGS — idempotent (sets to canonical value, doesn't add)
+  let changed = 0;
+  const beforeMap = {}, afterMap = {};
+  DRAWINGS.forEach(d => {
+    if(!d) return;
+    const before = d.hrs || 0;
+    const target = Math.round((hrsMap[d.id] || 0) * 10) / 10;
+    beforeMap[d.id] = before;
+    afterMap[d.id]  = target;
+    if(before !== target){
+      d.hrs = target;
+      changed++;
+      // Sync SCHED_TASKS.actHrs and EVM in the same pass
+      const task = SCHED_TASKS.find(t => t.drawingId === d.id);
       if(task){
-        task.actHrs=d.hrs;
-        const ev=Math.round(d.pct/100*(task.estHrs||0)*10)/10;
-        const spi=task.estHrs>0?Math.round(ev/task.estHrs*100)/100:1;
-        const cpi=task.actHrs>0?Math.round(ev/task.actHrs*100)/100:1;
-        task.rag=d.status==='done'?'blue':
-                 spi>=0.95?'green':spi>=0.75?'amber':'red';
-        task.spi=spi; task.cpi=cpi; task.ev=ev;
+        task.actHrs = target;
+        const ev = Math.round((d.pct||0)/100 * (task.estHrs||0) * 10) / 10;
+        const spi = task.estHrs > 0 ? Math.round(ev / task.estHrs * 100) / 100 : 1;
+        const cpi = task.actHrs > 0 ? Math.round(ev / task.actHrs * 100) / 100 : 1;
+        task.rag = d.status === 'done' ? 'blue' :
+                   spi >= 0.95 ? 'green' :
+                   spi >= 0.75 ? 'amber' : 'red';
+        task.spi = spi; task.cpi = cpi; task.ev = ev;
       }
     }
   });
-  return synced;
+  return {changed, beforeMap, afterMap};
 }
+
+// Replace the legacy fn name so existing call sites still work.
+// All call sites of syncHoursFromTimesheets() now route to the recompute.
+function syncHoursFromTimesheets(){
+  const res = recomputeDrwHoursFromTS();
+  return res.changed;
+}
+
 function manualSyncHours(){
-  const synced=syncHoursFromTimesheets();
+  const res = recomputeDrwHoursFromTS();
   showNotif('Hours synced',
-    synced
-      ? synced+' drawing'+(synced!==1?'s':'')+' updated from timesheet data'
-      : 'No new hours to sync — submit or approve timesheets first');
-  renderDrawings();
-  renderSchedule();
-  renderDashboard();
+    res.changed
+      ? res.changed + ' drawing' + (res.changed !== 1 ? 's' : '') + ' updated from timesheet data'
+      : 'All drawing hours already match TS_ENTRIES — no drift detected');
+  if(res.changed > 0){
+    renderDrawings();
+    if(typeof renderSchedule === 'function')  renderSchedule();
+    if(typeof renderDashboard === 'function') renderDashboard();
+  }
+}
+
+// Drift diagnostic — shows any drawing where d.hrs disagrees with TS_ENTRIES sum.
+// Useful as a developer console tool, not surfaced in UI.
+function _v74DiagnoseHoursDrift(){
+  const hrsMap = {};
+  TS_ENTRIES.forEach(e => {
+    if(!e || !e.drawingId) return;
+    const h = (typeof tsEntryTotal === 'function') ? tsEntryTotal(e) : 0;
+    if(h <= 0) return;
+    hrsMap[e.drawingId] = (hrsMap[e.drawingId] || 0) + h;
+  });
+  const drift = [];
+  DRAWINGS.forEach(d => {
+    if(!d) return;
+    const fromTS = Math.round((hrsMap[d.id] || 0) * 10) / 10;
+    const stored = d.hrs || 0;
+    if(stored !== fromTS){
+      drift.push({id: d.id, title: d.title, stored, fromTS, delta: stored - fromTS});
+    }
+  });
+  console.log('Hours drift diagnostic — drawings where d.hrs disagrees with TS_ENTRIES:');
+  console.table(drift);
+  console.log('Total drift rows:', drift.length);
+  return drift;
+}
+
+if(typeof window !== 'undefined'){
+  window.recomputeDrwHoursFromTS  = recomputeDrwHoursFromTS;
+  window._v74DiagnoseHoursDrift   = _v74DiagnoseHoursDrift;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -20611,7 +20688,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.73',
+        appVersion: 'S62-v101.74',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -20771,7 +20848,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.73',
+    appVersion: 'S62-v101.74',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -21699,6 +21776,18 @@ function unpackData(data) {
       window._s62DuplicateSchedTaskCount = dupS.totalDuplicates;
     }
   } catch(e){ console.warn('[v101.51] duplicate scan:', e); }
+
+  // v101.74 — Always recompute d.hrs from TS_ENTRIES sum after a cloud
+  // merge. TS_ENTRIES is the source of truth; drift from in-place writes
+  // by older code or third-party tooling is erased here.
+  try {
+    if(typeof recomputeDrwHoursFromTS === 'function'){
+      const res = recomputeDrwHoursFromTS();
+      if(res.changed > 0){
+        console.log('[v101.74] recomputeDrwHoursFromTS — corrected drift on '+res.changed+' drawing(s)');
+      }
+    }
+  } catch(e){ console.warn('[v101.74] hours recompute on merge:', e); }
 }
 
 /* ── MIGRATE: upgrade old schema data to current version ─────
@@ -24004,6 +24093,10 @@ function tsUpdateHour(entryId, dayIdx, val){
   }
   e.days[dayIdx]=parseFloat(val)||0;
   tsDirty=true;
+  // v101.74 — recompute d.hrs since this TS entry's contribution changed
+  if(e.drawingId && typeof recomputeDrwHoursFromTS === 'function'){
+    recomputeDrwHoursFromTS();
+  }
   renderTimesheets();
   scheduleSave();
 }
@@ -24022,7 +24115,10 @@ function tsRemoveEntry(entryId){
   if(idx>=0){
     TS_ENTRIES.splice(idx,1);
     try { if(typeof s62AddTombstone === 'function') s62AddTombstone('tsEntries', entryId); } catch(_){}  // v101.56
+    // v101.74 — recompute d.hrs since a TS entry that contributed hours is now gone
+    if(typeof recomputeDrwHoursFromTS === 'function') recomputeDrwHoursFromTS();
     renderTimesheets();
+    if(typeof renderDrawings === 'function') renderDrawings();
   }
   scheduleSave({immediate:true});  // v101.53 — TS entry delete
 }
