@@ -2710,6 +2710,51 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
   </div>
   <!-- Financial content (shown to authorised roles) -->
   <div id="fin-content">
+    <!-- v101.76 — Subview tabs: Overview (existing), Phase Burn-Down (per-phase),
+         Fee Health (firm-wide ranked). Tabs control visibility of the
+         #fin-overview, #fin-phaseburn, and #fin-feehealth containers. -->
+    <div style="display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-bottom:14px">
+      <button class="fin-tab on" id="fin-tab-overview" onclick="switchFinTab('overview')"
+        style="background:none;border:none;border-bottom:2px solid var(--gold);color:var(--gold);font-family:var(--fd);font-size:12px;font-weight:600;padding:8px 14px;cursor:pointer;margin-bottom:-1px">
+        💰 Overview
+      </button>
+      <button class="fin-tab" id="fin-tab-phaseburn" onclick="switchFinTab('phaseburn')"
+        style="background:none;border:none;border-bottom:2px solid transparent;color:var(--txd);font-family:var(--fd);font-size:12px;font-weight:500;padding:8px 14px;cursor:pointer;margin-bottom:-1px">
+        ⏱ Phase Burn-Down
+      </button>
+      <button class="fin-tab" id="fin-tab-feehealth" onclick="switchFinTab('feehealth')"
+        style="background:none;border:none;border-bottom:2px solid transparent;color:var(--txd);font-family:var(--fd);font-size:12px;font-weight:500;padding:8px 14px;cursor:pointer;margin-bottom:-1px">
+        🩺 Fee Health
+      </button>
+    </div>
+
+    <!-- v101.76 — Phase Burn-Down subview (View A). Per-project, per-phase
+         burn bars. Click a phase to expand contributing TS entries. -->
+    <div id="fin-phaseburn" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-family:var(--fd);font-size:15px;color:var(--tx)">Phase Budget Burn-Down</div>
+          <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">Hours logged vs phase budget for each project. Click a phase to see contributing entries.</div>
+        </div>
+        <select class="fsel" id="fin-pb-proj-filter" onchange="renderFinPhaseBurn()" style="width:auto;font-size:10px;padding:4px 8px">
+          <option value="ALL">All projects</option>
+        </select>
+      </div>
+      <div id="fin-pb-body"></div>
+    </div>
+
+    <!-- v101.76 — Fee Health subview (View C). Firm-wide ranked by RAG,
+         then by worst burn. Drill-down to top burning drawings firm-wide. -->
+    <div id="fin-feehealth" style="display:none">
+      <div style="margin-bottom:14px">
+        <div style="font-family:var(--fd);font-size:15px;color:var(--tx)">Firm-Wide Fee Health</div>
+        <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">Projects ranked by risk. Red = at least one phase over budget.</div>
+      </div>
+      <div id="fin-fh-body"></div>
+    </div>
+
+    <!-- Original Overview subview wraps everything that was here before -->
+    <div id="fin-overview">
     <!-- KPI Strip -->
     <div class="fin-kpi-grid" id="fin-kpi-strip"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -2788,6 +2833,8 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
         </table>
       </div>
     </div>
+    </div>
+    <!-- v101.76 — end fin-overview -->
   </div>
 </div>
 
@@ -7929,7 +7976,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.75 — Hours edit/delete permissions. New canEditHours() helper: only Principal Architect, Associate Principal, Lead Architect, and Project Architect can EDIT or DELETE existing TS_ENTRIES — even their own. Juniors and others can still LOG (create) new entries via the +hrs input on rows, the drawing-detail logger, and tsAddEntry/tsAddAdmin. The timesheet UI shows cells as disabled for unauthorized users and hides the remove buttons.');
+console.log('S62 v101.76 — Fee/budget cross-reference views. Three new surfaces in Financials: (A) Phase Burn-Down tab — per-project per-phase budget bars with click-to-expand contributing TS entries by staff and drawing. (B) Portfolio Health Matrix Fee dot is now clickable, drills through to Phase Burn-Down filtered to that project. (C) Fee Health tab — firm-wide ranked by RAG plus Top Burning Drawings list. All three use the v101.70 phase-budget schema and v101.74 derived hours.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -12504,6 +12551,108 @@ if(typeof window !== 'undefined'){
   window._lvProjPhases       = _lvProjPhases;
 }
 
+/* ═════════════════════════════════════════════════════════════════════
+   v101.76 — Cross-reference views for fee/budget vs hours
+
+   Helpers that surface the TS_ENTRIES contributing to a phase's burn,
+   plus formatters used by all three new views (A: Financials per-phase
+   burn-down, B: Portfolio Health tooltip with bars, C: Fee Health
+   subview with ranked projects + top burning drawings).
+
+   These build on the v101.70 helpers (_lvPhaseBurn, _lvProjPhases) and
+   _drwTargetHrs (v101.71) — the drawing-level budget.
+   ═════════════════════════════════════════════════════════════════════ */
+
+// Get TS_ENTRIES contributing to a given project+phase, with per-staff
+// roll-up and totals.
+function _lvPhaseContributors(projId, phase){
+  if(!Array.isArray(TS_ENTRIES)) return {staff:[], drawings:[], totalHours:0};
+  const byStaff = {};
+  const byDrawing = {};
+  let total = 0;
+  TS_ENTRIES.forEach(e => {
+    if(!e || e.projId !== projId || e.phase !== phase) return;
+    if(e.billable === false) return;
+    const hrs = (typeof tsEntryTotal === 'function') ? tsEntryTotal(e) : 0;
+    if(hrs <= 0) return;
+    total += hrs;
+    // Aggregate per-staff
+    const sid = e.sid || 'unknown';
+    if(!byStaff[sid]) byStaff[sid] = {sid, hrs:0, entries:0};
+    byStaff[sid].hrs += hrs;
+    byStaff[sid].entries++;
+    // Aggregate per-drawing
+    if(e.drawingId){
+      if(!byDrawing[e.drawingId]) byDrawing[e.drawingId] = {drawingId: e.drawingId, hrs:0, entries:0};
+      byDrawing[e.drawingId].hrs += hrs;
+      byDrawing[e.drawingId].entries++;
+    }
+  });
+  return {
+    staff:    Object.values(byStaff).sort((a,b) => b.hrs - a.hrs),
+    drawings: Object.values(byDrawing).sort((a,b) => b.hrs - a.hrs),
+    totalHours: total
+  };
+}
+
+// Format INR compactly: 1,500,000 → ₹15L, 12,000,000 → ₹1.2Cr
+function _lvFmtINR(n){
+  if(!n || isNaN(n)) return '₹0';
+  if(n >= 1e7) return '₹' + (n/1e7).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1') + 'Cr';
+  if(n >= 1e5) return '₹' + (n/1e5).toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1') + 'L';
+  return '₹' + Math.round(n).toLocaleString('en-IN');
+}
+
+// Rank all projects by worst fee health for the Fee Health subview.
+function _lvRankProjectsByFeeHealth(){
+  const order = {red: 0, amber: 1, green: 2, na: 3};
+  const list = (PROJS || []).filter(p => (p.status || 'active') !== 'archived').map(p => {
+    const phases = _lvProjPhases(p);
+    const active = phases.filter(ph => ph.isActive);
+    const worstBurn = active.reduce((acc, ph) => {
+      if(ph.burnUsed != null && ph.burnUsed > (acc.burnUsed||0)) return ph;
+      return acc;
+    }, {burnUsed: 0});
+    const totalHrs = phases.reduce((s, ph) => s + ph.hours, 0);
+    const totalBudgetHrs = phases.reduce((s, ph) => s + ph.hourBudget, 0);
+    const totalFee = phases.reduce((s, ph) => s + ph.feeINR, 0);
+    return {
+      p, phases,
+      rag: _lvProjFeeHealth(p),
+      worstPhase: worstBurn.phase || null,
+      worstBurn: worstBurn.burnUsed,
+      totalHrs, totalBudgetHrs, totalFee
+    };
+  });
+  // Sort by RAG (red first), then by worst burn descending
+  list.sort((a, b) => {
+    const r = (order[a.rag] || 4) - (order[b.rag] || 4);
+    if(r !== 0) return r;
+    return (b.worstBurn || 0) - (a.worstBurn || 0);
+  });
+  return list;
+}
+
+// Top burning drawings across the firm — drawings most over budget.
+function _lvTopBurningDrawings(limit){
+  const max = limit || 10;
+  const ranked = (DRAWINGS || []).map(d => {
+    const tgt = _drwTargetHrs(d);
+    if(tgt <= 0) return null;
+    const burn = (d.hrs || 0) / tgt;
+    return {d, tgt, hrs: d.hrs || 0, burn};
+  }).filter(x => x && x.burn >= 0.8);  // only show 80%+ burn
+  ranked.sort((a, b) => b.burn - a.burn);
+  return ranked.slice(0, max);
+}
+
+if(typeof window !== 'undefined'){
+  window._lvPhaseContributors    = _lvPhaseContributors;
+  window._lvFmtINR               = _lvFmtINR;
+  window._lvRankProjectsByFeeHealth = _lvRankProjectsByFeeHealth;
+  window._lvTopBurningDrawings   = _lvTopBurningDrawings;
+}
+
 function _lvProjFeeHealth(p){
   // v101.70 — Real fee/budget RAG. Computes worst RAG among phases that
   // are currently active (in progress) OR done. Phases not yet started
@@ -12840,6 +12989,9 @@ function renderLvPortfolioHealth(scopeProjects){
 
     // v101.70 — Build a per-phase fee tooltip so leaders can see the actual
     // numbers behind the Fee dot without leaving the dashboard.
+    // v101.76 — Plus the dot itself drill-through navigates to Financials
+    // → Phase Burn-Down filtered to this project, where contributing TS
+    // entries can be expanded.
     let feeTooltip = '';
     if(fee !== 'na'){
       const phases = _lvProjPhases(p);
@@ -12858,17 +13010,22 @@ function renderLvPortfolioHealth(scopeProjects){
         }
         lines.push('  '+parts.join(' '));
       });
+      lines.push('');
+      lines.push('Click for full per-phase view →');
       feeTooltip = lines.join('\n');
     } else {
       feeTooltip = 'No phase budgets set. Open Edit Project → Fee Structure to enter per-phase fee and hour budgets.';
     }
     const safeFeeTooltip = feeTooltip.replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 
+    // v101.76 — Click handler for Fee dot drill-down to Financials Phase Burn-Down
+    const feeDrillHandler = "event.stopPropagation();go('financials',null);setTimeout(function(){switchFinTab('phaseburn');setTimeout(function(){var s=document.getElementById('fin-pb-proj-filter');if(s){s.value='"+p.id+"';renderFinPhaseBurn();}},80)},80)";
+
     html += '<tr style="border-bottom:1px solid var(--bd);cursor:pointer" onclick="go(\'drawings\',null);setTimeout(()=>{var pl=document.querySelector(\'[data-projid=&quot;'+p.id+'&quot;]\');if(pl)pl.click();},200)">';
     html += '<td style="padding:7px 10px;font-family:var(--fm);font-size:10.5px;color:var(--tx)"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+(p.color||'var(--gold)')+';margin-right:6px;vertical-align:middle"></span>'+safeName+'</td>';
     html += '<td style="text-align:center;padding:7px 6px;font-family:var(--fm);font-size:9.5px;color:var(--txm)">'+(p.phase||'—')+'</td>';
     html += '<td style="text-align:center;padding:7px 6px">'+_lvRagDot(sched)+'</td>';
-    html += '<td style="text-align:center;padding:7px 6px" title="'+safeFeeTooltip+'">'+_lvRagDot(fee)+'</td>';
+    html += '<td style="text-align:center;padding:7px 6px;cursor:pointer" title="'+safeFeeTooltip+'" onclick="'+feeDrillHandler+'">'+_lvRagDot(fee)+'</td>';
     html += '<td style="text-align:center;padding:7px 6px">'+_lvRagDot(qual)+'</td>';
     html += '<td style="text-align:right;padding:7px 10px;font-family:var(--fm);font-size:10px;color:var(--txm)">'+issued+'/'+projD.length+'</td>';
     html += '</tr>';
@@ -20714,7 +20871,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.75',
+        appVersion: 'S62-v101.76',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -20874,7 +21031,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.75',
+    appVersion: 'S62-v101.76',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -27460,6 +27617,267 @@ function renderFinKPIs(){
     <div class="fin-kpi-sub">${k.sub}</div>
   </div>`).join('');
 }
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.76 — Financials subview tabs + new views
+
+   View A: renderFinPhaseBurn() — per-project, per-phase budget burn
+           bars. Click a phase to expand contributing TS entries.
+   View C: renderFinFeeHealth() — firm-wide ranked by RAG, plus top
+           burning drawings list.
+   ═════════════════════════════════════════════════════════════════════ */
+
+let _v76FinActiveTab = 'overview';
+let _v76FinExpandedPhase = null;  // 'projId|phase'
+
+function switchFinTab(tab){
+  _v76FinActiveTab = tab;
+  // Toggle tab visuals
+  ['overview','phaseburn','feehealth'].forEach(t => {
+    const btn = document.getElementById('fin-tab-'+t);
+    const pane = document.getElementById('fin-'+t);
+    if(!btn || !pane) return;
+    if(t === tab){
+      btn.style.color = 'var(--gold)';
+      btn.style.borderBottomColor = 'var(--gold)';
+      btn.style.fontWeight = '600';
+      pane.style.display = '';
+    } else {
+      btn.style.color = 'var(--txd)';
+      btn.style.borderBottomColor = 'transparent';
+      btn.style.fontWeight = '500';
+      pane.style.display = 'none';
+    }
+  });
+  if(tab === 'phaseburn') renderFinPhaseBurn();
+  else if(tab === 'feehealth') renderFinFeeHealth();
+}
+if(typeof window !== 'undefined') window.switchFinTab = switchFinTab;
+
+// Populate the project filter for the Phase Burn-Down subview
+function _v76PopulatePhaseBurnFilter(){
+  const sel = document.getElementById('fin-pb-proj-filter');
+  if(!sel) return;
+  const cur = sel.value || 'ALL';
+  const opts = ['<option value="ALL">All projects</option>']
+    .concat((PROJS || []).filter(p => (p.status || 'active') !== 'archived').map(p =>
+      '<option value="'+p.id+'" '+(cur === p.id ? 'selected' : '')+'>'+(p.name || p.id)+'</option>'
+    ));
+  sel.innerHTML = opts.join('');
+}
+
+// View A — Phase Burn-Down
+function renderFinPhaseBurn(){
+  _v76PopulatePhaseBurnFilter();
+  const body = document.getElementById('fin-pb-body');
+  if(!body) return;
+  const filter = document.getElementById('fin-pb-proj-filter')?.value || 'ALL';
+  const projs = (PROJS || []).filter(p => (p.status || 'active') !== 'archived' && (filter === 'ALL' || p.id === filter));
+
+  if(!projs.length){
+    body.innerHTML = '<div style="padding:24px;text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">No projects to show.</div>';
+    return;
+  }
+
+  let html = '';
+  projs.forEach(p => {
+    const phases = _lvProjPhases(p);
+    const hasAnyBudget = phases.some(ph => ph.feeINR > 0 || ph.hourBudget > 0);
+    const projRag = _lvProjFeeHealth(p);
+    const projRagCol = projRag === 'red' ? 'var(--red)' : projRag === 'amber' ? 'var(--gold)' : projRag === 'green' ? 'var(--grn)' : 'var(--txd)';
+
+    html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;margin-bottom:12px;overflow:hidden">';
+
+    // Project header
+    html += '<div style="padding:12px 16px;background:var(--sf3);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px">';
+    html += '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(p.color || 'var(--gold)')+'"></span>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-family:var(--fd);font-size:13px;color:var(--tx)">'+(p.name || p.id)+'</div>';
+    html += '<div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-top:1px">'+(p.client || '')+' · '+(p.phase || '—')+' phase</div>';
+    html += '</div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(255,255,255,.04);border-radius:6px">';
+    html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+projRagCol+'"></span>';
+    html += '<span style="font-family:var(--fm);font-size:9.5px;color:'+projRagCol+';font-weight:600;text-transform:uppercase">'+(projRag === 'na' ? 'No Budget' : projRag)+'</span>';
+    html += '</div>';
+    html += '</div>';
+
+    // Body
+    if(!hasAnyBudget){
+      html += '<div style="padding:16px;font-family:var(--fm);font-size:10.5px;color:var(--txd);line-height:1.5">No phase budgets set for this project. Edit the project to add fee structure per phase, then this view will light up.</div>';
+    } else {
+      html += '<div style="padding:10px 14px">';
+      phases.forEach(ph => {
+        if(ph.hourBudget <= 0 && ph.feeINR <= 0) return;  // skip phases with no budget
+        const key = p.id + '|' + ph.phase;
+        const expanded = _v76FinExpandedPhase === key;
+        const rag = ph.rag;
+        const ragCol = rag === 'red' ? 'var(--red)' : rag === 'amber' ? 'var(--gold)' : rag === 'green' ? 'var(--grn)' : 'var(--txd)';
+        const burnPct = ph.hourBurn != null ? Math.round(ph.hourBurn * 100) : null;
+        const feeBurnPct = ph.feeBurn != null ? Math.round(ph.feeBurn * 100) : null;
+        const phaseStatus = ph.isCurrent ? ' · CURRENT' : ph.isDone ? ' · DONE' : ph.isFuture ? ' · UPCOMING' : '';
+
+        html += '<div style="margin-bottom:8px">';
+        html += '<div onclick="toggleFinPhaseExpand(\''+p.id+'\',\''+ph.phase+'\')" '
+             + 'style="display:grid;grid-template-columns:50px 1fr 80px 80px 24px;gap:10px;align-items:center;padding:8px 10px;background:'+(expanded?'var(--sf3)':'transparent')+';border-radius:6px;cursor:pointer">';
+        html += '<div style="font-family:var(--fm);font-size:10px;font-weight:700;color:var(--tx)">'+ph.phase+'<span style="font-family:var(--fm);font-size:8px;color:var(--txd);font-weight:400">'+phaseStatus+'</span></div>';
+        // Bar
+        html += '<div>';
+        html += '<div style="position:relative;height:10px;background:var(--sf);border-radius:5px;overflow:hidden">';
+        if(burnPct != null){
+          const w = Math.min(burnPct, 100);
+          html += '<div style="position:absolute;top:0;left:0;height:100%;width:'+w+'%;background:'+ragCol+';transition:width .3s"></div>';
+          if(burnPct > 100){
+            const over = Math.min(burnPct - 100, 30);
+            html += '<div style="position:absolute;top:0;right:0;height:100%;width:'+over+'%;background:var(--red);opacity:.7"></div>';
+          }
+        }
+        html += '</div>';
+        html += '<div style="display:flex;justify-content:space-between;margin-top:4px;font-family:var(--fm);font-size:9px;color:var(--txd)">';
+        html += '<span>Hrs: '+ph.hours.toFixed(0)+'/'+(ph.hourBudget||'—')+'h '+(burnPct!=null?'('+burnPct+'%)':'')+'</span>';
+        if(ph.feeINR > 0) html += '<span>'+_lvFmtINR(ph.spentINR)+' / '+_lvFmtINR(ph.feeINR)+(feeBurnPct!=null?' ('+feeBurnPct+'%)':'')+'</span>';
+        html += '</div>';
+        html += '</div>';
+        // RAG dot
+        html += '<div style="text-align:center"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+ragCol+'"></span></div>';
+        // Spent ₹
+        html += '<div style="text-align:right;font-family:var(--fm);font-size:10px;color:var(--tx)">'+_lvFmtINR(ph.spentINR)+'</div>';
+        // Chevron
+        html += '<div style="text-align:center;font-family:var(--fm);font-size:11px;color:var(--txd)">'+(expanded?'▾':'▸')+'</div>';
+        html += '</div>';
+
+        // Expanded contributors
+        if(expanded){
+          const c = _lvPhaseContributors(p.id, ph.phase);
+          html += '<div style="background:var(--sf);border-radius:6px;padding:10px 14px;margin-top:6px;border:1px solid var(--bd2)">';
+          if(c.totalHours === 0){
+            html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);font-style:italic">No timesheet entries for this phase yet.</div>';
+          } else {
+            html += '<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">By staff</div>';
+            html += '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">';
+            c.staff.forEach(s => {
+              const stf = STAFF.find(x => x.id === s.sid);
+              const nm = stf ? (stf.first+' '+stf.last) : s.sid;
+              const rate = stf ? (stf.chargeRate || 0) : 0;
+              const cost = s.hrs * rate;
+              const pct = c.totalHours > 0 ? Math.round(s.hrs / c.totalHours * 100) : 0;
+              html += '<div style="display:grid;grid-template-columns:1fr 60px 70px 50px;gap:8px;align-items:center;font-family:var(--fm);font-size:10px">';
+              html += '<span style="color:var(--tx)">'+nm+'</span>';
+              html += '<span style="color:var(--tx);text-align:right">'+s.hrs.toFixed(1)+'h</span>';
+              html += '<span style="color:var(--txd);text-align:right">'+_lvFmtINR(cost)+'</span>';
+              html += '<span style="color:var(--txd);text-align:right">'+pct+'%</span>';
+              html += '</div>';
+            });
+            html += '</div>';
+
+            if(c.drawings.length > 0){
+              html += '<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">By drawing</div>';
+              html += '<div style="display:flex;flex-direction:column;gap:3px">';
+              c.drawings.slice(0, 8).forEach(d => {
+                const drw = DRAWINGS.find(x => x.id === d.drawingId);
+                const tgt = drw ? _drwTargetHrs(drw) : 0;
+                const tgtTxt = tgt > 0 ? ' / '+tgt+'h target' : '';
+                html += '<div onclick="event.stopPropagation();openDrwDetail(\''+d.drawingId+'\')" style="display:grid;grid-template-columns:1fr 80px;gap:8px;align-items:center;font-family:var(--fm);font-size:10px;cursor:pointer;padding:3px 0">';
+                html += '<span style="color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(drw?drw.id+' — '+(drw.title||'').slice(0,40):d.drawingId)+'</span>';
+                html += '<span style="color:var(--txd);text-align:right">'+d.hrs.toFixed(1)+'h'+tgtTxt+'</span>';
+                html += '</div>';
+              });
+              if(c.drawings.length > 8) html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:4px">+ '+(c.drawings.length-8)+' more drawings</div>';
+              html += '</div>';
+            }
+          }
+          html += '</div>';
+        }
+
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>';
+  });
+
+  body.innerHTML = html;
+}
+
+function toggleFinPhaseExpand(projId, phase){
+  const key = projId + '|' + phase;
+  _v76FinExpandedPhase = _v76FinExpandedPhase === key ? null : key;
+  renderFinPhaseBurn();
+}
+if(typeof window !== 'undefined') window.toggleFinPhaseExpand = toggleFinPhaseExpand;
+
+// View C — Firm-Wide Fee Health
+function renderFinFeeHealth(){
+  const body = document.getElementById('fin-fh-body');
+  if(!body) return;
+  const ranked = _lvRankProjectsByFeeHealth();
+  const topDrws = _lvTopBurningDrawings(10);
+
+  let html = '<div style="display:grid;grid-template-columns:1fr;gap:14px">';
+
+  // Section 1: Projects ranked
+  html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;overflow:hidden">';
+  html += '<div style="padding:10px 14px;background:var(--sf3);font-family:var(--fd);font-size:12px;color:var(--tx)">Projects by Risk</div>';
+  if(!ranked.length){
+    html += '<div style="padding:20px;font-family:var(--fm);font-size:11px;color:var(--txd);text-align:center">No projects.</div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse">';
+    html += '<thead><tr style="border-bottom:1px solid var(--bd)">';
+    html += '<th style="text-align:left;padding:8px 14px;font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">Project</th>';
+    html += '<th style="text-align:center;padding:8px 6px;font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase">Health</th>';
+    html += '<th style="text-align:left;padding:8px 6px;font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase">Worst Phase</th>';
+    html += '<th style="text-align:right;padding:8px 6px;font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase">Hours</th>';
+    html += '<th style="text-align:right;padding:8px 14px;font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase">Fee</th>';
+    html += '</tr></thead><tbody>';
+    ranked.forEach(r => {
+      const ragCol = r.rag === 'red' ? 'var(--red)' : r.rag === 'amber' ? 'var(--gold)' : r.rag === 'green' ? 'var(--grn)' : 'var(--txd)';
+      const burnPct = r.worstBurn != null ? Math.round(r.worstBurn * 100) : null;
+      html += '<tr style="border-bottom:1px solid var(--bd);cursor:pointer" '
+           +'onclick="switchFinTab(\'phaseburn\');setTimeout(()=>{var s=document.getElementById(\'fin-pb-proj-filter\');if(s){s.value=\''+r.p.id+'\';renderFinPhaseBurn();}},50)">';
+      html += '<td style="padding:7px 14px;font-family:var(--fm);font-size:10.5px;color:var(--tx)"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+(r.p.color||'var(--gold)')+';margin-right:6px"></span>'+(r.p.name||r.p.id)+'</td>';
+      html += '<td style="text-align:center;padding:7px 6px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+ragCol+'"></span></td>';
+      html += '<td style="padding:7px 6px;font-family:var(--fm);font-size:10px;color:var(--txd)">'+(r.worstPhase ? r.worstPhase + (burnPct?' · '+burnPct+'%':'') : '—')+'</td>';
+      html += '<td style="text-align:right;padding:7px 6px;font-family:var(--fm);font-size:10px;color:var(--tx)">'+r.totalHrs.toFixed(0)+(r.totalBudgetHrs?'/'+r.totalBudgetHrs+'h':'h')+'</td>';
+      html += '<td style="text-align:right;padding:7px 14px;font-family:var(--fm);font-size:10px;color:var(--tx)">'+_lvFmtINR(r.totalFee)+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+
+  // Section 2: Top burning drawings
+  html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;overflow:hidden">';
+  html += '<div style="padding:10px 14px;background:var(--sf3);font-family:var(--fd);font-size:12px;color:var(--tx)">Top Burning Drawings <span style="font-family:var(--fm);font-size:9.5px;color:var(--txd);font-weight:400;margin-left:6px">drawings ≥80% of their hour target</span></div>';
+  if(!topDrws.length){
+    html += '<div style="padding:20px;font-family:var(--fm);font-size:11px;color:var(--txd);text-align:center;line-height:1.5">No drawings are at risk yet. Drawings without a target are not graded.<br><span style="font-size:9.5px">Set target hours via Edit Drawing.</span></div>';
+  } else {
+    html += '<div style="padding:6px 0">';
+    topDrws.forEach(x => {
+      const proj = PROJS.find(p => p.id === x.d.proj);
+      const projName = proj ? proj.name : x.d.proj;
+      const stf = STAFF.find(s => s.id === x.d.sid);
+      const stfName = stf ? (stf.first + ' ' + stf.last) : 'Unassigned';
+      const burnPct = Math.round(x.burn * 100);
+      const col = burnPct >= 100 ? 'var(--red)' : burnPct >= 80 ? 'var(--gold)' : 'var(--grn)';
+      html += '<div onclick="openDrwDetail(\''+x.d.id+'\')" style="display:grid;grid-template-columns:24px 1fr 120px 80px;gap:10px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--bd);cursor:pointer;font-family:var(--fm);font-size:10.5px">';
+      html += '<div style="text-align:center"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+col+'"></span></div>';
+      html += '<div style="min-width:0">';
+      html += '<div style="color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+x.d.id+' — '+(x.d.title||'').slice(0,40)+'</div>';
+      html += '<div style="font-size:9.5px;color:var(--txd);margin-top:1px">'+projName+' · '+stfName+'</div>';
+      html += '</div>';
+      html += '<div style="text-align:right;color:var(--tx)">'+x.hrs.toFixed(1)+'h / '+x.tgt+'h</div>';
+      html += '<div style="text-align:right;color:'+col+';font-weight:600">'+burnPct+'%</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  html += '</div>';
+  body.innerHTML = html;
+}
+if(typeof window !== 'undefined') window.renderFinPhaseBurn = renderFinPhaseBurn;
+if(typeof window !== 'undefined') window.renderFinFeeHealth = renderFinFeeHealth;
 
 function renderFinBurn(){
   const el=document.getElementById('fin-burn-body');if(!el)return;
