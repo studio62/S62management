@@ -6837,6 +6837,77 @@ if(typeof window !== 'undefined'){
   window._v78ComputeHoursFromFee  = _v78ComputeHoursFromFee;
   window.DEFAULT_LABOR_SHARE_PCT  = DEFAULT_LABOR_SHARE_PCT;
 }
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.79 — Weighted blended rate
+
+   The v101.78 _v78BlendedRate did a simple arithmetic average across all
+   active staff. That's wrong for project costing because principals
+   contribute few hours and juniors contribute most. A simple mean over-
+   weights the high-rate roles.
+
+   This helper computes a weighted blend using the typical hour
+   distribution across roles on a residential project:
+
+     Principal Architect         5%   (oversight + review)
+     Associate Principal        10%   (review + senior coordination)
+     Lead Architect             15%   (lead drawing + QA)
+     Project Architect          25%   (deliverable lead)
+     Junior Architect           35%   (bulk of drawing time)
+     Architectural Assistant     5%   (production support)
+     Intern                      5%
+     Other (Site Eng, etc.)      —    not in weighted pool
+
+   For each weight slot, find the average chargeRate among staff in
+   that role tier. If no staff for a tier, fall back to ROLE_DEFAULT_RATES.
+   ═════════════════════════════════════════════════════════════════════ */
+
+const PROJECT_HOUR_WEIGHTS = {
+  'Principal Architect':       0.05,
+  'Associate Principal':       0.10,
+  'Lead Architect':            0.15,
+  'Project Architect':         0.25,
+  'Junior Architect':          0.35,
+  'Architectural Assistant':   0.05,
+  'Intern':                    0.05
+};
+
+function _v79WeightedBlendedRate(opts){
+  const verbose = opts && opts.verbose;
+  const breakdown = [];
+  let weightedSum = 0;
+  let totalWeight = 0;
+  Object.keys(PROJECT_HOUR_WEIGHTS).forEach(role => {
+    const weight = PROJECT_HOUR_WEIGHTS[role];
+    // Average chargeRate among staff in this role (active or part-time, not contractor)
+    const inRole = (STAFF || []).filter(s =>
+      s && s.role === role && (s.chargeRate || 0) > 0
+      && (s.type === 'active' || s.type === 'parttime' || !s.type)
+    );
+    let avgRate;
+    if(inRole.length > 0){
+      avgRate = inRole.reduce((a, s) => a + s.chargeRate, 0) / inRole.length;
+    } else {
+      avgRate = ROLE_DEFAULT_RATES[role] || 0;
+    }
+    if(avgRate > 0){
+      weightedSum += avgRate * weight;
+      totalWeight += weight;
+      breakdown.push({role, weight, avgRate: Math.round(avgRate), staffCount: inRole.length, source: inRole.length ? 'live' : 'default'});
+    }
+  });
+  const result = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
+  if(verbose){
+    console.table(breakdown);
+    console.log('Weighted blended rate:', result, '₹/hr');
+  }
+  return result || 500;  // fallback
+}
+
+if(typeof window !== 'undefined'){
+  window._v79WeightedBlendedRate = _v79WeightedBlendedRate;
+  window.PROJECT_HOUR_WEIGHTS = PROJECT_HOUR_WEIGHTS;
+}
 function canSchedule(){
   // v101.39 — defensive: currentUser() is now guaranteed non-undefined.
   // But if .role is somehow missing, rd() handles it with its fallback.
@@ -8105,7 +8176,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.78 — Fee->Hours auto-derivation. Total Project Fee field now reactively fills Total Hour Budget via (fee x laborShare%) / blendedRate. Labor Share % defaults to 60 (industry-typical labor share of fee) but is editable per project and saved to PROJS[].laborSharePct. Blended rate computed live from active STAFF chargeRates (currently averages around the default rate once v101.77 backfilled defaults). User can manually override hours field — auto-tracking pauses until reset via the inline link. Derivation hint always shown so the math is visible.');
+console.log('S62 v101.79 — Three fixes per user feedback: (1) Weighted blended rate replaces simple average. Uses typical project hour distribution (Principal 5 / Lead 15 / Project 25 / Junior 35 / Asst 5 / Intern 5 / Associate 10) so juniors weight more than principals. Try _v79WeightedBlendedRate({verbose:true}) for breakdown. (2) Built-up Area (sqft) and Fee per Sqft fields added to Quick Fill. Type sqft and rate, fee auto-fills, then hours derive. Three-way reactive. (3) Reordered Add Project modal: Building Configuration and Fee Structure now open by default. Fee Structure moved below Building Config so sqft is captured first. Saved as p.builtUpAreaSqft and p.feePerSqft.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -16876,6 +16947,9 @@ function toggleApFee(){
    apResetHoursOverride(): public helper exposed if needed.
 */
 let _v78HrsManualOverride = false;
+// v101.79 — track when user manually edits the fee field, so changes
+// to sqft/₹-sqft don't clobber it.
+let _v79FeeManualOverride = false;
 
 function apOnFeeTotalChange(){
   const feeEl = document.getElementById('ap-fee-total-input');
@@ -16886,28 +16960,29 @@ function apOnFeeTotalChange(){
   if(!feeEl || !hrsEl) return;
   const fee = parseFloat(feeEl.value) || 0;
   const share = parseFloat(shareEl?.value) || DEFAULT_LABOR_SHARE_PCT;
-  const rate = _v78BlendedRate();
+  // v101.79 — use weighted blended rate instead of simple average.
+  // The simple average over-weighted principals and gave inflated rates.
+  const rate = (typeof _v79WeightedBlendedRate === 'function')
+    ? _v79WeightedBlendedRate()
+    : _v78BlendedRate();
 
   if(fee <= 0){
-    // Clear hint, leave hours alone
     if(hint) hint.textContent = '';
     if(tag) tag.style.display = 'none';
     return;
   }
 
-  const computedHrs = _v78ComputeHoursFromFee(fee, share, rate);
+  const computedHrs = Math.round((fee * share / 100) / rate);
 
-  // Only fill hours if user hasn't manually overridden
   if(!_v78HrsManualOverride){
     hrsEl.value = computedHrs;
     if(tag) tag.style.display = '';
   }
 
-  // Always show the derivation hint so user understands the math
   if(hint){
     const laborCost = Math.round(fee * share / 100);
-    hint.innerHTML = '@ ₹' + rate + '/hr blended team rate · ' + share + '% labor share = ₹' + laborCost.toLocaleString('en-IN') + ' / ₹' + rate + ' = <strong style="color:var(--tx)">' + computedHrs + 'h</strong>'
-      + (_v78HrsManualOverride ? ' <span style="color:var(--gold)">(manually overridden — <a href="#" onclick="event.preventDefault();apResetHoursOverride()" style="color:var(--gold);text-decoration:underline">reset</a>)</span>' : '');
+    hint.innerHTML = '@ ₹' + rate + '/hr weighted blend · ' + share + '% labor share = ₹' + laborCost.toLocaleString('en-IN') + ' / ₹' + rate + ' = <strong style="color:var(--tx)">' + computedHrs + 'h</strong>'
+      + (_v78HrsManualOverride ? ' <span style="color:var(--gold)">(overridden — <a href="#" onclick="event.preventDefault();apResetHoursOverride()" style="color:var(--gold);text-decoration:underline">reset</a>)</span>' : '');
   }
 }
 
@@ -16925,10 +17000,59 @@ function apResetHoursOverride(){
   apOnFeeTotalChange();
 }
 
+/* v101.79 — sqft × ₹/sqft → fee reactivity.
+
+   apOnSqftChange(): runs when user types sqft or ₹/sqft. If fee hasn't
+   been manually overridden, auto-fills the fee field. The fee change
+   then cascades into hours via apOnFeeTotalChange.
+
+   apOnFeeOverride(): when user types directly in the fee field, mark
+   it as overridden so sqft changes don't clobber it. Then still cascade
+   into hours.
+*/
+function apOnSqftChange(){
+  const sqftEl = document.getElementById('ap-builtup-input');
+  const rateEl = document.getElementById('ap-ratesqft-input');
+  const feeEl = document.getElementById('ap-fee-total-input');
+  const feeTag = document.getElementById('ap-fee-auto-tag');
+  if(!sqftEl || !rateEl || !feeEl) return;
+  const sqft = parseFloat(sqftEl.value) || 0;
+  const rate = parseFloat(rateEl.value) || 0;
+
+  if(sqft > 0 && rate > 0){
+    const fee = Math.round(sqft * rate);
+    if(!_v79FeeManualOverride){
+      feeEl.value = fee;
+      if(feeTag) feeTag.style.display = '';
+      apOnFeeTotalChange();  // cascade into hours
+    }
+  } else {
+    if(feeTag) feeTag.style.display = 'none';
+  }
+}
+
+function apOnFeeOverride(){
+  // User typed directly in fee field — stop auto-tracking from sqft
+  _v79FeeManualOverride = true;
+  const feeTag = document.getElementById('ap-fee-auto-tag');
+  if(feeTag) feeTag.style.display = 'none';
+  // But still cascade into hours
+  apOnFeeTotalChange();
+}
+
+function apResetFeeOverride(){
+  _v79FeeManualOverride = false;
+  apOnSqftChange();
+}
+
 if(typeof window !== 'undefined'){
   window.apOnFeeTotalChange   = apOnFeeTotalChange;
   window.apOnHrsOverride      = apOnHrsOverride;
   window.apResetHoursOverride = apResetHoursOverride;
+  // v101.79
+  window.apOnSqftChange       = apOnSqftChange;
+  window.apOnFeeOverride      = apOnFeeOverride;
+  window.apResetFeeOverride   = apResetFeeOverride;
 }
 
 /* v101.77 — Auto-distribute total fee/hours across the 5 phases by
@@ -17034,6 +17158,11 @@ function openAddProjectModal(){
   _v78HrsManualOverride = false;
   const _apHint = document.getElementById('ap-hrs-derivation-hint'); if(_apHint) _apHint.textContent = '';
   const _apTag = document.getElementById('ap-hrs-auto-tag');       if(_apTag) _apTag.style.display = 'none';
+  // v101.79 — reset sqft + ₹/sqft + fee override
+  const _apSq = document.getElementById('ap-builtup-input');       if(_apSq) _apSq.value = '';
+  const _apRSq = document.getElementById('ap-ratesqft-input');     if(_apRSq) _apRSq.value = '';
+  _v79FeeManualOverride = false;
+  const _apFTag = document.getElementById('ap-fee-auto-tag');      if(_apFTag) _apFTag.style.display = 'none';
   document.getElementById('ap-fee').value='';
   document.getElementById('ap-start').value='';
   document.getElementById('ap-end').value='';
@@ -17044,12 +17173,20 @@ function openAddProjectModal(){
   s62WriteBldgConfigToModal(null);
   window._s62PendingZones = null;
   if (typeof s62OnBldgConfigChange === 'function') s62OnBldgConfigChange();
-  // Keep building config collapsed by default on Add (most simple
-  // residential won't need it; user opens it explicitly when relevant).
+  // v101.79 — Building config now opens by default. Per user request:
+  // "do the building configuration first" — sqft of the building is a
+  // direct driver of the fee calculation below, so user needs to see
+  // and fill it before getting to the Fee Structure.
   const bcBody = document.getElementById('ap-bldg-body');
-  if (bcBody) bcBody.style.display = 'none';
+  if (bcBody) bcBody.style.display = '';
   const bcChev = document.getElementById('ap-bldg-chevron');
-  if (bcChev) bcChev.style.transform = '';
+  if (bcChev) bcChev.style.transform = 'rotate(180deg)';
+  // v101.79 — also open Fee Structure by default since sqft/fee/hours
+  // is the main data-entry flow now
+  const feeBody = document.getElementById('ap-fee-body');
+  if (feeBody) feeBody.style.display = '';
+  const feeChev = document.getElementById('ap-fee-chevron');
+  if (feeChev) feeChev.style.transform = 'rotate(180deg)';
   document.getElementById('add-proj-ov').classList.add('show');
 }
 
@@ -17087,6 +17224,11 @@ function openEditProjectModal(projId){
   _v78HrsManualOverride = false;
   const _apHinte = document.getElementById('ap-hrs-derivation-hint'); if(_apHinte) _apHinte.textContent = '';
   const _apTage = document.getElementById('ap-hrs-auto-tag');       if(_apTage) _apTage.style.display = 'none';
+  // v101.79 — restore sqft + ₹/sqft from project record; reset fee override
+  const _apSqe = document.getElementById('ap-builtup-input');       if(_apSqe) _apSqe.value = (p.builtUpAreaSqft || '');
+  const _apRSqe = document.getElementById('ap-ratesqft-input');     if(_apRSqe) _apRSqe.value = (p.feePerSqft || '');
+  _v79FeeManualOverride = false;
+  const _apFTage = document.getElementById('ap-fee-auto-tag');      if(_apFTage) _apFTage.style.display = 'none';
   if(p.feeStructure){
     const hasAny = Object.values(p.feeStructure).some(v => {
       if(typeof v === 'number') return v > 0;
@@ -17298,11 +17440,16 @@ function submitProject(){
     const _feeStructure = (typeof readApFeeStructure === 'function') ? readApFeeStructure() : null;
     // v101.78 — capture labor share % used for fee→hours derivation
     const _laborShare = parseFloat(document.getElementById('ap-labor-share-input')?.value) || DEFAULT_LABOR_SHARE_PCT;
+    // v101.79 — capture built-up area + ₹/sqft for sqft-driven fee math
+    const _builtUpSqft = parseFloat(document.getElementById('ap-builtup-input')?.value) || 0;
+    const _feePerSqft  = parseFloat(document.getElementById('ap-ratesqft-input')?.value) || 0;
     if(idx>=0){
       PROJS[idx]={...PROJS[idx],name,client,clientPhone,clientEmail,type,phase,fee,start,end,color:apColor,status:projStatus,contract:projContract,stages:Object.keys(stages).length?stages:PROJS[idx].stages||{},bldgConfig:_bldgCfg,
         leadArchitect:_leadArchitect, projectArchitect:_projectArchitect, projectManager:_projectManager,   // v101.61
         feeStructure: _feeStructure || PROJS[idx].feeStructure || {SD:0,DD:0,CD:0,CA:0,Handover:0},           // v101.70
-        laborSharePct: _laborShare                                                                            // v101.78
+        laborSharePct: _laborShare,                                                                            // v101.78
+        builtUpAreaSqft: _builtUpSqft || PROJS[idx].builtUpAreaSqft || 0,                                      // v101.79
+        feePerSqft: _feePerSqft || PROJS[idx].feePerSqft || 0                                                  // v101.79
       };
       PROJS[idx].updatedAt = new Date().toISOString();   // v101.55 — dirty-tracking
       // v101.61 — auto-add the assigned team members to their STAFF.projects
@@ -17336,10 +17483,15 @@ function submitProject(){
       : {SD:{feeINR:0,hourBudget:0},DD:{feeINR:0,hourBudget:0},CD:{feeINR:0,hourBudget:0},CA:{feeINR:0,hourBudget:0},Handover:{feeINR:0,hourBudget:0}};
     // v101.78 — capture labor share % used for fee→hours derivation
     const _newLaborShare = parseFloat(document.getElementById('ap-labor-share-input')?.value) || DEFAULT_LABOR_SHARE_PCT;
+    // v101.79 — capture built-up area + ₹/sqft
+    const _newBuiltUpSqft = parseFloat(document.getElementById('ap-builtup-input')?.value) || 0;
+    const _newFeePerSqft  = parseFloat(document.getElementById('ap-ratesqft-input')?.value) || 0;
     PROJS.push({id:pid,name,client,clientPhone,clientEmail,type,phase,fee,color:apColor,start,end,status:projStatus,contract:projContract,stages,bldgConfig:_bldgCfg,
       leadArchitect:_newLead, projectArchitect:_newArch, projectManager:_newMgr,   // v101.61
       feeStructure: _newFeeStructure,                                                // v101.70
       laborSharePct: _newLaborShare,                                                 // v101.78
+      builtUpAreaSqft: _newBuiltUpSqft,                                              // v101.79
+      feePerSqft: _newFeePerSqft,                                                    // v101.79
       createdAt:_nowISO,updatedAt:_nowISO            // v101.55
     });
     // v101.61 — auto-add the assigned team members to their STAFF.projects
@@ -21205,7 +21357,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.78',
+        appVersion: 'S62-v101.79',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -21365,7 +21517,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.78',
+    appVersion: 'S62-v101.79',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -35440,74 +35592,6 @@ function updateVisBadge(){
       </div>
     </div>
 
-    <!-- v101.70 — Fee Structure (per-phase budgets in ₹ and hours). Optional.
-         When populated, the Portfolio Health Matrix Fee column becomes a real
-         RAG indicator. Empty values are fine — that column stays N/A. -->
-    <div class="frow" style="margin-top:4px">
-      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:8px 12px;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;user-select:none"
-           onclick="toggleApFee()">
-        <div style="display:flex;align-items:center;gap:8px">
-          <svg style="width:13px;height:13px;stroke:var(--gold);fill:none;stroke-width:1.5" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          <span style="font-family:var(--fm);font-size:10.5px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">Fee Structure</span>
-          <span id="ap-fee-summary" style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-left:4px">— optional</span>
-        </div>
-        <svg id="ap-fee-chevron" style="width:11px;height:11px;stroke:var(--txd);fill:none;stroke-width:2;transition:transform .15s" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
-      </div>
-      <div id="ap-fee-body" style="display:none;padding:12px 4px 4px">
-        <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);line-height:1.6;margin-bottom:10px">
-          Per-phase budgets. Filling both fee and hours lets the system show ₹ burn AND hour burn. Filling just one is fine. Hours come from billable timesheet entries tagged with the project + phase.
-        </div>
-
-        <!-- v101.77/78 — Auto-distribute toolbar.
-             v101.77: fills the 5 phase rows by IIA percentages
-                      (SD 15% · DD 25% · CD 35% · CA 20% · Handover 5%).
-             v101.78: when Total Project Fee is entered, the Total Hour
-                      Budget auto-derives via (fee × laborShare%) / blendedRate.
-                      Labor Share % defaults to 60 (industry-typical labor
-                      share of fee). Blended rate computed live from active
-                      STAFF chargeRates. User can override any field. -->
-        <div style="background:rgba(186,117,23,.06);border:1px solid rgba(186,117,23,.20);border-radius:8px;padding:10px 12px;margin-bottom:12px">
-          <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
-            ⚡ Quick fill — distribute across all 5 phases
-          </div>
-          <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:8px;align-items:end;margin-bottom:6px">
-            <div>
-              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-fee-total-input">Total Project Fee (₹)</label>
-              <input class="finp" id="ap-fee-total-input" type="number" min="0" step="10000" placeholder="e.g. 2000000" oninput="apOnFeeTotalChange()" style="font-size:11px;width:100%">
-            </div>
-            <div>
-              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-labor-share-input">Labor Share % <span style="color:var(--txd);font-weight:400" title="Share of fee that funds labor cost. Rest is profit + overhead + software/BIM licenses.">ⓘ</span></label>
-              <input class="finp" id="ap-labor-share-input" type="number" min="1" max="100" step="1" value="60" oninput="apOnFeeTotalChange()" style="font-size:11px;width:100%">
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:8px;align-items:end;margin-bottom:8px">
-            <div>
-              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-fee-total-hrs-input">Total Hour Budget <span id="ap-hrs-auto-tag" style="color:var(--gold);font-weight:600;display:none">· auto</span></label>
-              <input class="finp" id="ap-fee-total-hrs-input" type="number" min="0" step="10" placeholder="e.g. 500" oninput="apOnHrsOverride()" style="font-size:11px;width:100%">
-              <div id="ap-hrs-derivation-hint" style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px;line-height:1.4"></div>
-            </div>
-            <button class="btn bp bsm" onclick="apAutoDistributeFee()" style="white-space:nowrap;padding:7px 12px;font-size:10px;align-self:end">Auto-distribute</button>
-          </div>
-          <div style="font-family:var(--fm);font-size:9px;color:var(--txd);line-height:1.5;border-top:1px dashed var(--bd);padding-top:6px">
-            IIA-aligned split: SD <strong style="color:var(--tx)">15%</strong> · DD <strong style="color:var(--tx)">25%</strong> · CD <strong style="color:var(--tx)">35%</strong> · CA <strong style="color:var(--tx)">20%</strong> · Handover <strong style="color:var(--tx)">5%</strong>. Fill the total fee — hours auto-derive. Adjust labor % per project, or override hours manually.
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:80px 1fr 1fr 90px;gap:8px;align-items:center;margin-bottom:6px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">
-          <div>Phase</div>
-          <div>Fee (₹)</div>
-          <div>Hour Budget</div>
-          <div style="text-align:right">Derived Rate</div>
-        </div>
-        <div id="ap-fee-rows" style="display:flex;flex-direction:column;gap:6px"></div>
-        <div style="margin-top:10px;padding:8px 10px;background:var(--sf2);border-radius:6px;display:flex;justify-content:space-between;font-family:var(--fm);font-size:10px;color:var(--txm)">
-          <span>Total fee:</span><span id="ap-fee-total" style="color:var(--tx);font-weight:600">₹0</span>
-        </div>
-        <div style="margin-top:4px;padding:8px 10px;background:var(--sf2);border-radius:6px;display:flex;justify-content:space-between;font-family:var(--fm);font-size:10px;color:var(--txm)">
-          <span>Total hour budget:</span><span id="ap-fee-total-hrs" style="color:var(--tx);font-weight:600">0h</span>
-        </div>
-      </div>
-    </div>
 
     <div class="frow"><label class="flbl" for="ap-type">Project Type</label>
       <select class="fsel" id="ap-type" onchange="onProjTypeChange()"></select>
@@ -35578,6 +35662,86 @@ function updateVisBadge(){
         <div id="bc-hr-banner" style="display:none;background:rgba(224,138,82,.10);border:1px solid rgba(224,138,82,.45);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:var(--fm);font-size:10.5px;color:var(--txm);line-height:1.55"></div>
 
         <div id="bc-floors-preview" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- v101.70 — Fee Structure (per-phase budgets in ₹ and hours). Optional.
+         When populated, the Portfolio Health Matrix Fee column becomes a real
+         RAG indicator. Empty values are fine — that column stays N/A. -->
+    <div class="frow" style="margin-top:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:8px 12px;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;user-select:none"
+           onclick="toggleApFee()">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg style="width:13px;height:13px;stroke:var(--gold);fill:none;stroke-width:1.5" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span style="font-family:var(--fm);font-size:10.5px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">Fee Structure</span>
+          <span id="ap-fee-summary" style="font-family:var(--fm);font-size:9.5px;color:var(--txd);margin-left:4px">— optional</span>
+        </div>
+        <svg id="ap-fee-chevron" style="width:11px;height:11px;stroke:var(--txd);fill:none;stroke-width:2;transition:transform .15s" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div id="ap-fee-body" style="display:none;padding:12px 4px 4px">
+        <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);line-height:1.6;margin-bottom:10px">
+          Per-phase budgets. Filling both fee and hours lets the system show ₹ burn AND hour burn. Filling just one is fine. Hours come from billable timesheet entries tagged with the project + phase.
+        </div>
+
+        <!-- v101.77/78/79 — Auto-distribute toolbar.
+             v101.77: fills the 5 phase rows by IIA percentages.
+             v101.78: fee → hours via labor share %.
+             v101.79: sqft × ₹/sqft → fee. All three (sqft, rate, fee)
+                      reactively sync. -->
+        <div style="background:rgba(186,117,23,.06);border:1px solid rgba(186,117,23,.20);border-radius:8px;padding:10px 12px;margin-bottom:12px">
+          <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
+            ⚡ Quick fill — distribute across all 5 phases
+          </div>
+
+          <!-- v101.79 — sqft + ₹/sqft as fee drivers. Type sqft and rate,
+               fee auto-fills. -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;margin-bottom:8px">
+            <div>
+              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-builtup-input">Built-up Area (sqft)</label>
+              <input class="finp" id="ap-builtup-input" type="number" min="0" step="100" placeholder="e.g. 8000" oninput="apOnSqftChange()" style="font-size:11px;width:100%">
+            </div>
+            <div>
+              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-ratesqft-input">Fee ₹/sqft</label>
+              <input class="finp" id="ap-ratesqft-input" type="number" min="0" step="10" placeholder="e.g. 250" oninput="apOnSqftChange()" style="font-size:11px;width:100%">
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:8px;align-items:end;margin-bottom:6px">
+            <div>
+              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-fee-total-input">Total Project Fee (₹) <span id="ap-fee-auto-tag" style="color:var(--gold);font-weight:600;display:none">· auto</span></label>
+              <input class="finp" id="ap-fee-total-input" type="number" min="0" step="10000" placeholder="e.g. 2000000" oninput="apOnFeeOverride()" style="font-size:11px;width:100%">
+            </div>
+            <div>
+              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-labor-share-input">Labor Share % <span style="color:var(--txd);font-weight:400" title="Share of fee that funds labor cost. Rest is profit + overhead + software/BIM licenses.">ⓘ</span></label>
+              <input class="finp" id="ap-labor-share-input" type="number" min="1" max="100" step="1" value="60" oninput="apOnFeeTotalChange()" style="font-size:11px;width:100%">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:8px;align-items:end;margin-bottom:8px">
+            <div>
+              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-fee-total-hrs-input">Total Hour Budget <span id="ap-hrs-auto-tag" style="color:var(--gold);font-weight:600;display:none">· auto</span></label>
+              <input class="finp" id="ap-fee-total-hrs-input" type="number" min="0" step="10" placeholder="e.g. 500" oninput="apOnHrsOverride()" style="font-size:11px;width:100%">
+              <div id="ap-hrs-derivation-hint" style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px;line-height:1.4"></div>
+            </div>
+            <button class="btn bp bsm" onclick="apAutoDistributeFee()" style="white-space:nowrap;padding:7px 12px;font-size:10px;align-self:end">Auto-distribute</button>
+          </div>
+          <div style="font-family:var(--fm);font-size:9px;color:var(--txd);line-height:1.5;border-top:1px dashed var(--bd);padding-top:6px">
+            IIA-aligned split: SD <strong style="color:var(--tx)">15%</strong> · DD <strong style="color:var(--tx)">25%</strong> · CD <strong style="color:var(--tx)">35%</strong> · CA <strong style="color:var(--tx)">20%</strong> · Handover <strong style="color:var(--tx)">5%</strong>. Type sqft × rate → fee auto-fills → hours auto-derive. Override any field manually.
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:80px 1fr 1fr 90px;gap:8px;align-items:center;margin-bottom:6px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">
+          <div>Phase</div>
+          <div>Fee (₹)</div>
+          <div>Hour Budget</div>
+          <div style="text-align:right">Derived Rate</div>
+        </div>
+        <div id="ap-fee-rows" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="margin-top:10px;padding:8px 10px;background:var(--sf2);border-radius:6px;display:flex;justify-content:space-between;font-family:var(--fm);font-size:10px;color:var(--txm)">
+          <span>Total fee:</span><span id="ap-fee-total" style="color:var(--tx);font-weight:600">₹0</span>
+        </div>
+        <div style="margin-top:4px;padding:8px 10px;background:var(--sf2);border-radius:6px;display:flex;justify-content:space-between;font-family:var(--fm);font-size:10px;color:var(--txm)">
+          <span>Total hour budget:</span><span id="ap-fee-total-hrs" style="color:var(--tx);font-weight:600">0h</span>
+        </div>
       </div>
     </div>
 
