@@ -3146,7 +3146,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       <div class="frow"><label class="flbl" for="as-last">Last Name</label><input class="finp" id="as-last" placeholder="e.g. Chen"></div>
     </div>
     <div class="frow"><label class="flbl" for="as-role">Role / Position</label>
-      <select class="fsel" id="as-role">
+      <select class="fsel" id="as-role" onchange="onAsRoleChange()">
         <option>Principal Architect</option>
         <option>Associate Principal</option>
         <option>Lead Architect</option>
@@ -3167,7 +3167,7 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
       <div class="frow"><label class="flbl" for="as-phone">Phone</label><input class="finp" id="as-phone" placeholder="+91 98400 00000"></div>
     </div>
     <div class="fgrid">
-      <div class="frow"><label class="flbl" for="as-rate">Hourly Rate (₹/hr) <span style="font-weight:400;color:var(--txd)">— internal cost</span></label><input class="finp" id="as-rate" type="number" placeholder="e.g. 2500" oninput="document.getElementById('as-charge-preview').textContent='≈ ₹'+(Math.round((parseFloat(this.value)||0)*2.3/5)*5).toLocaleString('en-IN')+'/hr client billing'"></div><div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:-8px;margin-bottom:8px" id="as-charge-preview">Charge rate auto-calculated at 2.3× for invoicing</div>
+      <div class="frow"><label class="flbl" for="as-rate">Hourly Rate (₹/hr) <span style="font-weight:400;color:var(--txd)">— internal cost</span></label><input class="finp" id="as-rate" type="number" placeholder="e.g. 2500" oninput="document.getElementById('as-charge-preview').textContent='≈ ₹'+(Math.round((parseFloat(this.value)||0)*2.3/5)*5).toLocaleString('en-IN')+'/hr client billing'"><div style="font-family:var(--fm);font-size:9px;color:var(--gold);margin-top:3px" id="as-rate-default-hint"></div></div><div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:-8px;margin-bottom:8px" id="as-charge-preview">Charge rate auto-calculated at 2.3× for invoicing</div>
       <div class="frow"><label class="flbl" for="as-type">Employment Type</label>
         <select class="fsel" id="as-type"><option value="active">Full-Time</option><option value="parttime">Part-Time</option><option value="onleave">On Leave</option><option value="contractor">Contractor</option></select>
       </div>
@@ -6708,6 +6708,83 @@ const ROLES = [
   { role:'Consultant',            rank:7, color:'#8a52e0', bg:'rgba(138,82,224,.12)',  canReview:false, canForecast:false, canSchedule:false },
 ];
 function rd(role){return ROLES.find(r=>r.role===role)||{role,rank:5,color:'var(--txm)',bg:'rgba(122,120,136,.15)',canReview:false,canForecast:false,canSchedule:false}}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.77 — Indian-market default hourly rates by role (₹/hr)
+
+   These are conservative starting values for staff chargeRate when a
+   new staff member is added or when an existing record has rate=0.
+   The user can edit any rate in Edit Staff. The defaults are based on
+   2026 Indian salary research (PayScale, Glassdoor, Salary.com,
+   Indeed) blended to the middle of the local market — not the top of
+   tier-1 firms, not the bottom of fresh-grad rates.
+
+   Sources at time of authoring (Feb-Mar 2026):
+   - Principal Architect India avg ₹1,152/hr (SalaryExpert)
+   - Senior Architect Chennai range ₹474-1,082/hr (Salary.com/Glassdoor)
+   - Junior Architect India avg ₹19,849/month (~₹115/hr) — Indeed
+   These rates are firm-internal cost rates, not what's billed to clients.
+   ═════════════════════════════════════════════════════════════════════ */
+const ROLE_DEFAULT_RATES = {
+  'Principal Architect':      1200,
+  'Associate Principal':       900,
+  'Lead Architect':            700,
+  'Project Architect':         500,
+  'Interior Designer':         500,
+  'Junior Architect':          250,
+  'Architectural Assistant':   200,
+  'Intern':                    100,
+  'Site Engineer':             350,
+  'Structural Engineer':       500,
+  'BIM Coordinator':           450,
+  'Consultant':                800
+};
+
+/* IIA-aligned fee distribution across the 5 project phases. Percentages
+   sum to 100. Used by the "Auto-distribute" button on the Fee Structure
+   section of Add/Edit Project — clicking it fills the per-phase Fee INR
+   and Hour Budget rows from a single total. User can override anything
+   afterwards.
+
+   Standard IIA percentages (option a from the v101.77 plan): heaviest
+   on CD (the documentation phase), meaningful CA presence for site
+   supervision, light handover/closeout.
+*/
+const PHASE_FEE_PCTS = {
+  'SD':       0.15,
+  'DD':       0.25,
+  'CD':       0.35,
+  'CA':       0.20,
+  'Handover': 0.05
+};
+
+// One-time-on-boot helper: fill chargeRate for any STAFF whose rate is
+// 0 / null / undefined using ROLE_DEFAULT_RATES. Idempotent — running
+// again with no zero-rates does nothing. Logs how many records filled.
+function _v77FillDefaultRates(){
+  if(!Array.isArray(STAFF)) return {filled:0, skipped:0};
+  let filled = 0, skipped = 0;
+  STAFF.forEach(s => {
+    if(!s) return;
+    const cur = parseFloat(s.chargeRate);
+    if(cur > 0){ skipped++; return; }
+    const def = ROLE_DEFAULT_RATES[s.role];
+    if(typeof def === 'number' && def > 0){
+      s.chargeRate = def;
+      filled++;
+    }
+  });
+  if(filled > 0){
+    console.log('[v101.77] auto-filled default chargeRates for '+filled+' staff (skipped '+skipped+' who already had a rate)');
+  }
+  return {filled, skipped};
+}
+
+if(typeof window !== 'undefined'){
+  window.ROLE_DEFAULT_RATES = ROLE_DEFAULT_RATES;
+  window.PHASE_FEE_PCTS     = PHASE_FEE_PCTS;
+  window._v77FillDefaultRates = _v77FillDefaultRates;
+}
 function canSchedule(){
   // v101.39 — defensive: currentUser() is now guaranteed non-undefined.
   // But if .role is somehow missing, rd() handles it with its fallback.
@@ -7976,7 +8053,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.76 — Fee/budget cross-reference views. Three new surfaces in Financials: (A) Phase Burn-Down tab — per-project per-phase budget bars with click-to-expand contributing TS entries by staff and drawing. (B) Portfolio Health Matrix Fee dot is now clickable, drills through to Phase Burn-Down filtered to that project. (C) Fee Health tab — firm-wide ranked by RAG plus Top Burning Drawings list. All three use the v101.70 phase-budget schema and v101.74 derived hours.');
+console.log('S62 v101.77 — Two India-market data defaults: (1) Fee Structure auto-distribute in Add/Edit Project. Enter Total Project Fee and/or Total Hour Budget, click Auto-distribute, fills the 5 phases by IIA percentages (SD 15 / DD 25 / CD 35 / CA 20 / Handover 5). (2) Staff hourly rates default by role using Chennai/India 2026 research. Boot-time _v77FillDefaultRates() backfills any existing staff with rate=0; Add Staff modal shows the role default as a hint and uses it if left blank. Roles supported: Principal 1200, Associate 900, Lead 700, Project 500, Interior Designer 500, Junior 250, Asst 200, Intern 100, Site Eng 350, Struct Eng 500, BIM Coord 450, Consultant 800.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -8045,6 +8122,12 @@ setTimeout(() => {
       } else {
         console.log('[v101.74] boot hours recompute — no drift detected');
       }
+    }
+    // v101.77 — one-time pass: fill missing chargeRate values on STAFF
+    // using Indian-market role defaults. Skips anyone with an existing
+    // rate. Idempotent.
+    if (typeof _v77FillDefaultRates === 'function'){
+      _v77FillDefaultRates();
     }
   } catch(e){ console.warn('[v101.42a] snapshot error:', e.message); }
 }, 100);
@@ -14181,9 +14264,30 @@ function openAddStaffModal(){
   document.getElementById('as-role').value='Junior Architect';
   document.getElementById('as-type').value='active';
   document.getElementById('as-notif').value='daily';
+  // v101.77 — show role default rate hint when modal opens
+  if(typeof onAsRoleChange === 'function') onAsRoleChange();
   initColorPicker();
   document.getElementById('add-staff-ov').classList.add('show');
 }
+
+/* v101.77 — Role-change hint helper for the Add/Edit Staff modal.
+   When the role select changes (or modal opens), look up the role's
+   default ₹/hr from ROLE_DEFAULT_RATES and show a small hint next to
+   the rate input. Does NOT auto-fill the rate input — that would
+   overwrite explicit user entries. Just suggests. The actual default-
+   apply logic is on save (in submitStaff) when rate is left blank. */
+function onAsRoleChange(){
+  const role = document.getElementById('as-role')?.value;
+  const hintEl = document.getElementById('as-rate-default-hint');
+  if(!hintEl) return;
+  const def = ROLE_DEFAULT_RATES[role];
+  if(typeof def === 'number' && def > 0){
+    hintEl.innerHTML = '💡 India 2026 default for ' + role + ': <strong>₹' + def + '/hr</strong> (leave blank to use)';
+  } else {
+    hintEl.innerHTML = '';
+  }
+}
+if(typeof window !== 'undefined') window.onAsRoleChange = onAsRoleChange;
 
 function openEditModal(id){
   const s=STAFF.find(x=>x.id===id);if(!s)return;
@@ -14199,6 +14303,8 @@ function openEditModal(id){
   document.getElementById('as-role').value=s.role;
   document.getElementById('as-type').value=s.type||'active';
   document.getElementById('as-notif').value=s.notif||'daily';
+  // v101.77 — show role default rate hint on edit too
+  if(typeof onAsRoleChange === 'function') onAsRoleChange();
   initColorPicker();
   document.getElementById('add-staff-ov').classList.add('show');
 }
@@ -14214,7 +14320,17 @@ function submitStaff(){
   const last=(document.getElementById('as-last')?.value||'').trim();
   if(!first||!last){showNotif('Missing name','First and last name required.');return;}
   const role=document.getElementById('as-role').value;
-  const rate=parseFloat(document.getElementById('as-rate').value)||0;
+  let rate=parseFloat(document.getElementById('as-rate').value)||0;
+  // v101.77 — If rate field is blank/0, fall back to ROLE_DEFAULT_RATES.
+  // The hint next to the field already showed this to the user.
+  let _usedDefault = false;
+  if(rate <= 0){
+    const def = ROLE_DEFAULT_RATES[role];
+    if(typeof def === 'number' && def > 0){
+      rate = def;
+      _usedDefault = true;
+    }
+  }
   const chargeRate=Math.round(rate*2.3/5)*5;
   const type=document.getElementById('as-type').value;
   const email=(document.getElementById('as-email').value||'').trim();
@@ -14248,7 +14364,9 @@ function submitStaff(){
     // Show password reveal modal
     const newStaff={first,last,email};
     showPwReveal(newStaff,pw);
-    showNotif(`${first} ${last} added`,`Login credentials generated — share securely.`);
+    // v101.77 — note when default rate was applied so the user knows
+    const _rateNote = _usedDefault ? ' · rate ₹'+rate+'/hr (auto-default)' : '';
+    showNotif(`${first} ${last} added`,`Login credentials generated — share securely.${_rateNote}`);
   scheduleSave({immediate:true});  // v101.53 — staff create
   }
 }
@@ -16693,11 +16811,83 @@ function toggleApFee(){
   if(chev) chev.style.transform = isOpen ? '' : 'rotate(180deg)';
 }
 
+/* v101.77 — Auto-distribute total fee/hours across the 5 phases by
+   IIA-aligned percentages (PHASE_FEE_PCTS). Reads the two total inputs
+   at the top of the Fee Structure section. Any total that's blank/0
+   is simply skipped (so user can distribute fee without touching hours
+   and vice versa). Existing manual values are overwritten — if the user
+   has already typed phase-level numbers, we ask for confirmation. */
+function apAutoDistributeFee(){
+  const feeEl = document.getElementById('ap-fee-total-input');
+  const hrsEl = document.getElementById('ap-fee-total-hrs-input');
+  const totalFee = feeEl ? (parseFloat(feeEl.value) || 0) : 0;
+  const totalHrs = hrsEl ? (parseFloat(hrsEl.value) || 0) : 0;
+
+  if(totalFee <= 0 && totalHrs <= 0){
+    showNotif('Nothing to distribute', 'Enter a total project fee or hour budget (or both) above before clicking Auto-distribute.');
+    return;
+  }
+
+  // Detect whether existing per-phase rows already have non-zero values
+  const existing = readApFeeStructure();
+  let hasExistingFee = false, hasExistingHrs = false;
+  Object.keys(existing).forEach(ph => {
+    if((existing[ph].feeINR || 0) > 0) hasExistingFee = true;
+    if((existing[ph].hourBudget || 0) > 0) hasExistingHrs = true;
+  });
+
+  const willOverwriteFee = totalFee > 0 && hasExistingFee;
+  const willOverwriteHrs = totalHrs > 0 && hasExistingHrs;
+  if(willOverwriteFee || willOverwriteHrs){
+    const parts = [];
+    if(willOverwriteFee) parts.push('existing per-phase fee values');
+    if(willOverwriteHrs) parts.push('existing per-phase hour budgets');
+    if(!confirm('This will overwrite ' + parts.join(' and ') + '. Continue?')){
+      return;
+    }
+  }
+
+  // Distribute: walk PHASE_FEE_PCTS and write into each row's inputs.
+  // Use Math.round for INR, Math.round for hours. Final phase absorbs
+  // any rounding remainder so the totals match exactly.
+  const phases = Object.keys(PHASE_FEE_PCTS);  // SD, DD, CD, CA, Handover
+  let feeUsed = 0, hrsUsed = 0;
+  phases.forEach((ph, i) => {
+    const pct = PHASE_FEE_PCTS[ph];
+    const isLast = (i === phases.length - 1);
+
+    if(totalFee > 0){
+      const inrEl = document.querySelector('.ap-fee-inr[data-phase="' + ph + '"]');
+      if(inrEl){
+        const v = isLast ? (totalFee - feeUsed) : Math.round(totalFee * pct);
+        feeUsed += v;
+        inrEl.value = v;
+      }
+    }
+    if(totalHrs > 0){
+      const hrsCellEl = document.querySelector('.ap-fee-hrs[data-phase="' + ph + '"]');
+      if(hrsCellEl){
+        const v = isLast ? (totalHrs - hrsUsed) : Math.round(totalHrs * pct);
+        hrsUsed += v;
+        hrsCellEl.value = v;
+      }
+    }
+  });
+  updateApFeeSummary();
+
+  // Confirm
+  const msgParts = [];
+  if(totalFee > 0) msgParts.push('₹' + totalFee.toLocaleString('en-IN') + ' across 5 phases');
+  if(totalHrs > 0) msgParts.push(totalHrs + 'h across 5 phases');
+  showNotif('Auto-distributed', msgParts.join(' · ') + '. Edit any phase below.');
+}
+
 if(typeof window !== 'undefined'){
   window.populateApFeeRows  = populateApFeeRows;
   window.readApFeeStructure = readApFeeStructure;
   window.updateApFeeSummary = updateApFeeSummary;
   window.toggleApFee        = toggleApFee;
+  window.apAutoDistributeFee = apAutoDistributeFee;
 }
 
 function openAddProjectModal(){
@@ -16716,6 +16906,9 @@ function openAddProjectModal(){
   // v101.70 — render empty fee rows
   populateApFeeRows(null);
   updateApFeeSummary();
+  // v101.77 — clear the auto-distribute total inputs from any prior session
+  const _apFT = document.getElementById('ap-fee-total-input');     if(_apFT) _apFT.value = '';
+  const _apFTH = document.getElementById('ap-fee-total-hrs-input'); if(_apFTH) _apFTH.value = '';
   document.getElementById('ap-fee').value='';
   document.getElementById('ap-start').value='';
   document.getElementById('ap-end').value='';
@@ -16759,6 +16952,11 @@ function openEditProjectModal(projId){
   // v101.70 — populate fee rows from existing project; auto-open if any phase has budget
   populateApFeeRows(p.feeStructure || null);
   updateApFeeSummary();
+  // v101.77 — clear the auto-distribute total inputs. Existing per-phase
+  // values are the canonical state for editing; user can still type a
+  // new total to redistribute.
+  const _apFTe = document.getElementById('ap-fee-total-input');     if(_apFTe) _apFTe.value = '';
+  const _apFTHe = document.getElementById('ap-fee-total-hrs-input'); if(_apFTHe) _apFTHe.value = '';
   if(p.feeStructure){
     const hasAny = Object.values(p.feeStructure).some(v => {
       if(typeof v === 'number') return v > 0;
@@ -20871,7 +21069,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.76',
+        appVersion: 'S62-v101.77',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -21031,7 +21229,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.76',
+    appVersion: 'S62-v101.77',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -35123,6 +35321,32 @@ function updateVisBadge(){
         <div style="font-family:var(--fm);font-size:9.5px;color:var(--txd);line-height:1.6;margin-bottom:10px">
           Per-phase budgets. Filling both fee and hours lets the system show ₹ burn AND hour burn. Filling just one is fine. Hours come from billable timesheet entries tagged with the project + phase.
         </div>
+
+        <!-- v101.77 — Auto-distribute toolbar. Enter a single total fee
+             and/or total hour budget, click Auto-distribute, and the 5
+             phase rows below get filled by IIA standard percentages
+             (SD 15% · DD 25% · CD 35% · CA 20% · Handover 5%).
+             User can edit any cell afterwards. -->
+        <div style="background:rgba(186,117,23,.06);border:1px solid rgba(186,117,23,.20);border-radius:8px;padding:10px 12px;margin-bottom:12px">
+          <div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">
+            ⚡ Quick fill — distribute across all 5 phases
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+            <div>
+              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-fee-total-input">Total Project Fee (₹)</label>
+              <input class="finp" id="ap-fee-total-input" type="number" min="0" step="10000" placeholder="e.g. 2000000" style="font-size:11px;width:100%">
+            </div>
+            <div>
+              <label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase" for="ap-fee-total-hrs-input">Total Hour Budget</label>
+              <input class="finp" id="ap-fee-total-hrs-input" type="number" min="0" step="10" placeholder="e.g. 500" style="font-size:11px;width:100%">
+            </div>
+            <button class="btn bp bsm" onclick="apAutoDistributeFee()" style="white-space:nowrap;padding:7px 12px;font-size:10px">Auto-distribute</button>
+          </div>
+          <div style="margin-top:8px;font-family:var(--fm);font-size:9px;color:var(--txd);line-height:1.5">
+            IIA-aligned split: SD <strong style="color:var(--tx)">15%</strong> · DD <strong style="color:var(--tx)">25%</strong> · CD <strong style="color:var(--tx)">35%</strong> · CA <strong style="color:var(--tx)">20%</strong> · Handover <strong style="color:var(--tx)">5%</strong>. Fill one or both totals — leave blank to skip. Edit any phase below after distributing.
+          </div>
+        </div>
+
         <div style="display:grid;grid-template-columns:80px 1fr 1fr 90px;gap:8px;align-items:center;margin-bottom:6px;font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">
           <div>Phase</div>
           <div>Fee (₹)</div>
