@@ -6668,6 +6668,32 @@ function canSchedule(){
   return rd(u && u.role || 'Architect').canSchedule;
 }
 
+/* v101.75 — Hours edit/delete permission gate.
+   Distinct from canSchedule(): excludes Interior Designer because the
+   permission spec for timesheet corrections is tighter — only the four
+   architectural leadership roles can edit or delete existing TS entries.
+   Anyone can still LOG new entries (the inline +hrs input, drawing-detail
+   logger, and tsAddEntry/tsAddAdmin remain open). The restriction is
+   only on changing entries that already exist.
+
+   The narrow list:
+     - Principal Architect
+     - Associate Principal
+     - Lead Architect
+     - Project Architect
+   Even your OWN entries — juniors who make a mistake have to ask a senior
+   to correct. This is appropriate for billable hours where data integrity
+   matters more than convenience. */
+function canEditHours(){
+  const u = currentUser();
+  const r = u && u.role;
+  return r === 'Principal Architect'
+      || r === 'Associate Principal'
+      || r === 'Lead Architect'
+      || r === 'Project Architect';
+}
+if(typeof window !== 'undefined') window.canEditHours = canEditHours;
+
 /* ── canCreate() — any active staff member can create records ─────
    Used for: meetings, site reports (SVR), RFIs, submittals, snags,
    vendor add/edit, vendor rates, vendor reviews, transmittal issuance.
@@ -7903,7 +7929,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.74 — Hybrid Rec 3: TS_ENTRIES is now the source of truth for hours. d.hrs is always derived via recomputeDrwHoursFromTS(), never incremented in-place. Log functions write to TS_ENTRIES first, then recompute. Triggered automatically: after every log, after TS cell edit, after TS entry delete, after cloud merge, at boot. Eliminates drift between DRAWINGS[].hrs, SCHED_TASKS[].actHrs, and sum(TS_ENTRIES). New diagnostic: _v74DiagnoseHoursDrift() in console shows any remaining drift.');
+console.log('S62 v101.75 — Hours edit/delete permissions. New canEditHours() helper: only Principal Architect, Associate Principal, Lead Architect, and Project Architect can EDIT or DELETE existing TS_ENTRIES — even their own. Juniors and others can still LOG (create) new entries via the +hrs input on rows, the drawing-detail logger, and tsAddEntry/tsAddAdmin. The timesheet UI shows cells as disabled for unauthorized users and hides the remove buttons.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -20688,7 +20714,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.74',
+        appVersion: 'S62-v101.75',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -20848,7 +20874,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.74',
+    appVersion: 'S62-v101.75',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -23867,7 +23893,10 @@ function tRenderGrid(staffList,days,weekKey,showStaffHeader){
   staffList.forEach(s=>{
     const entries=tsGetEntries(s.id,weekKey);
     const status=tsWeekStatus(s.id,weekKey);
-    const locked=status==='approved'||status==='locked';
+    // v101.75 — Junior roles cannot edit existing TS cells. Disable inputs
+    // visually so the locked state is obvious before the user types. The
+    // tsUpdateHour function still enforces the rule server-side.
+    const locked=status==='approved'||status==='locked'||(typeof canEditHours==='function' && !canEditHours());
     const weekTot=tsStaffWeekTotal(s.id,weekKey);
     const billPct=weekTot>0?Math.round(tsBillableHours(s.id,weekKey)/weekTot*100):0;
     const init=s.first[0]+s.last[0];
@@ -24084,9 +24113,14 @@ function tsSwitchView(view, el){
 
 function tsUpdateHour(entryId, dayIdx, val){
   const e=TS_ENTRIES.find(x=>x.id===entryId);if(!e)return;
-  // FIX 5 — only the entry owner can edit their own hours (unless Principal)
-  if(e.sid !== CURRENT_USER_ID && !isPrincipal()){
-    showNotif('Cannot edit','You can only edit your own timesheet entries.');return;
+  // v101.75 — Only senior architectural roles can EDIT existing entries.
+  // Even your own. Juniors logging in real time can still LOG new entries
+  // (the +hrs input on rows, drawing-detail logger, and tsAddEntry are open).
+  // Edits to past entries are a senior-only correction action.
+  if(!canEditHours()){
+    showNotif('Cannot edit',
+      'Only Principal, Associate Principal, Lead Architect, and Project Architect can edit existing timesheet entries. Ask a senior to make this correction.');
+    return;
   }
   if(e.status==='approved'){
     showNotif('Timesheet approved','This entry has been approved and cannot be changed.');return;
@@ -24104,9 +24138,12 @@ function tsUpdateHour(entryId, dayIdx, val){
 function tsRemoveEntry(entryId){
   const e=TS_ENTRIES.find(x=>x.id===entryId);
   if(!e) return;
-  // FIX 5 — ownership guard
-  if(e.sid !== CURRENT_USER_ID && !isPrincipal()){
-    showNotif('Cannot remove','You can only remove your own timesheet entries.');return;
+  // v101.75 — Only senior architectural roles can DELETE existing entries.
+  // Even your own. Same reasoning as tsUpdateHour above.
+  if(!canEditHours()){
+    showNotif('Cannot delete',
+      'Only Principal, Associate Principal, Lead Architect, and Project Architect can delete existing timesheet entries. Ask a senior to remove this entry.');
+    return;
   }
   if(e.status==='approved'){
     showNotif('Timesheet approved','Approved entries cannot be removed.');return;
