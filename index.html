@@ -8281,7 +8281,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.81 — SVR modal now uses the ChipDropdown component (same as New Meeting modal) for both staff attendees and vendors. Searchable typeahead, removable chips, much cleaner UI than the chip-grid we had before. Smart defaults preserved: new SVRs pre-select project lead/PA/PM + current user as staff. Stage prefills from project current phase. Open drawings on this project shown as tap-to-add suggestions. Existing SVRs migrate seamlessly — same field names (attendees array, contractorVendorIds, contractorCustomNames, contractorName).');
+console.log('S62 v101.83 — Quick SVR mode. New ⚡ Quick Note button next to + New Site Report. Opens a minimal modal asking only Project + Note. Saves as a full SVR with smart defaults (today, current time, you as visitor and sole attendee, stage from project current phase). Creates the matching site-visit meeting too. Quick captures show a ⚡ marker in the SVR list — open to edit and add attendees, vendors, photos, issues later. Perfect for phone use on site.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -21462,7 +21462,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.81',
+        appVersion: 'S62-v101.83',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -21622,7 +21622,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.81',
+    appVersion: 'S62-v101.83',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -30704,6 +30704,7 @@ function renderCASVR(){
     +'<div style="display:flex;gap:8px;margin-left:auto">'
       +'<select class="fsel" id="ca-svr-status" onchange="renderCASVR()" style="font-size:10px;padding:4px 8px;width:auto">'+
         '<option value="">All</option><option value="open">Open issues</option></select>'
+      +(canCreate()?'<button class="btn bg bsm" onclick="openQuickSVRModal()" title="Fast capture — just project + note. Perfect for phone use on site." style="background:rgba(82,201,122,.10);color:var(--grn);border-color:rgba(82,201,122,.35)">⚡ Quick Note</button>':'')
       +(canCreate()?'<button class="btn bp bsm" onclick="openCASVRModal()">+ New Site Report</button>':'')
     +'</div>';
 
@@ -30738,7 +30739,7 @@ function renderCASVR(){
       : '';
     return '<div class="ca-row" onclick="openCASVRDetail(\''+r.id+'\')">'
       +'<div class="ca-proj-dot" style="background:'+(p?.color||'var(--txd)')+'"></div>'
-      +'<div class="ca-row-num">'+r.num+'</div>'
+      +'<div class="ca-row-num">'+r.num+(r.quickCapture?' <span title="Quick capture — open to add detail" style="font-size:10px">⚡</span>':'')+'</div>'
       +'<div class="ca-row-title">'
         +'<div class="ca-rtitle">'+(r.status==='scheduled'?'📅 Scheduled — ':'')
           +r.date.split('-').reverse().join('/')+(r.time?' · '+r.time:'')+(p?' — '+p.name:'')+' · Stage '+r.stage+'</div>'
@@ -31053,6 +31054,140 @@ function renderCAAI(){
 /* ═══ MODALS ══════════════════════════════════════════════ */
 
 /* ── NEW SITE VISIT REPORT ────────────────────────────────── */
+/* ═════════════════════════════════════════════════════════════════════
+   v101.83 — Quick SVR mode
+
+   Fast capture flow for site visits, optimized for the common case of
+   logging a quick note from the phone while on site. Asks ONLY:
+     - Project (single picker)
+     - Note (textarea)
+   Behind the scenes it creates a full SVR record with smart defaults:
+     - date = today
+     - time = current time
+     - stage = project's current phase (SD/DD/CD/CA)
+     - visitedBy = current user
+     - attendees = [current user]
+     - observations = the note typed
+     - contractorPresent = unknown (null — distinct from yes/no)
+     - everything else = empty / default
+   The full SVR modal can be opened later via Edit to add detail.
+   ═════════════════════════════════════════════════════════════════════ */
+function openQuickSVRModal(){
+  const ex = document.getElementById('quick-svr-ov');
+  if(ex) ex.remove();
+  // Default project: respect CA filter if set; otherwise first project
+  const filtered = (typeof caFilteredProj === 'function') ? caFilteredProj() : 'ALL';
+  const defaultProjId = filtered === 'ALL' ? (PROJS[0]?.id || '') : filtered;
+
+  const div = document.createElement('div');
+  div.id = 'quick-svr-ov';
+  div.className = 'ov show';
+  div.innerHTML = '<div class="modal" style="max-width:480px">'
+    + '<button class="mclose" onclick="closeModal(\'quick-svr-ov\')" aria-label="Close">✕</button>'
+    + '<div class="mtitle">⚡ Quick Site Note</div>'
+    + '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);line-height:1.5;margin-bottom:14px">'
+      + 'Fast capture for site visits. Saves as a full SVR you can edit later to add attendees, vendors, issues, and photos.'
+    + '</div>'
+    + '<div class="frow"><label class="flbl" for="qsvr-proj">Project</label><div id="qsvr-proj"></div></div>'
+    + '<div class="frow"><label class="flbl" for="qsvr-note">Site Note <span style="color:var(--txd);font-weight:400;font-size:9.5px">— observations, progress, issues</span></label>'
+    +   '<textarea class="ftarea" id="qsvr-note" rows="5" autofocus placeholder="e.g. Roof slab cast on north wing. Blockwork 80% complete on first floor. Plumbing rough-in in progress on ground floor. Awaiting MEP coordination drawings for second floor."></textarea>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-top:14px">'
+      + '<button class="btn bp" style="flex:1;justify-content:center;padding:11px" onclick="saveQuickSVR()">✓ Save Note</button>'
+      + '<button class="btn bg" onclick="closeModal(\'quick-svr-ov\')">Cancel</button>'
+    + '</div>'
+  + '</div>';
+  document.body.appendChild(div);
+  ProjectPicker.init('qsvr-proj', { selected: defaultProjId });
+  // Focus the textarea after the modal animates in
+  setTimeout(() => { document.getElementById('qsvr-note')?.focus(); }, 100);
+}
+
+function saveQuickSVR(){
+  const projId = ProjectPicker.getValue('qsvr-proj');
+  if(!projId){ showNotif('Project required',''); return; }
+  const note = (document.getElementById('qsvr-note')?.value || '').trim();
+  if(!note){ showNotif('Add a note', 'Type something — site progress, observations, or issues.'); return; }
+
+  // Smart defaults — match what the full SVR modal would set
+  const p = PROJS.find(x => x.id === projId);
+  const ph = p && p.phase;
+  const stage = (ph === 'SD' || ph === 'DD' || ph === 'CD' || ph === 'CA') ? ph : 'CA';
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+
+  const entry = {
+    id: 'SVR-' + Date.now(),
+    projId,
+    num: caNextNum(CA_SVR.filter(r => r.projId === projId), 'SVR-' + projId),
+    date: caToday(),
+    time: hh + ':' + mm,
+    visitedBy: CURRENT_USER_ID,
+    attendees: [CURRENT_USER_ID],
+    stage,
+    weather: '',
+    contractorPresent: null,
+    contractorVendorIds: [],
+    contractorCustomNames: [],
+    contractorName: '',
+    contractorVendorId: '',
+    constructionStage: '',
+    progressPct: 0,
+    drawingsChecked: [],
+    observations: note,
+    issues: [],
+    instructions: '',
+    nextVisitDate: '',
+    nextVisitTime: '',
+    nextVisitAttendees: [],
+    photos: [],
+    voiceNotes: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    quickCapture: true  // flag — useful for reporting & for the SVR list row
+  };
+
+  CA_SVR.unshift(entry);
+
+  // Create a meeting for today (same pattern as full SVR — keeps timesheet
+  // and schedule integration consistent)
+  try {
+    if(typeof MEETINGS !== 'undefined' && Array.isArray(MEETINGS)){
+      const mtgId = 'MTG-' + Date.now();
+      MEETINGS.push({
+        id: mtgId,
+        title: 'Site visit — ' + (p?.name || projId),
+        date: caToday(),
+        time: hh + ':' + mm,
+        duration: 60,
+        projId,
+        location: 'On site',
+        attendees: [CURRENT_USER_ID],
+        externalAttendees: [],
+        agenda: 'Quick site note: ' + note.slice(0, 100) + (note.length > 100 ? '…' : ''),
+        kind: 'site-visit',
+        svrId: entry.id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      entry.meetingId = mtgId;
+    }
+  } catch(e){ console.warn('[v101.83] meeting creation skipped:', e); }
+
+  closeModal('quick-svr-ov');
+  if(typeof renderCA === 'function') renderCA();
+  if(typeof updateCABadges === 'function') updateCABadges();
+  if(typeof s62MaybeReRenderHome === 'function') s62MaybeReRenderHome();
+  scheduleSave({ immediate: true });
+  showNotif('Site note saved', entry.num + ' · ' + (p?.name || projId) + ' · open the report to add attendees, vendors, issues');
+}
+
+if(typeof window !== 'undefined'){
+  window.openQuickSVRModal = openQuickSVRModal;
+  window.saveQuickSVR      = saveQuickSVR;
+}
+
 function openCASVRModal(id){
   const ex=document.getElementById('ca-svr-ov');if(ex)ex.remove();
   const r=id?CA_SVR.find(x=>x.id===id):null;
@@ -31734,18 +31869,29 @@ function caEmailSVRVendors(svrId){
    Without this, the drawings list stays scoped to the originally-
    selected project, allowing broken cross-references. */
 function refreshRFIDrawings(){
-  const drwSel  = document.getElementById('rfi-drws');
-  if(!drwSel) return;
+  // v101.82 — when the project picker changes, rebuild the drawings
+  // ChipDropdown with the new project's drawings. Preserve any already-
+  // selected drawing IDs (filtered to ones that still belong).
+  const cdRoot = document.getElementById('rfi-drws-cd');
+  if(!cdRoot || typeof ChipDropdown === 'undefined') return;
   const projId = ProjectPicker.getValue('rfi-proj');
   if(!projId) return;
-  // Preserve any already-selected drawing IDs (in case user is editing)
-  const prevSelected = Array.from(drwSel.selectedOptions).map(o=>o.value);
-  const filtered = DRAWINGS.filter(d=>d.proj===projId);
-  drwSel.innerHTML = '<option value="">— None —</option>'
-    + filtered.map(d=>{
-        const sel = prevSelected.includes(d.id) ? ' selected' : '';
-        return '<option value="'+d.id+'"'+sel+'>'+d.id+' — '+(d.title||'').slice(0,40)+'</option>';
-      }).join('');
+  const prevSelected = ChipDropdown.getSelected('rfi-drws-cd') || [];
+  const filtered = DRAWINGS.filter(d => d.proj === projId);
+  const items = filtered.map(d => ({
+    id: d.id,
+    name: d.id,
+    sub: (d.title || '').slice(0, 60),
+    meta: d.status || ''
+  }));
+  // Keep only previously-selected drawings that are still in the new project
+  const stillValid = prevSelected.filter(id => filtered.some(d => d.id === id));
+  ChipDropdown.init('rfi-drws-cd', {
+    items,
+    selected: stillValid,
+    placeholder: items.length ? '+ Add drawing reference' : 'No drawings on this project',
+    chipClass: ''
+  });
 }
 
 function openCARFIModal(id){
@@ -31758,7 +31904,7 @@ function openCARFIModal(id){
   const staffOpts=inhouse.map(s=>'<option value="'+s.id+'" '+((r?.raisedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
   const assignOpts='<option value="">— Unassigned —</option>'+inhouse.map(s=>'<option value="'+s.id+'" '+(r?.assignedTo===s.id?'selected':'')+'>'+s.first+' '+s.last+(s.role?' · '+s.role:'')+'</option>').join('');
   const reviewerOpts='<option value="">— No reviewer —</option>'+inhouse.filter(s=>['Principal Architect','Associate','Lead Architect','Project Architect'].includes(s.role)).map(s=>'<option value="'+s.id+'" '+(r?.reviewer===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
-  const drwOpts='<option value="">— None —</option>'+DRAWINGS.filter(d=>d.proj===(r?.projId||projId)).map(d=>'<option value="'+d.id+'" '+(r?.drawingRefs?.includes(d.id)?'selected':'')+'>'+d.id+' — '+d.title.slice(0,40)+'</option>').join('');
+  // v101.82 — drwOpts removed; drawings now use ChipDropdown initialized below
 
   div.innerHTML='<div class="modal" style="max-width:600px">'
     +'<button class="mclose" onclick="closeModal(\'ca-rfi-ov\')" aria-label="Close">✕</button>'
@@ -31796,8 +31942,11 @@ function openCARFIModal(id){
 
     +'<div class="frow"><label class="flbl" for="rfi-subj">Subject</label><input class="finp" id="rfi-subj" value="'+(r?.subject||'')+'" placeholder="Clear, specific question subject"></div>'
     +'<div class="frow"><label class="flbl" for="rfi-q">Question / Issue</label><textarea class="ftarea" id="rfi-q" rows="3" placeholder="Describe the information requested…">'+(r?.question||'')+'</textarea></div>'
-    +'<div class="frow"><label class="flbl" for="rfi-drws">Referenced Drawings</label><select class="fsel" id="rfi-drws" multiple style="height:80px;font-size:10px">'+drwOpts+'</select>'
-      +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:3px">Hold Ctrl/Cmd to select multiple</div></div>'
+    // v101.82 — Referenced Drawings now uses ChipDropdown (same pattern as
+    // SVR vendor and meeting attendees). Replaces the multiselect with
+    // Ctrl/Cmd-hold UX, which most users don't realize is multi-select.
+    +'<div class="frow"><label class="flbl">Referenced Drawings <span style="color:var(--txd);font-weight:400;font-size:9.5px">— type to search, multiple allowed</span></label>'
+      +'<div id="rfi-drws-cd"></div></div>'
     +(isEdit&&r.status!=='open'?'<div class="frow"><label class="flbl" for="rfi-ans">Answer / Response</label><textarea class="ftarea" id="rfi-ans" rows="2" placeholder="Response received…">'+(r?.answer||'')+'</textarea></div>':'')
 
     +'<div style="display:flex;gap:8px;margin-top:8px">'
@@ -31809,6 +31958,24 @@ function openCARFIModal(id){
   document.body.appendChild(div);
   ProjectPicker.init('rfi-proj', { selected: r?.projId || projId });
   ProjectPicker.onChange('rfi-proj', refreshRFIDrawings);
+  // v101.82 — Init ChipDropdown for referenced drawings
+  try {
+    const _rfiProjForDrws = r?.projId || projId;
+    const _rfiDrwItems = (DRAWINGS || [])
+      .filter(d => d.proj === _rfiProjForDrws)
+      .map(d => ({
+        id: d.id,
+        name: d.id,
+        sub: (d.title || '').slice(0, 60),
+        meta: d.status || ''
+      }));
+    ChipDropdown.init('rfi-drws-cd', {
+      items: _rfiDrwItems,
+      selected: r?.drawingRefs || [],
+      placeholder: _rfiDrwItems.length ? '+ Add drawing reference' : 'No drawings on this project',
+      chipClass: ''
+    });
+  } catch(e){ console.warn('[v101.82] RFI drawings ChipDropdown:', e); }
   // Initial clash banner render
   setTimeout(()=>caUpdateClashBanner('rfi',1), 50);
 }
@@ -31816,8 +31983,10 @@ function openCARFIModal(id){
 function saveCARFI(editId){
   const projId=ProjectPicker.getValue('rfi-proj');if(!projId){showNotif('Project required','');return;}
   const subj=document.getElementById('rfi-subj')?.value.trim();if(!subj){showNotif('Subject required','');return;}
-  const drwSel=document.getElementById('rfi-drws');
-  const drawingRefs=drwSel?Array.from(drwSel.selectedOptions).map(o=>o.value).filter(Boolean):[];
+  // v101.82 — read from ChipDropdown
+  const drawingRefs = (typeof ChipDropdown !== 'undefined' && ChipDropdown.getSelected)
+    ? ChipDropdown.getSelected('rfi-drws-cd')
+    : [];
   const status=document.getElementById('rfi-status')?.value||'open';
   const assignedTo=document.getElementById('rfi-assigned')?.value||'';
   const targetDate=document.getElementById('rfi-target')?.value||'';
