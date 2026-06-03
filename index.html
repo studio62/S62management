@@ -3281,6 +3281,19 @@ let _sdpEditing = null; // field currently being edited inline
 
 function openStaffPanel(staffId){
   const s=STAFF.find(x=>x.id===staffId);if(!s)return;
+
+  // v101.84 — Access gate: only Principal / Associate / Lead can see the
+  // performance panel for others. Staff can see their own. Everyone else
+  // falls through to the existing Edit Staff modal which handles HR data.
+  if(typeof canViewStaffProfile === 'function' && !canViewStaffProfile(staffId)){
+    if(typeof openEditModal === 'function'){
+      openEditModal(staffId);
+      return;
+    }
+    // No fallback available — fail silently
+    return;
+  }
+
   _sdpId=staffId;_sdpDirty=false;_sdpEditing=null;
 
   // Highlight card
@@ -3288,18 +3301,323 @@ function openStaffPanel(staffId){
   const card=document.getElementById('stcard-'+staffId);
   if(card) card.classList.add('sdp-selected');
 
-  // Populate panel
-  sdpPopulate(s);
+  // v101.84 — Render the new performance panel. The legacy sdpPopulate is
+  // not called (its target HTML elements were never created in the DOM,
+  // which was the source of the TypeError at line 3360).
+  v84RenderStaffPanel(s);
+}
 
-  const panel=document.getElementById('staff-detail-panel');
-  if(panel) panel.style.display='block';
+/* ─────────────────────────────────────────────────────────────────────
+   v101.84 — Staff performance panel renderer.
+   Builds the panel DOM from scratch each time it opens. Avoids the
+   missing-HTML-elements problem that plagued the legacy sdpPopulate.
 
-  // Shift grid to make room
-  const grid=document.getElementById('staff-grid');
-  if(grid) grid.style.paddingRight='420px';
+   Panel structure:
+     - Header: avatar, name, role, status, close button
+     - 5 KPI cards (Hours, On-time, Rework, Throughput, Utilization)
+     - Past week table: drawings + hours + status
+     - Past month table: drawings + hours + status
+     - Improvement hints (rules-based)
+     - Manual feedback notes (senior-only viewers)
+     - Quick link to Edit Staff modal (HR fields)
+   ───────────────────────────────────────────────────────────────────── */
+function v84RenderStaffPanel(s){
+  if(!s) return;
+  // Remove any existing panel first
+  const ex = document.getElementById('v84-staff-panel');
+  if(ex) ex.remove();
+
+  // Compute metrics for week and month
+  const now = new Date();
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  // Past 7 days
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+  // Past 30 days
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+
+  const wk = _v84StaffMetrics(s.id, weekStart, todayEnd);
+  const mo = _v84StaffMetrics(s.id, monthStart, todayEnd);
+  const hints = _v84ImprovementHints(wk, mo, s);
+
+  const showNotes = canViewStaffFeedbackNotes(s.id);
+  const canAddNote = canAddStaffFeedbackNote(s.id);
+  const isSelfView = currentUser()?.id === s.id;
+
+  // Helpers for inline formatting
+  const fmtNum = (n, suffix) => (n == null ? '—' : n + (suffix || ''));
+  const ragColor = (val, goodHigh, goodLow) => {
+    // goodHigh: true = higher is better; goodLow: true = lower is better
+    if(val == null) return 'var(--txd)';
+    if(goodHigh){
+      return val >= 90 ? 'var(--grn)' : val >= 70 ? 'var(--gold)' : 'var(--red)';
+    }
+    if(goodLow){
+      return val <= 10 ? 'var(--grn)' : val <= 25 ? 'var(--gold)' : 'var(--red)';
+    }
+    // Default: burn% — 85-115% is green, 70-85 or 115-130 amber, else red
+    if(val >= 85 && val <= 115) return 'var(--grn)';
+    if((val >= 70 && val < 85) || (val > 115 && val <= 130)) return 'var(--gold)';
+    return 'var(--red)';
+  };
+  const sevColor = (sev) => sev === 'warn' ? 'var(--red)' : sev === 'good' ? 'var(--grn)' : 'var(--gold)';
+  const statusLbl = (st) => ({nst:'Not started',ip:'In progress',chk:'In checking',done:'Done',iss:'Issued'}[st] || st || '—');
+
+  const panel = document.createElement('aside');
+  panel.id = 'v84-staff-panel';
+  panel.setAttribute('role','dialog');
+  panel.setAttribute('aria-label','Staff performance — '+(s.first+' '+s.last));
+  panel.style.cssText = 'position:fixed;top:0;right:0;width:480px;max-width:100vw;height:100vh;background:var(--sf);border-left:1px solid var(--bd);box-shadow:-8px 0 32px rgba(0,0,0,.4);z-index:999;overflow-y:auto;font-family:var(--fb)';
+
+  // Build HTML
+  let html = '';
+
+  // Header
+  const initials = (s.first[0] + s.last[0]).toUpperCase();
+  html += '<div style="position:sticky;top:0;z-index:1;background:var(--sf);border-bottom:1px solid var(--bd);padding:14px 16px;display:flex;align-items:center;gap:12px">';
+  html += '<div style="width:44px;height:44px;border-radius:50%;background:'+s.color+';color:#0a0a0f;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">'+initials+'</div>';
+  html += '<div style="flex:1;min-width:0">';
+  html += '<div style="font-family:var(--fd);font-size:14px;color:var(--tx)">'+s.first+' '+s.last+(isSelfView?' <span style="font-family:var(--fm);font-size:9px;color:var(--gold);font-weight:600;text-transform:uppercase">— your profile</span>':'')+'</div>';
+  html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">'+(s.role||'—')+' · '+(s.email||'no email')+'</div>';
+  html += '</div>';
+  html += '<button onclick="v84CloseStaffPanel()" title="Close" style="background:transparent;border:1px solid var(--bd);border-radius:6px;color:var(--txd);font-size:14px;width:30px;height:30px;cursor:pointer">✕</button>';
+  html += '</div>';
+
+  // Quick action: open Edit Staff
+  html += '<div style="padding:8px 16px;border-bottom:1px solid var(--bd);display:flex;gap:6px;justify-content:flex-end">';
+  if(typeof openEditModal === 'function' && (canEditHours() || isSelfView)){
+    html += '<button class="btn bg bsm" onclick="v84CloseStaffPanel();openEditModal(\''+s.id+'\')" style="font-size:10px;padding:5px 10px">⚙ Edit HR data</button>';
+  }
+  html += '</div>';
+
+  // KPI cards
+  html += '<div style="padding:14px 16px;border-bottom:1px solid var(--bd)">';
+  html += '<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Past 30 days</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+
+  // Hours card
+  html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:9px 11px">';
+  html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">Hours logged</div>';
+  html += '<div style="font-family:var(--fd);font-size:16px;color:var(--tx);margin-top:3px">'+mo.hoursLogged.toFixed(0)+'<span style="font-size:10px;color:var(--txd);font-weight:400">h</span></div>';
+  if(mo.hoursBudget > 0){
+    html += '<div style="font-family:var(--fm);font-size:9px;color:'+ragColor(mo.burnPct, false, false)+';margin-top:1px">vs '+mo.hoursBudget.toFixed(0)+'h budgeted · '+mo.burnPct+'%</div>';
+  } else {
+    html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:1px">no budget set on these drawings</div>';
+  }
+  html += '</div>';
+
+  // On-time card
+  html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:9px 11px">';
+  html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">On-time</div>';
+  html += '<div style="font-family:var(--fd);font-size:16px;color:'+ragColor(mo.onTimeRate, true)+';margin-top:3px">'+fmtNum(mo.onTimeRate, '%')+'</div>';
+  html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:1px">'+mo.drawingsOnTime+'/'+mo.drawingsExpected+' due drawings</div>';
+  html += '</div>';
+
+  // Rework card
+  html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:9px 11px">';
+  html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">Rework</div>';
+  html += '<div style="font-family:var(--fd);font-size:16px;color:'+ragColor(mo.reworkRate, false, true)+';margin-top:3px">'+fmtNum(mo.reworkRate, '%')+'</div>';
+  html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:1px">'+mo.drawingsRejected+' rejected / '+(mo.drawingsCompleted + mo.drawingsRejected)+' reviewed</div>';
+  html += '</div>';
+
+  // Throughput card
+  html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:9px 11px">';
+  html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">Throughput</div>';
+  html += '<div style="font-family:var(--fd);font-size:16px;color:var(--tx);margin-top:3px">'+mo.throughput+'</div>';
+  html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:1px">drawings completed</div>';
+  html += '</div>';
+
+  // Utilization card (spans full width)
+  html += '<div style="grid-column:1/-1;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:9px 11px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:baseline">';
+  html += '<div><span style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em">Utilization</span> <span style="font-family:var(--fd);font-size:14px;color:'+(mo.utilization!=null && mo.utilization>=60 && mo.utilization<=110 ? 'var(--grn)' : 'var(--gold)')+';margin-left:6px">'+fmtNum(mo.utilization, '%')+'</span></div>';
+  html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">'+mo.hoursLogged.toFixed(0)+'h logged / '+mo.expectedHours+'h available</div>';
+  html += '</div>';
+  // Bar
+  const utilWidth = Math.min(mo.utilization || 0, 150);
+  const utilColor = mo.utilization == null ? 'var(--txd)' : mo.utilization >= 60 && mo.utilization <= 110 ? 'var(--grn)' : 'var(--gold)';
+  html += '<div style="position:relative;height:6px;background:var(--sf);border-radius:3px;overflow:hidden;margin-top:6px">';
+  html += '<div style="position:absolute;top:0;left:0;height:100%;width:'+(utilWidth/1.5)+'%;background:'+utilColor+';border-radius:3px"></div>';
+  html += '</div>';
+  html += '</div>';
+
+  html += '</div>';  // end KPI grid
+  html += '</div>';  // end KPI section
+
+  // Past week table
+  html += '<div style="padding:14px 16px;border-bottom:1px solid var(--bd)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+  html += '<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.06em">Past 7 days · '+wk.hoursLogged.toFixed(0)+'h on '+wk.drawingsWorked.length+' drawings</div>';
+  html += '</div>';
+  if(wk.drawingsWorked.length === 0){
+    html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);font-style:italic;padding:8px 0">No drawing time logged in the past 7 days.</div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-family:var(--fm);font-size:10.5px">';
+    html += '<thead><tr style="border-bottom:1px solid var(--bd);color:var(--txd);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">';
+    html += '<th style="text-align:left;padding:5px 4px">Drawing</th>';
+    html += '<th style="text-align:right;padding:5px 4px">Hours</th>';
+    html += '<th style="text-align:right;padding:5px 4px">Target</th>';
+    html += '<th style="text-align:left;padding:5px 4px;width:80px">Status</th>';
+    html += '</tr></thead><tbody>';
+    wk.drawingsWorked.forEach(d => {
+      const burn = d.target > 0 ? Math.round(d.hours / d.target * 100) : null;
+      const burnCol = burn == null ? 'var(--txd)' : burn <= 100 ? 'var(--grn)' : 'var(--red)';
+      html += '<tr style="border-bottom:1px solid var(--bd)">';
+      html += '<td style="padding:5px 4px;color:var(--tx)"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:'+d.projColor+';margin-right:5px"></span>'+d.id+' <span style="color:var(--txd)">— '+d.title+'</span></td>';
+      html += '<td style="text-align:right;padding:5px 4px;color:var(--tx)">'+d.hours+'h</td>';
+      html += '<td style="text-align:right;padding:5px 4px;color:'+burnCol+'">'+(d.target ? d.target+'h' : '—')+(burn != null ? ' ('+burn+'%)' : '')+'</td>';
+      html += '<td style="padding:5px 4px;color:var(--txd);font-size:9.5px">'+statusLbl(d.status)+'</td>';
+      html += '</tr>';
+    });
+    if(Object.keys(wk.adminCats).length){
+      html += '<tr style="border-bottom:1px solid var(--bd);background:var(--sf2)">';
+      const adminTotal = Object.values(wk.adminCats).reduce((a,b)=>a+b, 0);
+      html += '<td style="padding:5px 4px;color:var(--txd);font-style:italic">Admin / leave / training</td>';
+      html += '<td style="text-align:right;padding:5px 4px;color:var(--txd)">'+adminTotal.toFixed(1)+'h</td>';
+      html += '<td colspan="2" style="padding:5px 4px;color:var(--txd);font-size:9px">'+Object.keys(wk.adminCats).join(', ')+'</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+
+  // Past month table (collapsed by default)
+  html += '<div style="padding:14px 16px;border-bottom:1px solid var(--bd)">';
+  html += '<details>';
+  html += '<summary style="cursor:pointer;font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;list-style:none;padding:2px 0">▸ Past 30 days · '+mo.hoursLogged.toFixed(0)+'h on '+mo.drawingsWorked.length+' drawings (expand)</summary>';
+  if(mo.drawingsWorked.length === 0){
+    html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);font-style:italic;padding:8px 0">No drawing time logged in the past 30 days.</div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-family:var(--fm);font-size:10.5px;margin-top:8px">';
+    html += '<thead><tr style="border-bottom:1px solid var(--bd);color:var(--txd);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">';
+    html += '<th style="text-align:left;padding:5px 4px">Drawing</th>';
+    html += '<th style="text-align:right;padding:5px 4px">Hours</th>';
+    html += '<th style="text-align:right;padding:5px 4px">Target</th>';
+    html += '<th style="text-align:left;padding:5px 4px;width:80px">Status</th>';
+    html += '</tr></thead><tbody>';
+    mo.drawingsWorked.forEach(d => {
+      const burn = d.target > 0 ? Math.round(d.hours / d.target * 100) : null;
+      const burnCol = burn == null ? 'var(--txd)' : burn <= 100 ? 'var(--grn)' : 'var(--red)';
+      html += '<tr style="border-bottom:1px solid var(--bd)">';
+      html += '<td style="padding:5px 4px;color:var(--tx)"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:'+d.projColor+';margin-right:5px"></span>'+d.id+' <span style="color:var(--txd)">— '+d.title+'</span></td>';
+      html += '<td style="text-align:right;padding:5px 4px;color:var(--tx)">'+d.hours+'h</td>';
+      html += '<td style="text-align:right;padding:5px 4px;color:'+burnCol+'">'+(d.target ? d.target+'h' : '—')+(burn != null ? ' ('+burn+'%)' : '')+'</td>';
+      html += '<td style="padding:5px 4px;color:var(--txd);font-size:9.5px">'+statusLbl(d.status)+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</details>';
+  html += '</div>';
+
+  // Improvement hints
+  html += '<div style="padding:14px 16px;border-bottom:1px solid var(--bd)">';
+  html += '<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Where to focus · auto-generated from metrics</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:6px">';
+  hints.forEach(h => {
+    const col = sevColor(h.severity);
+    html += '<div style="background:var(--sf2);border-left:3px solid '+col+';border-radius:5px;padding:8px 11px;display:flex;gap:8px;align-items:flex-start">';
+    html += '<span style="color:'+col+';font-size:13px;line-height:1;flex-shrink:0;margin-top:1px">'+h.icon+'</span>';
+    html += '<span style="font-family:var(--fm);font-size:10.5px;color:var(--tx);line-height:1.5">'+h.text+'</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // Feedback notes (senior viewers only — NOT shown to the staff member themselves)
+  if(showNotes){
+    const notes = (s.feedbackNotes || []).slice().reverse();  // newest first
+    html += '<div style="padding:14px 16px;border-bottom:1px solid var(--bd)">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+    html += '<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--txd);text-transform:uppercase;letter-spacing:.06em">Feedback notes · senior-only</div>';
+    html += '<span style="font-family:var(--fm);font-size:8.5px;color:var(--txd)">'+notes.length+' note'+(notes.length!==1?'s':'')+'</span>';
+    html += '</div>';
+    if(canAddNote){
+      html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:9px 11px;margin-bottom:8px">';
+      html += '<textarea id="v84-note-text" rows="2" placeholder="Note for the team\'s records. Visible only to Principal / Associate / Lead." style="width:100%;background:var(--sf);border:1px solid var(--bd);border-radius:5px;padding:7px 9px;color:var(--tx);font-family:var(--fm);font-size:10.5px;resize:vertical;box-sizing:border-box"></textarea>';
+      html += '<div style="display:flex;justify-content:flex-end;margin-top:6px">';
+      html += '<button class="btn bp bsm" onclick="v84AddFeedbackNote(\''+s.id+'\')" style="font-size:10px;padding:5px 12px">Add Note</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+    if(notes.length === 0){
+      html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);font-style:italic;padding:8px 0">No notes yet.</div>';
+    } else {
+      notes.forEach(n => {
+        const author = STAFF.find(x => x.id === n.author);
+        const authorName = author ? (author.first + ' ' + author.last) : n.author;
+        const dt = n.ts ? new Date(n.ts).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '';
+        html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:7px;padding:8px 11px;margin-bottom:5px">';
+        html += '<div style="display:flex;justify-content:space-between;font-family:var(--fm);font-size:9px;color:var(--txd);margin-bottom:4px">';
+        html += '<span>'+authorName+'</span><span>'+dt+'</span>';
+        html += '</div>';
+        html += '<div style="font-family:var(--fm);font-size:10.5px;color:var(--tx);line-height:1.5;white-space:pre-wrap">'+(n.text||'').replace(/</g,'&lt;')+'</div>';
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+  } else if(isSelfView){
+    // Inform the user that senior viewers may have private notes
+    html += '<div style="padding:14px 16px;border-bottom:1px solid var(--bd);font-family:var(--fm);font-size:9.5px;color:var(--txd);font-style:italic;line-height:1.5">Senior team members can add private feedback notes that are not visible here.</div>';
+  }
+
+  // Footer space
+  html += '<div style="height:40px"></div>';
+
+  panel.innerHTML = html;
+  document.body.appendChild(panel);
+
+  // Shift grid to make room (preserved from legacy)
+  const grid = document.getElementById('staff-grid');
+  if(grid) grid.style.paddingRight = '500px';
+}
+
+// Close the v84 panel
+function v84CloseStaffPanel(){
+  const p = document.getElementById('v84-staff-panel');
+  if(p) p.remove();
+  _sdpId = null;
+  const grid = document.getElementById('staff-grid');
+  if(grid) grid.style.paddingRight = '';
+  document.querySelectorAll('.stcard.sdp-selected').forEach(c => c.classList.remove('sdp-selected'));
+}
+
+// Add a feedback note to STAFF[].feedbackNotes
+function v84AddFeedbackNote(sid){
+  const ta = document.getElementById('v84-note-text');
+  const text = (ta?.value || '').trim();
+  if(!text){ showNotif('Empty note', 'Type something first.'); return; }
+  const s = STAFF.find(x => x.id === sid);
+  if(!s){ showNotif('Staff not found',''); return; }
+  if(!canAddStaffFeedbackNote(sid)){
+    showNotif('Not permitted', 'Only Principal / Associate Principal / Lead Architect can add feedback notes.');
+    return;
+  }
+  if(!Array.isArray(s.feedbackNotes)) s.feedbackNotes = [];
+  s.feedbackNotes.push({
+    id: 'FBN-' + Date.now(),
+    author: CURRENT_USER_ID,
+    ts: new Date().toISOString(),
+    text
+  });
+  s.updatedAt = new Date().toISOString();
+  scheduleSave({ immediate: true });
+  showNotif('Note added', s.first + "'s profile updated");
+  // Re-render the panel to reflect the new note
+  v84RenderStaffPanel(s);
+}
+
+if(typeof window !== 'undefined'){
+  window.v84RenderStaffPanel = v84RenderStaffPanel;
+  window.v84CloseStaffPanel  = v84CloseStaffPanel;
+  window.v84AddFeedbackNote  = v84AddFeedbackNote;
 }
 
 function closeStaffPanel(){
+  // v101.84 — Route legacy callers to the new close fn
+  if(document.getElementById('v84-staff-panel')){
+    v84CloseStaffPanel();
+    return;
+  }
   if(_sdpDirty){
     // Use a non-blocking confirm modal instead of browser confirm()
     // which fires blur on active input and causes cascade issues
@@ -3356,11 +3674,12 @@ function sdpPopulate(s){
     st.style.cssText=typeStyle;st.textContent=typeLabel;
   }
 
-  // Contact
-  document.getElementById('sdp-first-display').textContent=s.first;
-  document.getElementById('sdp-last-display').textContent=s.last;
-  document.getElementById('sdp-email-display').textContent=s.email||'—';
-  document.getElementById('sdp-phone-display').textContent=s.phone||'—';
+  // Contact — v101.84: defensive guards (the elements may not exist in
+  // the DOM; the new panel uses v84RenderStaffPanel instead).
+  const fd = document.getElementById('sdp-first-display');  if(fd) fd.textContent = s.first;
+  const ld = document.getElementById('sdp-last-display');   if(ld) ld.textContent = s.last;
+  const ed = document.getElementById('sdp-email-display');  if(ed) ed.textContent = s.email || '—';
+  const pd = document.getElementById('sdp-phone-display');  if(pd) pd.textContent = s.phone || '—';
 
   // Role/type/notif selects
   const roleEl=document.getElementById('sdp-role');
@@ -7046,6 +7365,338 @@ function canEditHours(){
 }
 if(typeof window !== 'undefined') window.canEditHours = canEditHours;
 
+/* ═════════════════════════════════════════════════════════════════════
+   v101.84 — Staff Profile Panel helpers
+
+   The previous "staff detail panel" referenced HTML elements (#sdp-name,
+   #sdp-first-display, etc.) that never existed in the DOM, so clicking
+   a staff card threw a TypeError on `null.textContent`. This rebuild:
+
+     1. Restricts panel access to Principal/Associate/Lead Architect
+        (matches canEditHours minus Project Architect). Staff can also
+        view their OWN profile metrics but not the manual feedback notes.
+     2. Builds the panel DOM dynamically so no missing-element errors.
+     3. Computes 5 work-efficiency metrics from TS_ENTRIES, DRAWINGS,
+        and qaHistory — all client-side, no LLM.
+     4. Generates rules-based improvement hints from those metrics.
+     5. Persists manual feedback notes on STAFF[].feedbackNotes[].
+
+   This file only adds the helper functions. The render function and the
+   panel HTML come below; the openStaffPanel click handler is rewired
+   to use them.
+   ═════════════════════════════════════════════════════════════════════ */
+
+// Access gate: who can view the staff PROFILE PANEL (KPI tables + notes)
+function canViewStaffProfile(targetSid){
+  const u = currentUser();
+  if(!u) return false;
+  // Always allow self-view (the staff member sees their own metrics)
+  if(u.id === targetSid) return true;
+  const r = u.role;
+  return r === 'Principal Architect'
+      || r === 'Associate Principal'
+      || r === 'Lead Architect';
+}
+
+// Can the viewer see the manual FEEDBACK NOTES on this profile?
+// Stricter — only senior viewers, NOT the staff member themself.
+function canViewStaffFeedbackNotes(targetSid){
+  const u = currentUser();
+  if(!u) return false;
+  if(u.id === targetSid) return false;  // can't see own notes
+  const r = u.role;
+  return r === 'Principal Architect'
+      || r === 'Associate Principal'
+      || r === 'Lead Architect';
+}
+
+// Can the viewer ADD feedback notes?
+function canAddStaffFeedbackNote(targetSid){
+  // Same as can-view-notes — senior viewers only
+  return canViewStaffFeedbackNotes(targetSid);
+}
+
+if(typeof window !== 'undefined'){
+  window.canViewStaffProfile        = canViewStaffProfile;
+  window.canViewStaffFeedbackNotes  = canViewStaffFeedbackNotes;
+  window.canAddStaffFeedbackNote    = canAddStaffFeedbackNote;
+}
+
+/* Compute KPI metrics for a staff member over a given date range.
+   Returns an object with the five key metrics. All metrics defensive
+   against zero divisions and missing data.
+
+   Inputs:
+     sid: staff ID
+     rangeStart: Date object (inclusive)
+     rangeEnd: Date object (inclusive)
+
+   Output:
+     {
+       hoursLogged, hoursBudget, burnPct,
+       onTimeRate, drawingsExpected, drawingsOnTime,
+       reworkRate, drawingsCompleted, drawingsRejected,
+       throughput,
+       utilization, expectedHours
+     }
+*/
+function _v84StaffMetrics(sid, rangeStart, rangeEnd){
+  const out = {
+    hoursLogged: 0,
+    hoursBudget: 0,
+    burnPct: null,
+    onTimeRate: null,
+    drawingsExpected: 0,
+    drawingsOnTime: 0,
+    reworkRate: null,
+    drawingsCompleted: 0,
+    drawingsRejected: 0,
+    throughput: 0,
+    utilization: null,
+    expectedHours: 0,
+    drawingsWorked: []  // [{id, title, projName, hours, target, status}]
+  };
+
+  // Build a map of drawing → hours logged in this range
+  const drwHrs = {};
+  const adminCats = {};  // for admin/leave/training breakdown
+  (TS_ENTRIES || []).forEach(e => {
+    if(!e || e.sid !== sid) return;
+    if(!e.weekKey) return;
+    // Convert weekKey + days array to per-day hours
+    // weekKey format: 'YYYY-MM-DD' for Monday of that week
+    const wkStart = new Date(e.weekKey + 'T00:00:00');
+    if(isNaN(wkStart.getTime())) return;
+    const days = e.days || [0,0,0,0,0];
+    for(let i = 0; i < 5; i++){
+      const d = new Date(wkStart);
+      d.setDate(wkStart.getDate() + i);
+      if(d >= rangeStart && d <= rangeEnd){
+        const h = parseFloat(days[i]) || 0;
+        if(h <= 0) continue;
+        if(e.drawingId){
+          drwHrs[e.drawingId] = (drwHrs[e.drawingId] || 0) + h;
+        } else {
+          // Admin / leave / training time
+          const cat = e.entryType || e.task || 'other';
+          adminCats[cat] = (adminCats[cat] || 0) + h;
+        }
+        out.hoursLogged += h;
+      }
+    }
+  });
+  out.adminCats = adminCats;
+
+  // For each drawing they touched in the range, compute hours target
+  // (from d.targetHrs or _drwTargetHrs helper) and status info
+  Object.keys(drwHrs).forEach(drawingId => {
+    const d = (DRAWINGS || []).find(x => x.id === drawingId);
+    if(!d) return;
+    const target = (typeof _drwTargetHrs === 'function') ? _drwTargetHrs(d) : (d.targetHrs || 0);
+    const p = (PROJS || []).find(x => x.id === d.proj);
+    out.drawingsWorked.push({
+      id: d.id,
+      title: (d.title || '').slice(0, 60),
+      projName: p ? p.name : d.proj,
+      projColor: p ? p.color : 'var(--txd)',
+      hours: Math.round(drwHrs[drawingId] * 10) / 10,
+      target,
+      status: d.status,
+      pct: d.pct || 0
+    });
+    if(target > 0) out.hoursBudget += target;
+  });
+  out.drawingsWorked.sort((a, b) => b.hours - a.hours);
+
+  // Burn % = hoursLogged / hoursBudget across the drawings they worked on
+  // Caveat: this is an average across only the drawings they touched in
+  // the range; if they only worked 4h of a 40h drawing, that's 10%, not
+  // an indictment of efficiency.
+  if(out.hoursBudget > 0){
+    out.burnPct = Math.round((out.hoursLogged / out.hoursBudget) * 100);
+  }
+
+  // On-time rate: drawings where d.sid === this person AND d.due exists
+  // AND fell within the range. Count those completed (status=done) by
+  // their due date.
+  (DRAWINGS || []).forEach(d => {
+    if(!d || d.sid !== sid) return;
+    if(!d.due) return;
+    const dueDate = new Date(d.due + 'T00:00:00');
+    if(isNaN(dueDate.getTime())) return;
+    if(dueDate < rangeStart || dueDate > rangeEnd) return;
+    out.drawingsExpected++;
+    if(d.status === 'done' || d.status === 'iss'){
+      // Check if it was done by its due date — best-effort using updatedAt
+      const completedAt = d.updatedAt ? new Date(d.updatedAt) : null;
+      if(!completedAt || completedAt <= dueDate){
+        out.drawingsOnTime++;
+      }
+    }
+  });
+  if(out.drawingsExpected > 0){
+    out.onTimeRate = Math.round((out.drawingsOnTime / out.drawingsExpected) * 100);
+  }
+
+  // Rework rate: count of drawings assigned to this staff where qaHistory
+  // has a 'rejected' entry within the range, divided by total drawings
+  // they completed (status=done or iss) in the range.
+  (DRAWINGS || []).forEach(d => {
+    if(!d || d.sid !== sid) return;
+    if(d.status === 'done' || d.status === 'iss'){
+      // Check if status was set to done in the range
+      const updatedAt = d.updatedAt ? new Date(d.updatedAt) : null;
+      if(updatedAt && updatedAt >= rangeStart && updatedAt <= rangeEnd){
+        out.drawingsCompleted++;
+      }
+    }
+    // Rejected qaHistory in range
+    if(Array.isArray(d.qaHistory)){
+      d.qaHistory.forEach(h => {
+        if(!h || h.action !== 'rejected') return;
+        const t = h.ts ? new Date(h.ts) : null;
+        if(t && t >= rangeStart && t <= rangeEnd){
+          out.drawingsRejected++;
+        }
+      });
+    }
+  });
+  if(out.drawingsCompleted + out.drawingsRejected > 0){
+    out.reworkRate = Math.round(
+      (out.drawingsRejected / (out.drawingsCompleted + out.drawingsRejected)) * 100
+    );
+  }
+
+  // Throughput: drawings completed (status=done, in range)
+  out.throughput = out.drawingsCompleted;
+
+  // Utilization: hoursLogged / expectedHours
+  // expectedHours = working days in range × 8 hours
+  let workDays = 0;
+  const cur = new Date(rangeStart);
+  while(cur <= rangeEnd){
+    const dow = cur.getDay();
+    if(dow !== 0 && dow !== 6) workDays++;  // Mon-Fri
+    cur.setDate(cur.getDate() + 1);
+  }
+  out.expectedHours = workDays * 8;
+  if(out.expectedHours > 0){
+    out.utilization = Math.round((out.hoursLogged / out.expectedHours) * 100);
+  }
+
+  return out;
+}
+
+/* Generate improvement hints from metrics. Rules-based, deterministic.
+   Returns array of {severity, icon, text}. Severities: warn (red), tip (gold), good (green). */
+function _v84ImprovementHints(weekMetrics, monthMetrics, staff){
+  const hints = [];
+  // Burn rate over budget — month-level signal
+  if(monthMetrics.burnPct != null && monthMetrics.burnPct > 120 && monthMetrics.hoursLogged > 20){
+    hints.push({
+      severity: 'warn',
+      icon: '⚠',
+      text: 'Logged ' + monthMetrics.burnPct + '% of budgeted hours on the drawings worked this month. Consider asking for a target review on the drawings still in progress, or flagging scope creep early.'
+    });
+  } else if(monthMetrics.burnPct != null && monthMetrics.burnPct >= 95 && monthMetrics.burnPct <= 105 && monthMetrics.hoursLogged > 20){
+    hints.push({
+      severity: 'good',
+      icon: '✓',
+      text: 'Hours logged are tracking on-budget this month (' + monthMetrics.burnPct + '%). Strong estimation discipline.'
+    });
+  }
+  // Rework rate
+  if(monthMetrics.reworkRate != null && monthMetrics.reworkRate >= 25 && (monthMetrics.drawingsCompleted + monthMetrics.drawingsRejected) >= 3){
+    hints.push({
+      severity: 'warn',
+      icon: '↻',
+      text: 'Rework rate this month is ' + monthMetrics.reworkRate + '% (' + monthMetrics.drawingsRejected + ' rejected out of ' + (monthMetrics.drawingsCompleted + monthMetrics.drawingsRejected) + ' reviewed). Run a self-check against the checklist before submitting for QA.'
+    });
+  } else if(monthMetrics.reworkRate === 0 && monthMetrics.drawingsCompleted >= 3){
+    hints.push({
+      severity: 'good',
+      icon: '✓',
+      text: 'No rework on ' + monthMetrics.drawingsCompleted + ' completed drawings this month. Quality is consistent.'
+    });
+  }
+  // On-time delivery
+  if(monthMetrics.onTimeRate != null && monthMetrics.onTimeRate < 60 && monthMetrics.drawingsExpected >= 2){
+    hints.push({
+      severity: 'warn',
+      icon: '⏰',
+      text: 'On-time delivery is ' + monthMetrics.onTimeRate + '% (' + monthMetrics.drawingsOnTime + ' of ' + monthMetrics.drawingsExpected + ' due drawings on time). Review your weekly priorities at the Monday standup.'
+    });
+  } else if(monthMetrics.onTimeRate != null && monthMetrics.onTimeRate >= 90 && monthMetrics.drawingsExpected >= 2){
+    hints.push({
+      severity: 'good',
+      icon: '✓',
+      text: 'Hitting ' + monthMetrics.onTimeRate + '% on-time delivery. Reliable.'
+    });
+  }
+  // Utilization signals
+  if(monthMetrics.utilization != null && monthMetrics.utilization < 50 && monthMetrics.expectedHours > 0){
+    hints.push({
+      severity: 'tip',
+      icon: '⏳',
+      text: 'Utilization is ' + monthMetrics.utilization + '% — only ' + monthMetrics.hoursLogged.toFixed(0) + 'h logged vs ' + monthMetrics.expectedHours + 'h available. Either timesheet entries are missing or workload allocation needs review.'
+    });
+  } else if(monthMetrics.utilization != null && monthMetrics.utilization > 110){
+    hints.push({
+      severity: 'tip',
+      icon: '🔥',
+      text: 'Utilization is ' + monthMetrics.utilization + '% — overtime exposure. Discuss workload with project lead.'
+    });
+  }
+  // Week vs month trend — burn improving or worsening
+  if(weekMetrics.burnPct != null && monthMetrics.burnPct != null
+     && weekMetrics.hoursLogged >= 8 && monthMetrics.hoursLogged >= 20){
+    const delta = weekMetrics.burnPct - monthMetrics.burnPct;
+    if(delta < -15){
+      hints.push({
+        severity: 'good',
+        icon: '↘',
+        text: 'Burn rate this week (' + weekMetrics.burnPct + '%) is improving vs month average (' + monthMetrics.burnPct + '%). Keep going.'
+      });
+    } else if(delta > 15){
+      hints.push({
+        severity: 'tip',
+        icon: '↗',
+        text: 'Burn rate this week (' + weekMetrics.burnPct + '%) is higher than month average (' + monthMetrics.burnPct + '%). Watch the next few days.'
+      });
+    }
+  }
+  // Throughput acknowledgment
+  if(monthMetrics.throughput >= 5){
+    hints.push({
+      severity: 'good',
+      icon: '🚀',
+      text: monthMetrics.throughput + ' drawings completed this month. Strong output.'
+    });
+  }
+  // Nothing to say — explicit
+  if(hints.length === 0){
+    if(monthMetrics.hoursLogged < 10){
+      hints.push({
+        severity: 'tip',
+        icon: 'ℹ',
+        text: 'Not enough data this month to generate improvement hints. Once the team logs a fuller month, this section will populate.'
+      });
+    } else {
+      hints.push({
+        severity: 'good',
+        icon: '✓',
+        text: 'No issues flagged this month. Working steadily.'
+      });
+    }
+  }
+  return hints;
+}
+
+if(typeof window !== 'undefined'){
+  window._v84StaffMetrics       = _v84StaffMetrics;
+  window._v84ImprovementHints   = _v84ImprovementHints;
+}
+
 /* ── canCreate() — any active staff member can create records ─────
    Used for: meetings, site reports (SVR), RFIs, submittals, snags,
    vendor add/edit, vendor rates, vendor reviews, transmittal issuance.
@@ -8281,7 +8932,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.83 — Quick SVR mode. New ⚡ Quick Note button next to + New Site Report. Opens a minimal modal asking only Project + Note. Saves as a full SVR with smart defaults (today, current time, you as visitor and sole attendee, stage from project current phase). Creates the matching site-visit meeting too. Quick captures show a ⚡ marker in the SVR list — open to edit and add attendees, vendors, photos, issues later. Perfect for phone use on site.');
+console.log('S62 v101.84 — Staff Profile Panel (rebuild). Old panel was broken: HTML elements never existed in DOM, click threw TypeError on null.textContent. Replaced with v84RenderStaffPanel built fresh on demand. Access gated: Principal / Associate Principal / Lead Architect can view any profile; staff can view their own. Manual feedback notes hidden from the staff member themselves. Shows 5 KPI cards (hours/budget, on-time, rework, throughput, utilization) computed from TS_ENTRIES + DRAWINGS + qaHistory. Past-7-day drawing table + collapsible past-30-day table. Rules-based improvement hints from metrics — no LLM. Senior viewers can add feedback notes; persisted on STAFF[].feedbackNotes[].');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -21462,7 +22113,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.83',
+        appVersion: 'S62-v101.84',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -21622,7 +22273,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.83',
+    appVersion: 'S62-v101.84',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
