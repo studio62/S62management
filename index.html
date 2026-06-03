@@ -8281,7 +8281,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.80 — Site Admin refresh part 1: SVR (Site Visit Report) modal. (1) Staff attendee chips filtered to site-relevant roles (Site Eng, Project/Lead/Junior Architects, Struct/BIM, Asst). Off-site roles (Principal, Associate, Interior Designer, Intern, Consultant) hidden behind + Show all staff link unless they are the project lead/PA/PM. (2) Vendor chips filtered to project-relevant only (vendors that have appeared on past SVRs/RFIs/snags/submittals for this project). + Show all vendors expands the rest. (3) Smart defaults: stage prefills from project current phase, attendees pre-check project lead/PA/PM, open drawings on this project shown as tap-to-add suggestions.');
+console.log('S62 v101.81 — SVR modal now uses the ChipDropdown component (same as New Meeting modal) for both staff attendees and vendors. Searchable typeahead, removable chips, much cleaner UI than the chip-grid we had before. Smart defaults preserved: new SVRs pre-select project lead/PA/PM + current user as staff. Stage prefills from project current phase. Open drawings on this project shown as tap-to-add suggestions. Existing SVRs migrate seamlessly — same field names (attendees array, contractorVendorIds, contractorCustomNames, contractorName).');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -21462,7 +21462,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.80',
+        appVersion: 'S62-v101.81',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -21622,7 +21622,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.80',
+    appVersion: 'S62-v101.81',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -31095,22 +31095,17 @@ function openCASVRModal(id){
       +'<div class="frow"><label class="flbl" for="svr-time">Visit Time</label><input class="finp" type="time" id="svr-time" value="'+(r?.time||'09:00')+'"></div>'
       +'<div class="frow"><label class="flbl" for="svr-pct">% Complete (Overall)</label><input class="finp" type="number" min="0" max="100" id="svr-pct" value="'+(r?.progressPct||0)+'" style="width:80px"></div>'
       +'<div class="frow"><label class="flbl" for="svr-cpresent">Contractor Present</label><select class="fsel" id="svr-cpresent"><option value="yes" '+(r?.contractorPresent!==false?'selected':'')+'>Yes</option><option value="no" '+(r?.contractorPresent===false?'selected':'')+'>No</option></select></div>'
-      // v101.47 — Multi-vendor contractor section. Replaces the previous
-      // single-vendor dropdown with a chip-based multi-select matching the
-      // staff-attendees pattern below. Vendors with no email on record get
-      // a "✉?" hint so the user knows they'll be skipped on email send.
-      // Off-list contractors (foremen, day labour, sub-subs) go in the
-      // custom names text field — they appear in the report but won't be
-      // emailed. Backward-compat: existing reports with `contractorVendorId`
-      // (singular) or just `contractorName` (free text) are migrated on
-      // load — singular ID → first chip pre-checked; free-text name with
-      // no matching vendor → populates the custom names field.
+      // v101.81 — Multi-vendor contractor section now uses the ChipDropdown
+      // component (same as the New Meeting modal). Searchable typeahead,
+      // removable chips, much cleaner than the chip-grid we had before.
+      // The preselected IDs + custom names migration logic still runs
+      // here so existing records keep working.
       +(function(){
+        // Migrate existing record shape into IDs[] + custom names for the
+        // ChipDropdown.init call at the end of openCASVRModal.
         const activeVendors = (typeof VENDORS !== 'undefined' && Array.isArray(VENDORS))
           ? VENDORS.filter(v => v && v.status !== 'blacklisted')
           : [];
-
-        // Migrate existing record shape into IDs[] + custom names
         let preselectedIds = [];
         if (Array.isArray(r?.contractorVendorIds) && r.contractorVendorIds.length){
           preselectedIds = r.contractorVendorIds.slice();
@@ -31121,8 +31116,6 @@ function openCASVRModal(id){
         if (Array.isArray(r?.contractorCustomNames) && r.contractorCustomNames.length){
           customNames = r.contractorCustomNames.join(', ');
         } else if (r?.contractorName && preselectedIds.length === 0){
-          // Legacy: contractor stored as free text. If we can match the name
-          // to a vendor, pre-select it; otherwise treat as a custom name.
           const matched = activeVendors.find(v => (v.companyName||'') === r.contractorName);
           if (matched){
             preselectedIds = [matched.id];
@@ -31130,57 +31123,15 @@ function openCASVRModal(id){
             customNames = r.contractorName;
           }
         }
-
-        // v101.80 — Split vendors into project-relevant (default visible)
-        // and other (hidden until "Show all"). The pre-selected vendors
-        // are always visible (you wouldn't hide a vendor that's already
-        // checked on this SVR).
-        const isRelevant = (v) => _v80IsProjectRelevantVendor(v, projId, preselectedIds);
-        const buildChip = (v, hidden) => {
-          const cat = (typeof VENDOR_CATEGORIES !== 'undefined')
-            ? (VENDOR_CATEGORIES.find(c=>c.id===v.primaryCategory)?.icon || '')
-            : '';
-          const checked = preselectedIds.includes(v.id);
-          const hasEmail = !!(v.email && v.email.trim());
-          const titleText = (v.companyName||'(unnamed)')
-            + (v.contactPerson ? ' — '+v.contactPerson : '')
-            + (v.email ? ' · '+v.email : ' · (no email on record)');
-          const hiddenStyle = hidden ? ';display:none' : '';
-          const hiddenAttr  = hidden ? ' data-v80-hidden' : '';
-          return '<label'+hiddenAttr+' style="display:inline-flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--gold)':'var(--bd)')+hiddenStyle+'" id="vnd-lbl-'+v.id+'" title="'+titleText.replace(/"/g,'&quot;')+'">'
-            +'<input type="checkbox" class="svr-vnd-cb" data-vid="'+v.id+'" id="svr-vnd-'+v.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'vnd-lbl-'+v.id+'\').style.borderColor=this.checked?\'var(--gold)\':\'var(--bd)\'">'
-            +(cat ? '<span style="font-size:11px;flex-shrink:0">'+cat+'</span>' : '')
-            +'<span style="overflow:hidden;text-overflow:ellipsis;max-width:160px;white-space:nowrap">'+(v.companyName||'(unnamed)')+'</span>'
-            +(hasEmail ? '' : '<span style="color:var(--txd);font-size:9px;opacity:.6;margin-left:2px" title="No email on record — will be skipped on send">✉?</span>')
-          +'</label>';
-        };
-        const relVendors = activeVendors.filter(isRelevant);
-        const otherVendors = activeVendors.filter(v => !isRelevant(v));
-        const chips = activeVendors.length === 0
-          ? '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);font-style:italic;padding:6px">No active vendors in the register. Add vendors via CA → Vendors tab, or use the custom names field below.</div>'
-          : (relVendors.map(v => buildChip(v, false)).join('')
-             + otherVendors.map(v => buildChip(v, true)).join(''));
-
-        const hasHidden = otherVendors.length > 0;
-        const filterNote = relVendors.length === 0 && hasHidden
-          ? '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);font-style:italic;padding:6px 4px 0">No vendors used on this project yet — showing your full vendor register below.</div>'
-          : '';
-        const expandedFirst = (relVendors.length === 0);  // if no relevant, show all by default
+        // Stash on window for the post-DOM init to pick up
+        window._v81SVRVendorPreselect = preselectedIds;
+        window._v81SVRCustomNames = customNames;
 
         return '<div style="background:rgba(240,201,122,.04);border:1px solid rgba(240,201,122,.15);border-radius:8px;padding:12px 14px;margin:8px 0 4px">'
-          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-            +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">'
-              +'🏗 Contractors / Vendors on site — multiple allowed'
-            +'</div>'
-            +(hasHidden
-              ? '<button class="btn bg" id="svr-vendor-list-toggle" data-open="0" data-collapse-label="Hide other vendors" data-expand-label="+ Show all vendors ('+otherVendors.length+')" onclick="v80ToggleHidden(\'svr-vendor-list\')" style="font-size:9px;padding:2px 8px">+ Show all vendors ('+otherVendors.length+')</button>'
-              : '<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">tap to select · ✉? = no email</div>'
-            )
+          +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
+            +'🏗 Contractors / Vendors on site — type to search'
           +'</div>'
-          + filterNote
-          +'<div id="svr-vendor-list" style="display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow-y:auto;margin-top:6px">'
-            +chips
-          +'</div>'
+          +'<div id="svr-vendor-cd"></div>'
           +'<div style="margin-top:10px">'
             +'<label class="flbl" style="font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.06em" for="svr-custom-names">Custom names (off-list — won&rsquo;t be emailed)</label>'
             +'<input class="finp" id="svr-custom-names" value="'+customNames.replace(/"/g,'&quot;')+'" placeholder="e.g. Site foreman Ramesh, day labour crew" style="font-size:11px;margin-top:2px">'
@@ -31191,53 +31142,17 @@ function openCASVRModal(id){
     +'<div class="frow"><label class="flbl" for="svr-cstage">Construction Stage</label><input class="finp" id="svr-cstage" value="'+(r?.constructionStage||'')+'" placeholder="e.g. Roof slab shuttering in progress, blockwork ground floor complete"></div>'
 
     // ── STAFF ATTENDING THIS VISIT ────────────────────────────
+    // v101.81 — uses the ChipDropdown component (same as New Meeting modal).
+    // Searchable typeahead, removable chips, single clean UX. The init
+    // happens after the modal is in the DOM (see end of this function).
+    // Pre-selected attendees for NEW SVRs: current user + project's
+    // leadArchitect / projectArchitect / projectManager. For edits,
+    // existing r.attendees is used.
     +'<div style="background:rgba(82,201,122,.04);border:1px solid rgba(82,201,122,.15);border-radius:8px;padding:12px 14px;margin:8px 0 4px">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-        +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--grn);text-transform:uppercase;letter-spacing:.06em">'
-          +'👥 Staff attending this visit — creates meeting &amp; blocks schedule today'
-        +'</div>'
-        +'<button class="btn bg" id="att-staff-list-toggle" data-open="0" data-collapse-label="Hide off-site roles" data-expand-label="+ Show all staff" onclick="v80ToggleHidden(\'att-staff-list\')" style="font-size:9px;padding:2px 8px">+ Show all staff</button>'
+      +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--grn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
+        +'👥 Staff attending this visit — creates meeting &amp; blocks schedule today'
       +'</div>'
-      +'<div id="att-staff-list" style="display:flex;flex-wrap:wrap;gap:6px">'
-      // v101.80 — filtered to site-relevant roles by default. Off-site
-      // roles (Principal, Associate Principal, Interior Designer, Intern,
-      // Consultant) render with [data-v80-hidden] so they're hidden
-      // until "+ Show all staff" is clicked. The project's lead /
-      // projectArchitect / projectManager are always visible regardless
-      // of role. Pre-checked attendees include those leads + current user.
-      +(function(){
-        // v101.80 — smart defaults: if creating a NEW SVR, pre-check
-        // the project's leadArchitect / projectArchitect / projectManager
-        // alongside the current user. Existing SVRs keep their attendees.
-        let curAttendees;
-        if(r){
-          curAttendees = r.attendees || (r.visitedBy ? [r.visitedBy] : [CURRENT_USER_ID]);
-        } else {
-          const p = (PROJS || []).find(x => x.id === projId);
-          const defaults = [CURRENT_USER_ID];
-          if(p){
-            if(p.leadArchitect && !defaults.includes(p.leadArchitect)) defaults.push(p.leadArchitect);
-            if(p.projectArchitect && !defaults.includes(p.projectArchitect)) defaults.push(p.projectArchitect);
-            if(p.projectManager && !defaults.includes(p.projectManager)) defaults.push(p.projectManager);
-          }
-          curAttendees = defaults;
-        }
-
-        return STAFF.filter(s => s.type !== 'contractor').map(s => {
-          const checked = curAttendees.includes(s.id);
-          const isSiteRel = _v80IsSiteRelevantStaff(s, projId);
-          // Always show pre-checked attendees even if off-site role
-          const visible = isSiteRel || checked;
-          const hiddenAttr = visible ? '' : ' data-v80-hidden style="display:none"';
-          return '<label data-role-vis="'+(visible?'1':'0')+'" style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--grn)':'var(--bd)')+'" id="att-lbl-'+s.id+'"'+(visible?'':' data-v80-hidden')+'>'
-            +'<input type="checkbox" id="att-svr-'+s.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'att-lbl-'+s.id+'\').style.borderColor=this.checked?\'var(--grn)\':\' var(--bd)\'">'
-            +'<div style="width:16px;height:16px;border-radius:50%;background:'+s.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:6px;color:#0a0a0f;flex-shrink:0">'+s.first[0]+s.last[0]+'</div>'
-            +s.first
-            +(isSiteRel ? '' : '<span style="font-size:8px;color:var(--txd);margin-left:2px" title="'+s.role+' — not typically on site">·'+s.role.split(' ')[0].slice(0,3)+'</span>')
-            +'</label>';
-        }).join('');
-      })()
-      +'</div>'
+      +'<div id="svr-staff-cd"></div>'
     +'</div>'
 
     // ── SITE OBSERVATIONS ─────────────────────────────────────
@@ -31313,6 +31228,62 @@ function openCASVRModal(id){
   +'</div>';
   document.body.appendChild(div);
   ProjectPicker.init('svr-proj', { selected: r?.projId || projId });
+
+  // v101.81 — Init ChipDropdown components for staff and vendor (same
+  // pattern as the New Meeting modal). Must run AFTER the modal is in
+  // the DOM.
+  try {
+    // STAFF — pre-select project's lead + PA + PM + current user for
+    // new SVRs; existing SVRs keep their attendees.
+    let _svrStaffSelected;
+    if(r){
+      _svrStaffSelected = r.attendees || (r.visitedBy ? [r.visitedBy] : [CURRENT_USER_ID]);
+    } else {
+      const p = (PROJS || []).find(x => x.id === projId);
+      const defaults = [CURRENT_USER_ID];
+      if(p){
+        if(p.leadArchitect && !defaults.includes(p.leadArchitect)) defaults.push(p.leadArchitect);
+        if(p.projectArchitect && !defaults.includes(p.projectArchitect)) defaults.push(p.projectArchitect);
+        if(p.projectManager && !defaults.includes(p.projectManager)) defaults.push(p.projectManager);
+      }
+      _svrStaffSelected = defaults;
+    }
+    const _svrStaffItems = STAFF.filter(s => s.type !== 'contractor').map(s => ({
+      id: s.id,
+      name: s.first + ' ' + s.last,
+      sub: s.role || '',
+      color: s.color,
+      initials: (s.first[0] + s.last[0]).toUpperCase()
+    }));
+    ChipDropdown.init('svr-staff-cd', {
+      items: _svrStaffItems,
+      selected: _svrStaffSelected,
+      placeholder: '+ Add staff member',
+      chipClass: 'staff'
+    });
+
+    // VENDOR — items list pulls from VENDORS, same shape as meeting
+    // modal. Preselected IDs computed in the IIFE above and stashed
+    // on window for pickup here.
+    const _svrVendorItems = (typeof VENDORS !== 'undefined' ? VENDORS : [])
+      .filter(v => v.status !== 'blacklisted')
+      .map(v => {
+        const cat = (typeof vdGetCategory === 'function') ? vdGetCategory(v.primaryCategory) : null;
+        return {
+          id: v.id,
+          name: v.companyName || '(Unnamed vendor)',
+          sub: (cat ? cat.name : '') + (v.contactPerson ? ' · ' + v.contactPerson : ''),
+          meta: v.email || (v.phone ? '📞 ' + v.phone : 'No email'),
+          icon: cat ? cat.icon : '🏗'
+        };
+      });
+    ChipDropdown.init('svr-vendor-cd', {
+      items: _svrVendorItems,
+      selected: window._v81SVRVendorPreselect || [],
+      placeholder: (typeof VENDORS !== 'undefined' && VENDORS.length) ? '+ Add vendor or contractor' : 'No vendors in directory yet — use custom names below',
+      chipClass: 'vendor'
+    });
+  } catch(e){ console.warn('[v101.81] ChipDropdown init for SVR:', e); }
 }
 
 function addCASVRIssue(){
@@ -31343,9 +31314,15 @@ function saveCASVR(editId){
   })).filter(iss=>iss.desc.trim());
 
   const drwsRaw=(document.getElementById('svr-drws')?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
-  // Current visit attendees from the new checkbox section
-  const currentAttendees=STAFF.filter(s=>document.getElementById('att-svr-'+s.id)?.checked).map(s=>s.id);
+  // v101.81 — Read from ChipDropdown components (replaces the old
+  // checkbox queries against .svr-vnd-cb and att-svr-* checkboxes).
+  const currentAttendees = (typeof ChipDropdown !== 'undefined' && ChipDropdown.getSelected)
+    ? ChipDropdown.getSelected('svr-staff-cd')
+    : [];
   const visitedBy=currentAttendees[0]||CURRENT_USER_ID; // first selected or current user
+  const currentVendorIds = (typeof ChipDropdown !== 'undefined' && ChipDropdown.getSelected)
+    ? ChipDropdown.getSelected('svr-vendor-cd')
+    : [];
 
   const entry={
     id:editId||('SVR-'+Date.now()),
@@ -31366,20 +31343,14 @@ function saveCASVR(editId){
     //     counters (line ~24918), all of which read this single field.
     //   contractorVendorId (singular): preserved for older serialized data;
     //     not written on save but normalized on edit.
-    contractorVendorIds:(function(){
-      return Array.from(document.querySelectorAll('.svr-vnd-cb:checked'))
-        .map(cb=>cb.getAttribute('data-vid'))
-        .filter(Boolean);
-    })(),
+    contractorVendorIds: currentVendorIds.slice(),
     contractorCustomNames:(function(){
       const raw = (document.getElementById('svr-custom-names')?.value || '').trim();
       if(!raw) return [];
       return raw.split(',').map(s=>s.trim()).filter(Boolean);
     })(),
     contractorName:(function(){
-      const vendorIds = Array.from(document.querySelectorAll('.svr-vnd-cb:checked'))
-        .map(cb=>cb.getAttribute('data-vid'));
-      const vendorNames = vendorIds
+      const vendorNames = currentVendorIds
         .map(id => (typeof VENDORS!=='undefined') ? VENDORS.find(v=>v.id===id) : null)
         .filter(Boolean)
         .map(v => v.companyName || '');
