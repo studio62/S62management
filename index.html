@@ -6908,6 +6908,111 @@ if(typeof window !== 'undefined'){
   window._v79WeightedBlendedRate = _v79WeightedBlendedRate;
   window.PROJECT_HOUR_WEIGHTS = PROJECT_HOUR_WEIGHTS;
 }
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.80 — Site Admin (CA) refresh helpers
+
+   The SVR modal previously rendered EVERY active staff member as an
+   attendee chip and EVERY active vendor as a contractor chip — 19 staff
+   chips and however-many-vendors chips, mostly irrelevant. This file
+   adds filters that hide unlikely candidates by default but expose them
+   on a "Show all" link.
+
+   v101.80 also adds smart defaults for new SVRs:
+     - Stage prefills from the project's current phase
+     - Attendees pre-check the project's leadArchitect / projectArchitect /
+       projectManager (instead of just current user)
+     - Drawings on this project with status ip|chk are surfaced as a
+       "suggested" hint (not auto-checked — user opts in)
+
+   The filters are opt-out via "Show all" — they don't hide anyone
+   permanently, just collapse them by default.
+   ═════════════════════════════════════════════════════════════════════ */
+
+// Site-relevant roles (default visible). Other roles still get included
+// via the "Show all" link.
+const V80_SITE_RELEVANT_ROLES = new Set([
+  'Principal Architect',     // some firms — principals do attend HNI sites
+  'Lead Architect',
+  'Project Architect',
+  'Junior Architect',
+  'Site Engineer',
+  'Structural Engineer',
+  'BIM Coordinator',
+  'Architectural Assistant'
+]);
+
+// Returns true if this staff member should appear in the default
+// (filtered) attendee list. Always returns true for the project's
+// lead/PA/PM regardless of role.
+function _v80IsSiteRelevantStaff(staff, projId){
+  if(!staff || staff.type === 'contractor') return false;
+  // Always include the project's assigned leads
+  if(projId){
+    const p = (PROJS || []).find(x => x.id === projId);
+    if(p){
+      if(staff.id === p.leadArchitect) return true;
+      if(staff.id === p.projectArchitect) return true;
+      if(staff.id === p.projectManager) return true;
+    }
+  }
+  return V80_SITE_RELEVANT_ROLES.has(staff.role);
+}
+
+// Returns true if this vendor has appeared on past SVRs/RFIs/snags/
+// submittals for this project (i.e. "project-relevant"). Always returns
+// true if the vendor is currently selected on this SVR (so editing
+// existing records doesn't hide chips that were already chosen).
+function _v80IsProjectRelevantVendor(vendor, projId, preselectedIds){
+  if(!vendor) return false;
+  if(preselectedIds && preselectedIds.includes(vendor.id)) return true;
+  if(!projId) return false;
+  // Walk SVRs, RFIs, snags, submittals on this project — has this
+  // vendor ever appeared?
+  const inSVRs = (CA_SVR || []).some(svr => svr && svr.projId === projId &&
+    (Array.isArray(svr.contractorVendorIds) && svr.contractorVendorIds.includes(vendor.id))
+  );
+  if(inSVRs) return true;
+  const inRFIs = (CA_RFIS || []).some(x => x && x.projId === projId && x.vendorId === vendor.id);
+  if(inRFIs) return true;
+  const inSnags = (CA_SNAGS || []).some(x => x && x.projId === projId && x.vendorId === vendor.id);
+  if(inSnags) return true;
+  const inSubs = (CA_SUBMITTALS || []).some(x => x && x.projId === projId && x.vendorId === vendor.id);
+  if(inSubs) return true;
+  return false;
+}
+
+// Returns project's current open drawings (status ip/chk) — used as a
+// smart-default hint on new SVRs ("looks like you'll discuss these").
+function _v80OpenDrawingsForProject(projId){
+  if(!projId) return [];
+  return (DRAWINGS || []).filter(d =>
+    d && d.proj === projId && (d.status === 'ip' || d.status === 'chk')
+  );
+}
+
+// Click handler exposed for the "Show all" toggle inside the modal.
+function v80ToggleHidden(containerId){
+  const c = document.getElementById(containerId);
+  if(!c) return;
+  c.querySelectorAll('[data-v80-hidden]').forEach(el => {
+    el.style.display = el.style.display === 'none' ? '' : 'none';
+  });
+  const tog = document.getElementById(containerId + '-toggle');
+  if(tog){
+    const open = tog.dataset.open === '1';
+    tog.dataset.open = open ? '0' : '1';
+    tog.textContent = open ? tog.dataset.collapseLabel : tog.dataset.expandLabel;
+  }
+}
+
+if(typeof window !== 'undefined'){
+  window._v80IsSiteRelevantStaff      = _v80IsSiteRelevantStaff;
+  window._v80IsProjectRelevantVendor  = _v80IsProjectRelevantVendor;
+  window._v80OpenDrawingsForProject   = _v80OpenDrawingsForProject;
+  window.v80ToggleHidden               = v80ToggleHidden;
+  window.V80_SITE_RELEVANT_ROLES       = V80_SITE_RELEVANT_ROLES;
+}
 function canSchedule(){
   // v101.39 — defensive: currentUser() is now guaranteed non-undefined.
   // But if .role is somehow missing, rd() handles it with its fallback.
@@ -8176,7 +8281,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.79 — Three fixes per user feedback: (1) Weighted blended rate replaces simple average. Uses typical project hour distribution (Principal 5 / Lead 15 / Project 25 / Junior 35 / Asst 5 / Intern 5 / Associate 10) so juniors weight more than principals. Try _v79WeightedBlendedRate({verbose:true}) for breakdown. (2) Built-up Area (sqft) and Fee per Sqft fields added to Quick Fill. Type sqft and rate, fee auto-fills, then hours derive. Three-way reactive. (3) Reordered Add Project modal: Building Configuration and Fee Structure now open by default. Fee Structure moved below Building Config so sqft is captured first. Saved as p.builtUpAreaSqft and p.feePerSqft.');
+console.log('S62 v101.80 — Site Admin refresh part 1: SVR (Site Visit Report) modal. (1) Staff attendee chips filtered to site-relevant roles (Site Eng, Project/Lead/Junior Architects, Struct/BIM, Asst). Off-site roles (Principal, Associate, Interior Designer, Intern, Consultant) hidden behind + Show all staff link unless they are the project lead/PA/PM. (2) Vendor chips filtered to project-relevant only (vendors that have appeared on past SVRs/RFIs/snags/submittals for this project). + Show all vendors expands the rest. (3) Smart defaults: stage prefills from project current phase, attendees pre-check project lead/PA/PM, open drawings on this project shown as tap-to-add suggestions.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -21357,7 +21462,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.79',
+        appVersion: 'S62-v101.80',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -21517,7 +21622,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.79',
+    appVersion: 'S62-v101.80',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -30957,6 +31062,18 @@ function openCASVRModal(id){
   const staffOpts=STAFF.filter(s=>s.type!=='contractor').map(s=>'<option value="'+s.id+'" '+(( r?.visitedBy||CURRENT_USER_ID)===s.id?'selected':'')+'>'+s.first+' '+s.last+'</option>').join('');
   // v101.35 — weather dropdown removed from SVR modal
   const stages=['SD','DD','CD','CA'];
+  // v101.80 — Smart default: if creating new SVR, prefill stage from
+  // the project's current phase (so most new site visits start at the
+  // right stage automatically). Mapping: SD/DD/CD/CA stay as-is;
+  // 'Handover' or other phases fall back to 'CA' since handover visits
+  // are still SVRs against the CA stage.
+  const _v80DefaultStage = (function(){
+    if(r && r.stage) return r.stage;  // editing: keep existing
+    const p = (PROJS || []).find(x => x.id === projId);
+    const ph = p && p.phase;
+    if(ph === 'SD' || ph === 'DD' || ph === 'CD' || ph === 'CA') return ph;
+    return 'CA';  // sane default — most site visits are during CA
+  })();
   const issHtml=(r?.issues||[]).map((iss,i)=>'<div id="iss-row-'+i+'" style="background:var(--sf3);border-radius:6px;padding:8px 10px;margin-bottom:6px">'
     +'<div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:start">'
       +'<input class="finp" value="'+iss.desc+'" placeholder="Issue description" id="iss-desc-'+i+'" style="font-size:11px">'
@@ -30973,7 +31090,7 @@ function openCASVRModal(id){
     // ── SECTION 1: Visit details ──────────────────────────────
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
       +'<div class="frow"><label class="flbl" for="svr-stage">Project</label><div id="svr-proj"></div></div>'
-      +'<div class="frow"><label class="flbl">Stage</label><select class="fsel" id="svr-stage">'+stages.map(s=>'<option value="'+s+'" '+((r?.stage||'CA')===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>'
+      +'<div class="frow"><label class="flbl">Stage</label><select class="fsel" id="svr-stage">'+stages.map(s=>'<option value="'+s+'" '+(_v80DefaultStage===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div>'
       +'<div class="frow"><label class="flbl" for="svr-date">Visit Date</label><input class="finp" type="date" id="svr-date" value="'+(r?.date||caToday())+'"></div>'
       +'<div class="frow"><label class="flbl" for="svr-time">Visit Time</label><input class="finp" type="time" id="svr-time" value="'+(r?.time||'09:00')+'"></div>'
       +'<div class="frow"><label class="flbl" for="svr-pct">% Complete (Overall)</label><input class="finp" type="number" min="0" max="100" id="svr-pct" value="'+(r?.progressPct||0)+'" style="width:80px"></div>'
@@ -31014,34 +31131,54 @@ function openCASVRModal(id){
           }
         }
 
-        // Build chips
+        // v101.80 — Split vendors into project-relevant (default visible)
+        // and other (hidden until "Show all"). The pre-selected vendors
+        // are always visible (you wouldn't hide a vendor that's already
+        // checked on this SVR).
+        const isRelevant = (v) => _v80IsProjectRelevantVendor(v, projId, preselectedIds);
+        const buildChip = (v, hidden) => {
+          const cat = (typeof VENDOR_CATEGORIES !== 'undefined')
+            ? (VENDOR_CATEGORIES.find(c=>c.id===v.primaryCategory)?.icon || '')
+            : '';
+          const checked = preselectedIds.includes(v.id);
+          const hasEmail = !!(v.email && v.email.trim());
+          const titleText = (v.companyName||'(unnamed)')
+            + (v.contactPerson ? ' — '+v.contactPerson : '')
+            + (v.email ? ' · '+v.email : ' · (no email on record)');
+          const hiddenStyle = hidden ? ';display:none' : '';
+          const hiddenAttr  = hidden ? ' data-v80-hidden' : '';
+          return '<label'+hiddenAttr+' style="display:inline-flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--gold)':'var(--bd)')+hiddenStyle+'" id="vnd-lbl-'+v.id+'" title="'+titleText.replace(/"/g,'&quot;')+'">'
+            +'<input type="checkbox" class="svr-vnd-cb" data-vid="'+v.id+'" id="svr-vnd-'+v.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'vnd-lbl-'+v.id+'\').style.borderColor=this.checked?\'var(--gold)\':\'var(--bd)\'">'
+            +(cat ? '<span style="font-size:11px;flex-shrink:0">'+cat+'</span>' : '')
+            +'<span style="overflow:hidden;text-overflow:ellipsis;max-width:160px;white-space:nowrap">'+(v.companyName||'(unnamed)')+'</span>'
+            +(hasEmail ? '' : '<span style="color:var(--txd);font-size:9px;opacity:.6;margin-left:2px" title="No email on record — will be skipped on send">✉?</span>')
+          +'</label>';
+        };
+        const relVendors = activeVendors.filter(isRelevant);
+        const otherVendors = activeVendors.filter(v => !isRelevant(v));
         const chips = activeVendors.length === 0
           ? '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);font-style:italic;padding:6px">No active vendors in the register. Add vendors via CA → Vendors tab, or use the custom names field below.</div>'
-          : activeVendors.map(v => {
-              const cat = (typeof VENDOR_CATEGORIES !== 'undefined')
-                ? (VENDOR_CATEGORIES.find(c=>c.id===v.primaryCategory)?.icon || '')
-                : '';
-              const checked = preselectedIds.includes(v.id);
-              const hasEmail = !!(v.email && v.email.trim());
-              const titleText = (v.companyName||'(unnamed)')
-                + (v.contactPerson ? ' — '+v.contactPerson : '')
-                + (v.email ? ' · '+v.email : ' · (no email on record)');
-              return '<label style="display:inline-flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--gold)':'var(--bd)')+'" id="vnd-lbl-'+v.id+'" title="'+titleText.replace(/"/g,'&quot;')+'">'
-                +'<input type="checkbox" class="svr-vnd-cb" data-vid="'+v.id+'" id="svr-vnd-'+v.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'vnd-lbl-'+v.id+'\').style.borderColor=this.checked?\'var(--gold)\':\'var(--bd)\'">'
-                +(cat ? '<span style="font-size:11px;flex-shrink:0">'+cat+'</span>' : '')
-                +'<span style="overflow:hidden;text-overflow:ellipsis;max-width:160px;white-space:nowrap">'+(v.companyName||'(unnamed)')+'</span>'
-                +(hasEmail ? '' : '<span style="color:var(--txd);font-size:9px;opacity:.6;margin-left:2px" title="No email on record — will be skipped on send">✉?</span>')
-              +'</label>';
-            }).join('');
+          : (relVendors.map(v => buildChip(v, false)).join('')
+             + otherVendors.map(v => buildChip(v, true)).join(''));
+
+        const hasHidden = otherVendors.length > 0;
+        const filterNote = relVendors.length === 0 && hasHidden
+          ? '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);font-style:italic;padding:6px 4px 0">No vendors used on this project yet — showing your full vendor register below.</div>'
+          : '';
+        const expandedFirst = (relVendors.length === 0);  // if no relevant, show all by default
 
         return '<div style="background:rgba(240,201,122,.04);border:1px solid rgba(240,201,122,.15);border-radius:8px;padding:12px 14px;margin:8px 0 4px">'
           +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
             +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">'
               +'🏗 Contractors / Vendors on site — multiple allowed'
             +'</div>'
-            +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">tap to select · ✉? = no email</div>'
+            +(hasHidden
+              ? '<button class="btn bg" id="svr-vendor-list-toggle" data-open="0" data-collapse-label="Hide other vendors" data-expand-label="+ Show all vendors ('+otherVendors.length+')" onclick="v80ToggleHidden(\'svr-vendor-list\')" style="font-size:9px;padding:2px 8px">+ Show all vendors ('+otherVendors.length+')</button>'
+              : '<div style="font-family:var(--fm);font-size:9px;color:var(--txd)">tap to select · ✉? = no email</div>'
+            )
           +'</div>'
-          +'<div style="display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow-y:auto">'
+          + filterNote
+          +'<div id="svr-vendor-list" style="display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow-y:auto;margin-top:6px">'
             +chips
           +'</div>'
           +'<div style="margin-top:10px">'
@@ -31055,22 +31192,69 @@ function openCASVRModal(id){
 
     // ── STAFF ATTENDING THIS VISIT ────────────────────────────
     +'<div style="background:rgba(82,201,122,.04);border:1px solid rgba(82,201,122,.15);border-radius:8px;padding:12px 14px;margin:8px 0 4px">'
-      +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--grn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
-        +'👥 Staff attending this visit — creates meeting &amp; blocks schedule today'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+        +'<div style="font-family:var(--fm);font-size:9px;font-weight:700;color:var(--grn);text-transform:uppercase;letter-spacing:.06em">'
+          +'👥 Staff attending this visit — creates meeting &amp; blocks schedule today'
+        +'</div>'
+        +'<button class="btn bg" id="att-staff-list-toggle" data-open="0" data-collapse-label="Hide off-site roles" data-expand-label="+ Show all staff" onclick="v80ToggleHidden(\'att-staff-list\')" style="font-size:9px;padding:2px 8px">+ Show all staff</button>'
       +'</div>'
-      +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
-      +STAFF.filter(s=>s.type!=='contractor').map(s=>{
-        const curAttendees=r?.attendees||(r?.visitedBy?[r.visitedBy]:[CURRENT_USER_ID]);
-        const checked=curAttendees.includes(s.id);
-        return '<label style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--grn)':'var(--bd)')+'" id="att-lbl-'+s.id+'">'
-          +'<input type="checkbox" id="att-svr-'+s.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'att-lbl-'+s.id+'\').style.borderColor=this.checked?\'var(--grn)\':\' var(--bd)\'">'
-          +'<div style="width:16px;height:16px;border-radius:50%;background:'+s.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:6px;color:#0a0a0f;flex-shrink:0">'+s.first[0]+s.last[0]+'</div>'
-          +s.first+'</label>';
-      }).join('')
+      +'<div id="att-staff-list" style="display:flex;flex-wrap:wrap;gap:6px">'
+      // v101.80 — filtered to site-relevant roles by default. Off-site
+      // roles (Principal, Associate Principal, Interior Designer, Intern,
+      // Consultant) render with [data-v80-hidden] so they're hidden
+      // until "+ Show all staff" is clicked. The project's lead /
+      // projectArchitect / projectManager are always visible regardless
+      // of role. Pre-checked attendees include those leads + current user.
+      +(function(){
+        // v101.80 — smart defaults: if creating a NEW SVR, pre-check
+        // the project's leadArchitect / projectArchitect / projectManager
+        // alongside the current user. Existing SVRs keep their attendees.
+        let curAttendees;
+        if(r){
+          curAttendees = r.attendees || (r.visitedBy ? [r.visitedBy] : [CURRENT_USER_ID]);
+        } else {
+          const p = (PROJS || []).find(x => x.id === projId);
+          const defaults = [CURRENT_USER_ID];
+          if(p){
+            if(p.leadArchitect && !defaults.includes(p.leadArchitect)) defaults.push(p.leadArchitect);
+            if(p.projectArchitect && !defaults.includes(p.projectArchitect)) defaults.push(p.projectArchitect);
+            if(p.projectManager && !defaults.includes(p.projectManager)) defaults.push(p.projectManager);
+          }
+          curAttendees = defaults;
+        }
+
+        return STAFF.filter(s => s.type !== 'contractor').map(s => {
+          const checked = curAttendees.includes(s.id);
+          const isSiteRel = _v80IsSiteRelevantStaff(s, projId);
+          // Always show pre-checked attendees even if off-site role
+          const visible = isSiteRel || checked;
+          const hiddenAttr = visible ? '' : ' data-v80-hidden style="display:none"';
+          return '<label data-role-vis="'+(visible?'1':'0')+'" style="display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;cursor:pointer;padding:5px 9px;border-radius:6px;background:var(--sf3);border:1px solid '+(checked?'var(--grn)':'var(--bd)')+'" id="att-lbl-'+s.id+'"'+(visible?'':' data-v80-hidden')+'>'
+            +'<input type="checkbox" id="att-svr-'+s.id+'" '+(checked?'checked':'')+' onchange="document.getElementById(\'att-lbl-'+s.id+'\').style.borderColor=this.checked?\'var(--grn)\':\' var(--bd)\'">'
+            +'<div style="width:16px;height:16px;border-radius:50%;background:'+s.color+';display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:6px;color:#0a0a0f;flex-shrink:0">'+s.first[0]+s.last[0]+'</div>'
+            +s.first
+            +(isSiteRel ? '' : '<span style="font-size:8px;color:var(--txd);margin-left:2px" title="'+s.role+' — not typically on site">·'+s.role.split(' ')[0].slice(0,3)+'</span>')
+            +'</label>';
+        }).join('');
+      })()
       +'</div>'
     +'</div>'
 
     // ── SITE OBSERVATIONS ─────────────────────────────────────
+    // v101.80 — Surface a suggestion list of drawings currently in
+    // progress or in checking on this project. User can tap any to
+    // append to the comma-separated field. Not auto-applied — they
+    // explicitly opt in.
+    +(function(){
+      if(isEdit) return '';  // only on new SVRs
+      const open = _v80OpenDrawingsForProject(projId).slice(0, 8);
+      if(!open.length) return '';
+      const chips = open.map(d => '<button type="button" onclick="(function(){var f=document.getElementById(\'svr-drws\');var cur=(f.value||\'\').trim();var add=\''+d.id+'\';if(cur.split(/\\s*,\\s*/).indexOf(add)<0){f.value=cur?(cur+\', \'+add):add;}})()" class="btn bg bsm" style="font-size:9px;padding:3px 7px">'+d.id+'</button>').join(' ');
+      return '<div style="background:rgba(82,144,201,.05);border:1px solid rgba(82,144,201,.18);border-radius:7px;padding:8px 11px;margin-top:8px;margin-bottom:4px">'
+        +'<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">💡 Open on this project — tap to add</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+chips+'</div>'
+        +'</div>';
+    })()
     +'<div class="frow"><label class="flbl" for="svr-drws">Drawings Checked on Site</label><input class="finp" id="svr-drws" value="'+(r?.drawingsChecked?.join(', ')||'')+'" placeholder="e.g. CP-A-001, CP-S-001 (comma-separated)"></div>'
     +'<div class="frow"><label class="flbl" for="svr-obs">Observations</label><textarea class="ftarea" id="svr-obs" rows="3" placeholder="Progress observed, quality, compliance with drawings, materials on site…">'+(r?.observations||'')+'</textarea></div>'
     +'<div class="frow"><label class="flbl" style="display:flex;align-items:center;justify-content:space-between" for="svr-instr">Issues Found <button class="btn bg bsm" onclick="addCASVRIssue()" style="font-size:9px">+ Add Issue</button></label>'
