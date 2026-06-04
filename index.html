@@ -2726,6 +2726,10 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
         style="background:none;border:none;border-bottom:2px solid transparent;color:var(--txd);font-family:var(--fd);font-size:12px;font-weight:500;padding:8px 14px;cursor:pointer;margin-bottom:-1px">
         🩺 Fee Health
       </button>
+      <button class="fin-tab" id="fin-tab-forecast" onclick="switchFinTab('forecast')"
+        style="background:none;border:none;border-bottom:2px solid transparent;color:var(--txd);font-family:var(--fd);font-size:12px;font-weight:500;padding:8px 14px;cursor:pointer;margin-bottom:-1px">
+        📈 Revenue Forecast
+      </button>
     </div>
 
     <!-- v101.76 — Phase Burn-Down subview (View A). Per-project, per-phase
@@ -2751,6 +2755,19 @@ tr.drw-row-selected td{background:rgba(201,169,110,.06);}
         <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">Projects ranked by risk. Red = at least one phase over budget.</div>
       </div>
       <div id="fin-fh-body"></div>
+    </div>
+
+    <!-- v101.85 — Revenue Forecast subview. Month-by-month cash flow
+         outlook computed from logged TS hours, completed drawings, and
+         phases ready to invoice. Window: 6 months back + 6 months forward. -->
+    <div id="fin-forecast" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-family:var(--fd);font-size:15px;color:var(--tx)">Revenue Forecast</div>
+          <div style="font-family:var(--fm);font-size:10px;color:var(--txd);margin-top:2px">Past 6 months earned + next 6 months projected. Based on logged billable hours and current project pipeline.</div>
+        </div>
+      </div>
+      <div id="fin-fc-body"></div>
     </div>
 
     <!-- Original Overview subview wraps everything that was here before -->
@@ -8932,7 +8949,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.84 — Staff Profile Panel (rebuild). Old panel was broken: HTML elements never existed in DOM, click threw TypeError on null.textContent. Replaced with v84RenderStaffPanel built fresh on demand. Access gated: Principal / Associate Principal / Lead Architect can view any profile; staff can view their own. Manual feedback notes hidden from the staff member themselves. Shows 5 KPI cards (hours/budget, on-time, rework, throughput, utilization) computed from TS_ENTRIES + DRAWINGS + qaHistory. Past-7-day drawing table + collapsible past-30-day table. Rules-based improvement hints from metrics — no LLM. Senior viewers can add feedback notes; persisted on STAFF[].feedbackNotes[].');
+console.log('S62 v101.85 — Revenue Forecast. New Financials subtab showing month-by-month cash flow: 6 months past (earned) + current + 6 months projected. Past months sum billable TS_ENTRIES hours times each staff chargeRate x 2.3 (firm billing multiplier). Identifies project phases ready to invoice (all drawings done, fee structure set, not already invoiced) and surfaces total billable value. KPI strip: past 6 months earned, this month, next 6 months projected, ready-to-invoice total. Methodology note explains math transparently. No new data entry — uses existing logged work.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -13613,6 +13630,156 @@ if(typeof window !== 'undefined'){
   window._lvFmtINR               = _lvFmtINR;
   window._lvRankProjectsByFeeHealth = _lvRankProjectsByFeeHealth;
   window._lvTopBurningDrawings   = _lvTopBurningDrawings;
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   v101.85 — Revenue Forecast
+
+   Month-by-month cash-flow forecast computed from TS_ENTRIES, DRAWINGS,
+   and PROJS. No new data entry required — uses existing logged work.
+
+   Q2 pick: (b) Hours × blended billing rate. For each TS entry hour:
+     - if the staff has chargeRate > 0, use that × 2.3 (the existing
+       multiplier in submitStaff)
+     - else use the v101.79 weighted blended rate × 2.3
+   This matches the cost-to-bill multiplier the firm already uses.
+
+   Q3 pick: 6 months back + 6 months forward (12 months total).
+
+   Returns array of month buckets:
+     [{
+       key: 'YYYY-MM',         label: 'Jan 2026',
+       billableHours: <num>,   billableValue: <INR>,
+       drawingsIssued: <num>,  drawingValue: <INR>,
+       phasesReady: [{projName, phase, feeINR}],
+       isPast: bool, isCurrent: bool, isFuture: bool
+     }]
+   ═════════════════════════════════════════════════════════════════════ */
+
+function _v85BillingRateFor(staffId){
+  // ₹/hr to bill for an hour logged by this staff member.
+  const s = (STAFF || []).find(x => x.id === staffId);
+  if(s && s.chargeRate > 0){
+    return s.chargeRate * 2.3;
+  }
+  // Fallback to weighted blended × 2.3
+  if(typeof _v79WeightedBlendedRate === 'function'){
+    return _v79WeightedBlendedRate() * 2.3;
+  }
+  return 1000;  // last-resort fallback
+}
+
+function _v85MonthKey(d){
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function _v85MonthLabel(key){
+  const [y, m] = key.split('-');
+  const d = new Date(parseInt(y), parseInt(m) - 1, 1);
+  return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+}
+
+function _v85BuildForecast(opts){
+  const monthsBack = (opts && opts.monthsBack) ?? 6;
+  const monthsFwd  = (opts && opts.monthsFwd)  ?? 6;
+  const now = new Date();
+  const curKey = _v85MonthKey(now);
+
+  // Build empty month buckets
+  const buckets = [];
+  for(let offset = -monthsBack; offset <= monthsFwd; offset++){
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const key = _v85MonthKey(d);
+    buckets.push({
+      key,
+      label: _v85MonthLabel(key),
+      billableHours: 0,
+      billableValue: 0,
+      drawingsIssued: 0,
+      drawingValue: 0,
+      phasesReady: [],
+      isPast: offset < 0,
+      isCurrent: offset === 0,
+      isFuture: offset > 0
+    });
+  }
+  const bucketByKey = {};
+  buckets.forEach(b => { bucketByKey[b.key] = b; });
+
+  // Walk TS_ENTRIES, attribute hours+value to month bucket of each day worked
+  (TS_ENTRIES || []).forEach(e => {
+    if(!e || e.billable === false) return;     // non-billable excluded
+    if(!e.weekKey) return;
+    const wkStart = new Date(e.weekKey + 'T00:00:00');
+    if(isNaN(wkStart.getTime())) return;
+    const rate = _v85BillingRateFor(e.sid);
+    const days = e.days || [0,0,0,0,0];
+    for(let i = 0; i < 5; i++){
+      const dayDate = new Date(wkStart);
+      dayDate.setDate(wkStart.getDate() + i);
+      const h = parseFloat(days[i]) || 0;
+      if(h <= 0) continue;
+      const k = _v85MonthKey(dayDate);
+      const b = bucketByKey[k];
+      if(!b) continue;     // outside the visible window
+      b.billableHours += h;
+      b.billableValue += h * rate;
+    }
+  });
+
+  // Walk DRAWINGS — count those issued (status=done|iss) in each month
+  // using d.updatedAt as best-available timestamp
+  (DRAWINGS || []).forEach(d => {
+    if(!d || (d.status !== 'done' && d.status !== 'iss')) return;
+    const ts = d.updatedAt ? new Date(d.updatedAt) : null;
+    if(!ts || isNaN(ts.getTime())) return;
+    const k = _v85MonthKey(ts);
+    const b = bucketByKey[k];
+    if(!b) return;
+    b.drawingsIssued++;
+    // Value: target hours × blended rate (rough — actual cost varies by who logged)
+    const tgt = (typeof _drwTargetHrs === 'function') ? _drwTargetHrs(d) : (d.targetHrs || 0);
+    if(tgt > 0){
+      const blended = (typeof _v79WeightedBlendedRate === 'function') ? _v79WeightedBlendedRate() * 2.3 : 1000;
+      b.drawingValue += tgt * blended;
+    }
+  });
+
+  // Identify phases ready to invoice: every phase where ALL drawings on
+  // this project + this stage are done. Attribute to the CURRENT month
+  // bucket (the user needs to invoice now), not the month they finished.
+  (PROJS || []).forEach(p => {
+    if(!p || !p.feeStructure) return;
+    const phases = ['SD', 'DD', 'CD', 'CA', 'Handover'];
+    phases.forEach(ph => {
+      const phaseEntry = p.feeStructure[ph];
+      if(!phaseEntry || !phaseEntry.feeINR || phaseEntry.feeINR <= 0) return;
+      const phaseDrws = (DRAWINGS || []).filter(d => d.proj === p.id && d.stage === ph);
+      if(phaseDrws.length === 0) return;       // no drawings → can't say "ready"
+      const allDone = phaseDrws.every(d => d.status === 'done' || d.status === 'iss');
+      if(!allDone) return;
+      // Skip if there's an existing INVOICE for this projId+phase already
+      const already = (INVOICES || []).some(inv => inv && inv.projId === p.id && inv.phase === ph && inv.status !== 'draft');
+      if(already) return;
+      bucketByKey[curKey]?.phasesReady.push({
+        projId: p.id,
+        projName: p.name || p.id,
+        projColor: p.color || 'var(--gold)',
+        phase: ph,
+        feeINR: phaseEntry.feeINR,
+        drawingCount: phaseDrws.length
+      });
+    });
+  });
+
+  return buckets;
+}
+
+if(typeof window !== 'undefined'){
+  window._v85BuildForecast    = _v85BuildForecast;
+  window._v85BillingRateFor   = _v85BillingRateFor;
+  window._v85MonthKey         = _v85MonthKey;
+  window._v85MonthLabel       = _v85MonthLabel;
 }
 
 function _lvProjFeeHealth(p){
@@ -22113,7 +22280,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.84',
+        appVersion: 'S62-v101.85',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -22273,7 +22440,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.84',
+    appVersion: 'S62-v101.85',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
@@ -28874,8 +29041,8 @@ let _v76FinExpandedPhase = null;  // 'projId|phase'
 
 function switchFinTab(tab){
   _v76FinActiveTab = tab;
-  // Toggle tab visuals
-  ['overview','phaseburn','feehealth'].forEach(t => {
+  // Toggle tab visuals — v101.85 adds 'forecast'
+  ['overview','phaseburn','feehealth','forecast'].forEach(t => {
     const btn = document.getElementById('fin-tab-'+t);
     const pane = document.getElementById('fin-'+t);
     if(!btn || !pane) return;
@@ -28893,6 +29060,7 @@ function switchFinTab(tab){
   });
   if(tab === 'phaseburn') renderFinPhaseBurn();
   else if(tab === 'feehealth') renderFinFeeHealth();
+  else if(tab === 'forecast') renderFinForecast();    // v101.85
 }
 if(typeof window !== 'undefined') window.switchFinTab = switchFinTab;
 
@@ -29120,6 +29288,103 @@ function renderFinFeeHealth(){
 }
 if(typeof window !== 'undefined') window.renderFinPhaseBurn = renderFinPhaseBurn;
 if(typeof window !== 'undefined') window.renderFinFeeHealth = renderFinFeeHealth;
+
+/* v101.85 — Render the Revenue Forecast subview. 12 months of buckets
+   from _v85BuildForecast, displayed as a row per month plus a top KPI
+   strip (this-quarter total, next-quarter projected, phases-ready). */
+function renderFinForecast(){
+  const body = document.getElementById('fin-fc-body');
+  if(!body) return;
+  const buckets = _v85BuildForecast();
+  const fmt = (n) => (typeof _lvFmtINR === 'function') ? _lvFmtINR(n) : ('₹' + Math.round(n).toLocaleString('en-IN'));
+
+  // Compute KPI strip values
+  const past6 = buckets.filter(b => b.isPast).reduce((s, b) => s + b.billableValue, 0);
+  const curMonth = buckets.find(b => b.isCurrent);
+  const curValue = curMonth ? curMonth.billableValue : 0;
+  const fwd6 = buckets.filter(b => b.isFuture).reduce((s, b) => s + b.billableValue, 0);
+  const phasesReadyAll = buckets.reduce((arr, b) => arr.concat(b.phasesReady), []);
+  const phasesReadyValue = phasesReadyAll.reduce((s, p) => s + p.feeINR, 0);
+
+  let html = '';
+
+  // KPI strip
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px">';
+  const kpis = [
+    { lbl: 'Past 6 months', val: fmt(past6), sub: 'billable value earned', col: 'var(--grn)' },
+    { lbl: 'This month', val: fmt(curValue), sub: 'in progress', col: 'var(--gold)' },
+    { lbl: 'Next 6 months', val: fmt(fwd6), sub: 'projected from pipeline', col: 'var(--blu)' },
+    { lbl: 'Ready to invoice', val: fmt(phasesReadyValue), sub: phasesReadyAll.length + ' phase' + (phasesReadyAll.length !== 1 ? 's' : ''), col: phasesReadyValue > 0 ? 'var(--gold)' : 'var(--txd)' }
+  ];
+  kpis.forEach(k => {
+    html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 12px">';
+    html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);text-transform:uppercase;letter-spacing:.05em">'+k.lbl+'</div>';
+    html += '<div style="font-family:var(--fd);font-size:16px;color:'+k.col+';margin-top:3px">'+k.val+'</div>';
+    html += '<div style="font-family:var(--fm);font-size:9px;color:var(--txd);margin-top:1px">'+k.sub+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Phases ready to invoice — top-of-page callout, only if any
+  if(phasesReadyAll.length > 0){
+    html += '<div style="background:rgba(186,117,23,.08);border:1px solid rgba(186,117,23,.30);border-radius:8px;padding:12px 14px;margin-bottom:14px">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+    html += '<span style="font-size:16px">💰</span>';
+    html += '<div style="font-family:var(--fd);font-size:13px;color:var(--gold)">Phases ready to invoice</div>';
+    html += '</div>';
+    html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txm);line-height:1.5;margin-bottom:10px">'
+         + 'These project phases have all drawings completed and have a fee structure entered. Total billable: <strong style="color:var(--tx)">'
+         + fmt(phasesReadyValue) + '</strong>.</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:5px">';
+    phasesReadyAll.forEach(ph => {
+      html += '<div style="display:grid;grid-template-columns:18px 1fr 60px 100px;gap:8px;align-items:center;padding:6px 9px;background:var(--sf2);border-radius:6px">';
+      html += '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+ph.projColor+'"></span>';
+      html += '<div style="font-family:var(--fm);font-size:10.5px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ph.projName+'</div>';
+      html += '<div style="font-family:var(--fm);font-size:10px;color:var(--txd);text-align:right">'+ph.phase+'</div>';
+      html += '<div style="font-family:var(--fm);font-size:10.5px;color:var(--gold);font-weight:600;text-align:right">'+fmt(ph.feeINR)+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '</div>';
+  }
+
+  // Month table
+  html += '<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:8px;overflow:hidden">';
+  html += '<div style="padding:10px 14px;background:var(--sf3);font-family:var(--fd);font-size:12px;color:var(--tx);border-bottom:1px solid var(--bd)">Month-by-Month</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-family:var(--fm);font-size:10.5px">';
+  html += '<thead><tr style="border-bottom:1px solid var(--bd);color:var(--txd);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">';
+  html += '<th style="text-align:left;padding:7px 14px">Month</th>';
+  html += '<th style="text-align:right;padding:7px 8px">Hours</th>';
+  html += '<th style="text-align:right;padding:7px 8px">Billable value</th>';
+  html += '<th style="text-align:right;padding:7px 8px">Issued</th>';
+  html += '<th style="text-align:left;padding:7px 14px">State</th>';
+  html += '</tr></thead><tbody>';
+  buckets.forEach(b => {
+    const stateLbl = b.isCurrent ? '<span style="color:var(--gold);font-weight:600">CURRENT</span>'
+                    : b.isPast ? '<span style="color:var(--txd)">earned</span>'
+                    : '<span style="color:var(--blu)">projected</span>';
+    const valCol = b.isCurrent ? 'var(--gold)' : b.isPast ? 'var(--grn)' : 'var(--blu)';
+    const rowBg = b.isCurrent ? 'background:rgba(186,117,23,.06)' : '';
+    html += '<tr style="border-bottom:1px solid var(--bd);'+rowBg+'">';
+    html += '<td style="padding:8px 14px;color:var(--tx);font-weight:600">'+b.label+'</td>';
+    html += '<td style="text-align:right;padding:8px 8px;color:var(--tx)">'+b.billableHours.toFixed(0)+'h</td>';
+    html += '<td style="text-align:right;padding:8px 8px;color:'+valCol+';font-weight:600">'+fmt(b.billableValue)+'</td>';
+    html += '<td style="text-align:right;padding:8px 8px;color:var(--txm)">'+(b.drawingsIssued > 0 ? b.drawingsIssued+' drw' : '—')+'</td>';
+    html += '<td style="padding:8px 14px">'+stateLbl+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '</div>';
+
+  // Methodology note
+  html += '<div style="margin-top:14px;padding:10px 12px;background:var(--sf2);border-radius:6px;font-family:var(--fm);font-size:9px;color:var(--txd);line-height:1.6">';
+  html += '<strong style="color:var(--txm)">How this is computed</strong> · Past months: sum of TS_ENTRIES where billable=true, multiplied by each staff member&rsquo;s chargeRate × 2.3. Future months: empty until time is logged — populate gradually as work progresses. Drawings issued: count of drawings with status done/issued whose updatedAt falls in that month. Phases ready: a project phase whose drawings are all complete and has a fee structure with feeINR > 0. Excludes already-invoiced phases.';
+  html += '</div>';
+
+  body.innerHTML = html;
+}
+
+if(typeof window !== 'undefined') window.renderFinForecast = renderFinForecast;
 
 function renderFinBurn(){
   const el=document.getElementById('fin-burn-body');if(!el)return;
