@@ -7480,10 +7480,15 @@ function _v84StaffMetrics(sid, rangeStart, rangeEnd){
   (TS_ENTRIES || []).forEach(e => {
     if(!e || e.sid !== sid) return;
     if(!e.weekKey) return;
-    // Convert weekKey + days array to per-day hours
-    // weekKey format: 'YYYY-MM-DD' for Monday of that week
-    const wkStart = new Date(e.weekKey + 'T00:00:00');
-    if(isNaN(wkStart.getTime())) return;
+    // v101.86 fix — Use the weekKey parser that handles 'YYYY-Www' format.
+    // The previous 'new Date(weekKey + T00:00:00)' only worked for the
+    // legacy 'YYYY-MM-DD' shape, producing invalid Date for the current
+    // format and silently dropping every entry. The staff profile panel
+    // (v101.84) was showing 0 hours for everyone because of this.
+    const wkStart = (typeof _v86ParseWeekKeyToMonday === 'function')
+      ? _v86ParseWeekKeyToMonday(e.weekKey)
+      : new Date(e.weekKey + 'T00:00:00');
+    if(!wkStart || isNaN(wkStart.getTime())) return;
     const days = e.days || [0,0,0,0,0];
     for(let i = 0; i < 5; i++){
       const d = new Date(wkStart);
@@ -8949,7 +8954,7 @@ window.s62Diagnose = function(){
   console.groupEnd();
   return 'Diagnostic complete — see console output above.';
 };
-console.log('S62 v101.85 — Revenue Forecast. New Financials subtab showing month-by-month cash flow: 6 months past (earned) + current + 6 months projected. Past months sum billable TS_ENTRIES hours times each staff chargeRate x 2.3 (firm billing multiplier). Identifies project phases ready to invoice (all drawings done, fee structure set, not already invoiced) and surfaces total billable value. KPI strip: past 6 months earned, this month, next 6 months projected, ready-to-invoice total. Methodology note explains math transparently. No new data entry — uses existing logged work.');
+console.log('S62 v101.86 — Bug fix: Revenue Forecast (v101.85) and Staff Profile metrics (v101.84) both parsed TS weekKey wrong. They expected YYYY-MM-DD, but the system uses YYYY-Www (year + ISO-style week number) per tsWeekKey. The wrong parse silently produced invalid Date objects, dropping every TS entry from the calculation, resulting in 0h across all months and 0h per staff. New _v86ParseWeekKeyToMonday helper correctly inverts tsWeekKey for both formats. Past 6 months on Revenue Forecast should now populate with real billable values.');
 function getTemplate(tid){
   return DRW_TEMPLATES.find(t => t.id === tid);
 }
@@ -13679,6 +13684,56 @@ function _v85MonthLabel(key){
   return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
 }
 
+/* v101.86 — Parse a tsWeekKey ('YYYY-Www') into the Monday Date of that
+   week. The forward algorithm (in tsWeekKey) is:
+     wk = ceil(((mon - jan1)/86400000 + jan1.getDay() + 1) / 7)
+   This inverse uses iteration so it stays aligned with the custom
+   (non-ISO-8601) calendar logic the rest of the app uses.
+   v101.85's _v85BuildForecast was parsing weekKey as 'YYYY-MM-DD' which
+   silently produced invalid Dates and dropped all TS entries from the
+   forecast — leading to ₹0 across all months. */
+function _v86ParseWeekKeyToMonday(weekKey){
+  if(typeof weekKey !== 'string') return null;
+  // Accept both formats:
+  //   YYYY-MM-DD (legacy, if any) → parse directly
+  //   YYYY-Www (current) → iterate
+  const wMatch = weekKey.match(/^(\d{4})-W(\d{1,2})$/);
+  if(wMatch){
+    const year = parseInt(wMatch[1]);
+    const wk = parseInt(wMatch[2]);
+    if(!year || !wk) return null;
+    // Find the Monday whose tsWeekKey matches. Start from Jan 4 (always
+    // in week 1 by most week algorithms) and walk back to its Monday,
+    // then add (wk-1)*7 days.
+    const seed = new Date(year, 0, 4);     // Jan 4 of target year
+    const seedDOW = seed.getDay();          // 0=Sun
+    // Walk seed back to its Monday: ((dow+6)%7) days back
+    const seedMon = new Date(seed);
+    seedMon.setDate(seed.getDate() - ((seedDOW + 6) % 7));
+    seedMon.setHours(0, 0, 0, 0);
+    // Now seedMon is the Monday of week containing Jan 4.
+    // Compute its tsWeekKey-style number using the same forward formula
+    // to determine what week number seedMon falls in, then offset.
+    const jan1 = new Date(year, 0, 1);
+    const seedWk = Math.ceil(((seedMon - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+    // Monday of target week:
+    const target = new Date(seedMon);
+    target.setDate(seedMon.getDate() + (wk - seedWk) * 7);
+    return target;
+  }
+  // Legacy YYYY-MM-DD format
+  const dMatch = weekKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(dMatch){
+    const d = new Date(weekKey + 'T00:00:00');
+    if(!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+if(typeof window !== 'undefined'){
+  window._v86ParseWeekKeyToMonday = _v86ParseWeekKeyToMonday;
+}
+
 function _v85BuildForecast(opts){
   const monthsBack = (opts && opts.monthsBack) ?? 6;
   const monthsFwd  = (opts && opts.monthsFwd)  ?? 6;
@@ -13710,8 +13765,11 @@ function _v85BuildForecast(opts){
   (TS_ENTRIES || []).forEach(e => {
     if(!e || e.billable === false) return;     // non-billable excluded
     if(!e.weekKey) return;
-    const wkStart = new Date(e.weekKey + 'T00:00:00');
-    if(isNaN(wkStart.getTime())) return;
+    // v101.86 — Use the proper weekKey parser. Was 'new Date(e.weekKey + T00:00:00)'
+    // which only worked for the legacy YYYY-MM-DD format and produced invalid
+    // Date for the current YYYY-Www format → all entries silently dropped.
+    const wkStart = _v86ParseWeekKeyToMonday(e.weekKey);
+    if(!wkStart || isNaN(wkStart.getTime())) return;
     const rate = _v85BillingRateFor(e.sid);
     const days = e.days || [0,0,0,0,0];
     for(let i = 0; i < 5; i++){
@@ -22280,7 +22338,7 @@ if (typeof window !== 'undefined'){
       const minimal = {
         schemaVersion: 8,
         savedAt: new Date().toISOString(),
-        appVersion: 'S62-v101.85',
+        appVersion: 'S62-v101.86',
         firmConfig: preservedFirm
         // No other fields — preserves in-code seeds during boot
       };
@@ -22440,7 +22498,7 @@ function packData() {
   return {
     schemaVersion: S62_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
-    appVersion: 'S62-v101.85',
+    appVersion: 'S62-v101.86',
     projs:         PROJS,
     drawings:      DRAWINGS,
     staff:         STAFF,
